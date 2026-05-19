@@ -14,7 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      claims: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          name: string
+          package: string
+          paid: boolean
+          postcode: string
+          user_id: string
+          years_selected: number[]
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          name: string
+          package: string
+          paid?: boolean
+          postcode: string
+          user_id: string
+          years_selected?: number[]
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          name?: string
+          package?: string
+          paid?: boolean
+          postcode?: string
+          user_id?: string
+          years_selected?: number[]
+        }
+        Relationships: []
+      }
+      noise_logs: {
+        Row: {
+          altitude: number | null
+          created_at: string
+          db_level: number | null
+          flight_number: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          altitude?: number | null
+          created_at?: string
+          db_level?: number | null
+          flight_number?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          altitude?: number | null
+          created_at?: string
+          db_level?: number | null
+          flight_number?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          postcode: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id: string
+          postcode?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          postcode?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
