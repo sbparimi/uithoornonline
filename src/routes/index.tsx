@@ -36,31 +36,60 @@ const GREETING: Msg = {
   ],
 };
 
+const ALLOWED_ROUTES = new Set(["/check", "/claim", "/log", "/map"]);
+const STORAGE_KEY = "uithoorn.chat.v1";
+
+function loadPersisted(): { messages: Msg[]; slots: Slots } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.messages)) return null;
+    return { messages: parsed.messages, slots: parsed.slots ?? {} };
+  } catch {
+    return null;
+  }
+}
+
 function ChatHome() {
   const navigate = useNavigate();
   const callChat = useServerFn(chatTurn);
-  const [messages, setMessages] = useState<Msg[]>([GREETING]);
-  const [slots, setSlots] = useState<Slots>({});
+  const [messages, setMessages] = useState<Msg[]>(() => loadPersisted()?.messages ?? [GREETING]);
+  const [slots, setSlots] = useState<Slots>(() => loadPersisted()?.slots ?? {});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots }));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [messages, slots]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === "assistant") return i;
+    return -1;
+  })();
+
   const handleAction = (action: string) => {
     if (action.startsWith("route:")) {
-      navigate({ to: action.slice(6) as any });
+      const path = action.slice(6);
+      if (ALLOWED_ROUTES.has(path)) navigate({ to: path as any });
       return;
     }
-    if (action.startsWith("ask:")) {
-      send(action.slice(4));
-    }
+    if (action.startsWith("ask:")) send(action.slice(4));
   };
 
   const send = async (text: string) => {
-    const trimmed = text.trim();
+    const trimmed = text.trim().slice(0, 2000);
     if (!trimmed || loading) return;
     const next: Msg[] = [...messages, { role: "user", content: trimmed }];
     setMessages(next);
@@ -91,13 +120,23 @@ function ChatHome() {
       ]);
     } finally {
       setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  };
+
+  const resetChat = () => {
+    setMessages([GREETING]);
+    setSlots({});
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
     }
   };
 
   return (
     <AppShell>
       <div className="flex flex-col" style={{ height: "calc(100dvh - 56px - 80px)" }}>
-        {/* Hero strip */}
         <div className="bg-navy text-navy-foreground px-5 py-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-red grid place-items-center shadow-lg shadow-red/30">
             <Sparkles size={18} className="text-white" />
@@ -106,55 +145,56 @@ function ChatHome() {
             <div className="font-serif text-lg">Uithoorn-assistent</div>
             <div className="text-[11px] text-white/60">Schiphol-overlast · live online</div>
           </div>
-          <div className="ml-auto flex items-center gap-1.5 text-[10px] text-white/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            actief
-          </div>
+          <button
+            onClick={resetChat}
+            className="ml-auto text-[10px] text-white/70 hover:text-white underline-offset-2 hover:underline"
+            aria-label="Nieuw gesprek"
+          >
+            nieuw gesprek
+          </button>
         </div>
 
-        {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-              <div className="max-w-[85%] space-y-2">
-                <div
-                  className={
-                    m.role === "user"
-                      ? "rounded-2xl rounded-br-md bg-red text-red-foreground px-4 py-2.5 text-[15px] leading-snug shadow-sm"
-                      : "rounded-2xl rounded-bl-md bg-white border border-border px-4 py-2.5 text-[15px] leading-snug text-navy shadow-sm prose prose-sm max-w-none prose-p:my-1 prose-strong:text-navy"
-                  }
-                >
-                  {m.role === "assistant" ? (
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
-                  ) : (
-                    m.content
+          {messages.map((m, i) => {
+            const showQR = i === lastAssistantIdx && !loading;
+            return (
+              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div className="max-w-[85%] space-y-2">
+                  <div
+                    className={
+                      m.role === "user"
+                        ? "rounded-2xl rounded-br-md bg-red text-red-foreground px-4 py-2.5 text-[15px] leading-snug shadow-sm"
+                        : "rounded-2xl rounded-bl-md bg-white border border-border px-4 py-2.5 text-[15px] leading-snug text-navy shadow-sm prose prose-sm max-w-none prose-p:my-1 prose-strong:text-navy"
+                    }
+                  >
+                    {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
+                  </div>
+                  {showQR && m.quickReplies && m.quickReplies.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {m.quickReplies.map((q, j) => {
+                        const isRoute = q.action.startsWith("route:");
+                        return (
+                          <button
+                            key={j}
+                            onClick={() => handleAction(q.action)}
+                            disabled={loading}
+                            className={
+                              isRoute
+                                ? "rounded-full bg-navy text-white text-xs font-medium px-3.5 py-1.5 hover:bg-navy/90 disabled:opacity-50 transition"
+                                : "rounded-full bg-white border border-navy/20 text-navy text-xs font-medium px-3.5 py-1.5 hover:border-red hover:text-red disabled:opacity-50 transition"
+                            }
+                          >
+                            {isRoute && "→ "}
+                            {q.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-                {m.role === "assistant" && m.quickReplies && m.quickReplies.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {m.quickReplies.map((q, j) => {
-                      const isRoute = q.action.startsWith("route:");
-                      return (
-                        <button
-                          key={j}
-                          onClick={() => handleAction(q.action)}
-                          disabled={loading}
-                          className={
-                            isRoute
-                              ? "rounded-full bg-navy text-white text-xs font-medium px-3.5 py-1.5 hover:bg-navy/90 disabled:opacity-50 transition"
-                              : "rounded-full bg-white border border-navy/20 text-navy text-xs font-medium px-3.5 py-1.5 hover:border-red hover:text-red disabled:opacity-50 transition"
-                          }
-                        >
-                          {isRoute && "→ "}
-                          {q.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           {loading && (
             <div className="flex justify-start">
               <div className="rounded-2xl rounded-bl-md bg-white border border-border px-4 py-3 flex items-center gap-2 text-navy/50 text-sm">
@@ -165,7 +205,6 @@ function ChatHome() {
           )}
         </div>
 
-        {/* Composer */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -175,10 +214,12 @@ function ChatHome() {
         >
           <div className="flex items-center gap-2 rounded-full bg-white border border-border pl-4 pr-1.5 py-1.5 shadow-sm focus-within:border-navy">
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Typ je vraag…"
               disabled={loading}
+              maxLength={2000}
               className="flex-1 bg-transparent outline-none text-[15px] py-1.5 disabled:opacity-50"
             />
             <button
