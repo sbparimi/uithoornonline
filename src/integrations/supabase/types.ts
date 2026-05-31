@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_eval_runs: {
+        Row: {
+          actual_answer: string | null
+          citation_count: number
+          created_at: string
+          expected_keywords: string[]
+          id: string
+          must_cite: boolean
+          notes: string | null
+          passed: boolean
+          question: string
+          run_id: string
+        }
+        Insert: {
+          actual_answer?: string | null
+          citation_count?: number
+          created_at?: string
+          expected_keywords?: string[]
+          id?: string
+          must_cite?: boolean
+          notes?: string | null
+          passed?: boolean
+          question: string
+          run_id: string
+        }
+        Update: {
+          actual_answer?: string | null
+          citation_count?: number
+          created_at?: string
+          expected_keywords?: string[]
+          id?: string
+          must_cite?: boolean
+          notes?: string | null
+          passed?: boolean
+          question?: string
+          run_id?: string
+        }
+        Relationships: []
+      }
       claims: {
         Row: {
           address: string
@@ -47,6 +86,89 @@ export type Database = {
           postcode?: string
           user_id?: string
           years_selected?: number[]
+        }
+        Relationships: []
+      }
+      knowledge_chunks: {
+        Row: {
+          content: string
+          content_hash: string
+          embedding: string
+          fetched_at: string
+          id: string
+          language: string
+          model_version: string
+          source_id: string | null
+          source_title: string | null
+          source_type: string
+          source_url: string
+        }
+        Insert: {
+          content: string
+          content_hash: string
+          embedding: string
+          fetched_at?: string
+          id?: string
+          language?: string
+          model_version?: string
+          source_id?: string | null
+          source_title?: string | null
+          source_type: string
+          source_url: string
+        }
+        Update: {
+          content?: string
+          content_hash?: string
+          embedding?: string
+          fetched_at?: string
+          id?: string
+          language?: string
+          model_version?: string
+          source_id?: string | null
+          source_title?: string | null
+          source_type?: string
+          source_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_sources: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          label: string
+          last_scraped_at: string | null
+          last_status: string | null
+          source_type: string
+          url: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label: string
+          last_scraped_at?: string | null
+          last_status?: string | null
+          source_type: string
+          url: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label?: string
+          last_scraped_at?: string | null
+          last_status?: string | null
+          source_type?: string
+          url?: string
         }
         Relationships: []
       }
@@ -115,7 +237,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_knowledge: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          fetched_at: string
+          id: string
+          similarity: number
+          source_title: string
+          source_type: string
+          source_url: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
