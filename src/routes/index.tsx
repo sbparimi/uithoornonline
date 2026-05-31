@@ -196,10 +196,11 @@ function ChatHome() {
             );
           })}
           {loading && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-md bg-white border border-border px-4 py-3 flex items-center gap-2 text-navy/50 text-sm">
-                <Loader2 size={14} className="animate-spin" />
-                aan het typen…
+            <div className="flex justify-start" aria-label="Assistent is aan het typen">
+              <div className="rounded-2xl rounded-bl-md bg-white border border-border px-4 py-3 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-navy/40 animate-bounce [animation-delay:-0.3s]" />
+                <span className="h-2 w-2 rounded-full bg-navy/40 animate-bounce [animation-delay:-0.15s]" />
+                <span className="h-2 w-2 rounded-full bg-navy/40 animate-bounce" />
               </div>
             </div>
           )}
