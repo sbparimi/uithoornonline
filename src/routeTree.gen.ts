@@ -15,6 +15,8 @@ import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as CheckRouteImport } from './routes/check'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
+import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
 
 const MapRoute = MapRouteImport.update({
   id: '/map',
@@ -46,6 +48,17 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRunEvalsRoute = ApiPublicHooksRunEvalsRouteImport.update({
+  id: '/api/public/hooks/run-evals',
+  path: '/api/public/hooks/run-evals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksIngestKnowledgeRoute =
+  ApiPublicHooksIngestKnowledgeRouteImport.update({
+    id: '/api/public/hooks/ingest-knowledge',
+    path: '/api/public/hooks/ingest-knowledge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +67,8 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
+  '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +77,8 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
+  '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +88,40 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
+  '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/check' | '/claim' | '/log' | '/map'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/check'
+    | '/claim'
+    | '/log'
+    | '/map'
+    | '/api/public/hooks/ingest-knowledge'
+    | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/check' | '/claim' | '/log' | '/map'
-  id: '__root__' | '/' | '/auth' | '/check' | '/claim' | '/log' | '/map'
+  to:
+    | '/'
+    | '/auth'
+    | '/check'
+    | '/claim'
+    | '/log'
+    | '/map'
+    | '/api/public/hooks/ingest-knowledge'
+    | '/api/public/hooks/run-evals'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/check'
+    | '/claim'
+    | '/log'
+    | '/map'
+    | '/api/public/hooks/ingest-knowledge'
+    | '/api/public/hooks/run-evals'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +131,8 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   LogRoute: typeof LogRoute
   MapRoute: typeof MapRoute
+  ApiPublicHooksIngestKnowledgeRoute: typeof ApiPublicHooksIngestKnowledgeRoute
+  ApiPublicHooksRunEvalsRoute: typeof ApiPublicHooksRunEvalsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -133,6 +179,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/run-evals': {
+      id: '/api/public/hooks/run-evals'
+      path: '/api/public/hooks/run-evals'
+      fullPath: '/api/public/hooks/run-evals'
+      preLoaderRoute: typeof ApiPublicHooksRunEvalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/ingest-knowledge': {
+      id: '/api/public/hooks/ingest-knowledge'
+      path: '/api/public/hooks/ingest-knowledge'
+      fullPath: '/api/public/hooks/ingest-knowledge'
+      preLoaderRoute: typeof ApiPublicHooksIngestKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -143,6 +203,8 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   LogRoute: LogRoute,
   MapRoute: MapRoute,
+  ApiPublicHooksIngestKnowledgeRoute: ApiPublicHooksIngestKnowledgeRoute,
+  ApiPublicHooksRunEvalsRoute: ApiPublicHooksRunEvalsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

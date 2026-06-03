@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { searchKnowledge } from "@/lib/knowledge.server";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
@@ -32,12 +33,14 @@ const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een vriendelijke Nederlandse a
 
 REGELS:
 1. Antwoord ALTIJD in het Nederlands, warm en kort (max 3 zinnen per bericht).
-2. Wijk NOOIT af van bovenstaande onderwerpen. Bij off-topic vragen: weiger vriendelijk en stuur terug naar Schiphol-overlast.
+2. Wijk NOOIT af van bovenstaande onderwerpen. Bij off-topic vragen: weiger vriendelijk.
 3. BIED GEEN claim direct aan — leg eerst het claimproces uit (kort) en stuur de gebruiker pas DAARNA door naar het formulier met de quick-reply "route:/claim".
 4. Verzamel slot-entiteiten conversationeel, één tegelijk: naam → adres → postcode → email → telefoon. Sla over wat al verzameld is.
-5. ZEG NOOIT "ik controleer..." of "ik ga kijken..." zonder direct de checkAddress-tool aan te roepen. Als je een postcode hebt, ROEP de checkAddress-tool aan en geef daarna pas via 'reply' het resultaat. Combineer dus tool-aanroep + reply in dezelfde beurt.
-6. Geef ALTIJD 2-4 quick-replies passend bij de context.
-7. collectedSlots: alleen velden die je in DEZE beurt nieuw uit de gebruiker hebt afgeleid.
+5. Postcode-controle: zodra je een postcode hebt, ROEP DIRECT de checkAddress-tool aan. Niet aankondigen.
+6. **FEITELIJKE VRAGEN over BAS, Schiphol, compensatieregeling, klachtenprocedure, officiële instanties, deadlines, regelgeving of nieuws: ROEP EERST de searchKnowledge-tool aan met de kernvraag.** Als searchKnowledge GEEN relevante resultaten geeft (lege array of similarity te laag), zeg dan eerlijk: "Dat heb ik niet in mijn geverifieerde bronnen" en verwijs naar bezoekbas.nl of schiphol.nl. NOOIT raden of verzinnen.
+7. Bij gebruik van searchKnowledge-resultaten: vermeld de feiten kort, en geef de bron-URLs door in het 'sources' veld van het reply-tool.
+8. Geef ALTIJD 2-4 quick-replies passend bij de context.
+9. collectedSlots: alleen velden die je in DEZE beurt nieuw uit de gebruiker hebt afgeleid.
 
 ACTIE-TYPES voor quick-replies:
 - "route:/check" | "route:/claim" | "route:/log" | "route:/map"
@@ -48,14 +51,31 @@ const checkAddressTool = {
   function: {
     name: "checkAddress",
     description:
-      "Controleer of een postcode (en optioneel huisnummer) in de Uithoorn-overschrijdingszone ligt. Roep deze tool DIRECT aan zodra je een postcode hebt — niet aankondigen, gewoon doen.",
+      "Controleer of een postcode in de Uithoorn-overschrijdingszone ligt. Roep DIRECT aan zodra je een postcode hebt.",
     parameters: {
       type: "object",
       properties: {
-        postcode: { type: "string", description: "4-cijferige Nederlandse postcode, bv. 1422" },
+        postcode: { type: "string", description: "4-cijferige postcode, bv. 1422" },
         houseNumber: { type: "string", description: "Huisnummer, optioneel" },
       },
       required: ["postcode"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const searchKnowledgeTool = {
+  type: "function" as const,
+  function: {
+    name: "searchKnowledge",
+    description:
+      "Zoek in de geverifieerde kennisbank (BAS, Schiphol, ILT, Gemeente Uithoorn, recent nieuws). VERPLICHT te gebruiken voor elke feitelijke claim over organisaties, regelingen, procedures of nieuws.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Korte zoekvraag in het Nederlands." },
+      },
+      required: ["query"],
       additionalProperties: false,
     },
   },
@@ -65,7 +85,8 @@ const replyTool = {
   type: "function" as const,
   function: {
     name: "reply",
-    description: "Stuur het uiteindelijke antwoord aan de gebruiker met quick-replies.",
+    description:
+      "Stuur het uiteindelijke antwoord. Geef sources mee wanneer je searchKnowledge-resultaten gebruikt.",
     parameters: {
       type: "object",
       properties: {
@@ -76,10 +97,7 @@ const replyTool = {
           maxItems: 4,
           items: {
             type: "object",
-            properties: {
-              label: { type: "string" },
-              action: { type: "string" },
-            },
+            properties: { label: { type: "string" }, action: { type: "string" } },
             required: ["label", "action"],
             additionalProperties: false,
           },
@@ -94,6 +112,20 @@ const replyTool = {
             phone: { type: "string" },
           },
           additionalProperties: false,
+        },
+        sources: {
+          type: "array",
+          maxItems: 4,
+          description: "Bronnen die je in deze beurt gebruikt hebt (van searchKnowledge).",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              url: { type: "string" },
+            },
+            required: ["title", "url"],
+            additionalProperties: false,
+          },
         },
       },
       required: ["message", "quickReplies"],
@@ -111,6 +143,7 @@ const FALLBACK_QR = [
 const POSTCODE_RE = /\b(142[0-4])\s?[A-Z]{0,2}\b/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s\-()]{6,}$/;
+const URL_RE = /^https?:\/\/[^\s]{4,300}$/i;
 
 function sanitizeSlots(input: Record<string, unknown> | undefined) {
   const out: Record<string, string> = {};
@@ -147,12 +180,31 @@ function sanitizeQuickReplies(input: unknown) {
     .slice(0, 4);
 }
 
+function sanitizeSources(input: unknown) {
+  if (!Array.isArray(input)) return [] as { title: string; url: string }[];
+  const seen = new Set<string>();
+  const out: { title: string; url: string }[] = [];
+  for (const s of input) {
+    if (
+      !s ||
+      typeof (s as { url?: unknown }).url !== "string" ||
+      typeof (s as { title?: unknown }).title !== "string"
+    )
+      continue;
+    const url = (s as { url: string }).url.trim();
+    const title = (s as { title: string }).title.trim().slice(0, 120);
+    if (!URL_RE.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    out.push({ title: title || url, url });
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) {
   const raw = String(args.postcode ?? "").trim();
   const m = raw.match(/\d{4}/);
-  if (!m) {
-    return { ok: false, reason: "invalid_postcode", message: "Geen geldige 4-cijferige postcode." };
-  }
+  if (!m) return { ok: false, reason: "invalid_postcode", message: "Geen geldige postcode." };
   const num = parseInt(m[0], 10);
   const inZone = num >= 1420 && num <= 1424;
   return {
@@ -163,8 +215,24 @@ function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) 
     zoneRange: "1420-1424",
     estimatedCompensation: inZone ? { minEur: 150, maxEur: 2200, period: "per jaar" } : null,
     message: inZone
-      ? `Postcode ${m[0]} ligt IN de Schiphol-overschrijdingszone. De bewoner heeft mogelijk recht op €150-€2.200 per jaar compensatie.`
-      : `Postcode ${m[0]} ligt BUITEN de overschrijdingszone (zone is 1420-1424). Geen directe compensatie-aanspraak.`,
+      ? `Postcode ${m[0]} ligt IN de Schiphol-overschrijdingszone (€150-€2.200 per jaar mogelijk).`
+      : `Postcode ${m[0]} ligt BUITEN de zone (1420-1424).`,
+  };
+}
+
+async function executeSearchKnowledge(args: { query?: string }) {
+  const q = String(args.query ?? "").trim().slice(0, 300);
+  if (!q) return { ok: false, hits: [] };
+  const hits = await searchKnowledge(q, 4);
+  return {
+    ok: true,
+    hits: hits.map((h) => ({
+      title: h.source_title,
+      url: h.source_url,
+      type: h.source_type,
+      similarity: Number(h.similarity.toFixed(3)),
+      excerpt: h.content.slice(0, 800),
+    })),
   };
 }
 
@@ -177,6 +245,7 @@ export const chatTurn = createServerFn({ method: "POST" })
         message: "De AI-assistent is nog niet geconfigureerd.",
         quickReplies: FALLBACK_QR,
         collectedSlots: {} as Record<string, string>,
+        sources: [] as { title: string; url: string }[],
       };
     }
 
@@ -188,13 +257,12 @@ export const chatTurn = createServerFn({ method: "POST" })
         ? `\n\nReeds verzamelde gegevens (NIET opnieuw vragen): ${JSON.stringify(data.slots)}`
         : "\n\nNog geen gegevens verzameld.";
 
-    // Multi-step tool loop: model may call checkAddress, then must call reply.
     const convo: any[] = [
       { role: "system", content: SYSTEM_PROMPT + slotsContext },
       ...trimmed,
     ];
 
-    for (let step = 0; step < 3; step++) {
+    for (let step = 0; step < 4; step++) {
       let res: Response;
       try {
         res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -206,7 +274,7 @@ export const chatTurn = createServerFn({ method: "POST" })
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: convo,
-            tools: [checkAddressTool, replyTool],
+            tools: [checkAddressTool, searchKnowledgeTool, replyTool],
             tool_choice: "required",
           }),
         });
@@ -216,6 +284,7 @@ export const chatTurn = createServerFn({ method: "POST" })
           message: "Sorry, ik kan even geen verbinding maken. Probeer het zo opnieuw.",
           quickReplies: FALLBACK_QR,
           collectedSlots: {},
+          sources: [],
         };
       }
 
@@ -224,11 +293,11 @@ export const chatTurn = createServerFn({ method: "POST" })
         console.error("AI gateway error", res.status, text);
         const message =
           res.status === 429
-            ? "Even geduld — te veel aanvragen. Probeer het zo opnieuw."
+            ? "Even geduld — te veel aanvragen."
             : res.status === 402
-              ? "De assistent heeft tijdelijk geen credits. Probeer het later opnieuw."
+              ? "De assistent heeft tijdelijk geen credits."
               : "Sorry, ik kan nu even niet antwoorden.";
-        return { message, quickReplies: FALLBACK_QR, collectedSlots: {} };
+        return { message, quickReplies: FALLBACK_QR, collectedSlots: {}, sources: [] };
       }
 
       const json = await res.json().catch(() => null);
@@ -241,10 +310,10 @@ export const chatTurn = createServerFn({ method: "POST" })
           message: text || "Sorry, ik begreep dat niet helemaal. Kun je het anders verwoorden?",
           quickReplies: FALLBACK_QR,
           collectedSlots: {},
+          sources: [],
         };
       }
 
-      // Push assistant turn with tool_calls into convo
       convo.push({ role: "assistant", content: choice.content ?? "", tool_calls: toolCalls });
 
       let sawReply: any = null;
@@ -261,36 +330,31 @@ export const chatTurn = createServerFn({ method: "POST" })
         }
         if (name === "checkAddress") {
           const result = executeCheckAddress(args);
-          convo.push({
-            role: "tool",
-            tool_call_id: tc.id,
-            content: JSON.stringify(result),
-          });
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+        } else if (name === "searchKnowledge") {
+          const result = await executeSearchKnowledge(args);
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "reply") {
           sawReply = args;
-          convo.push({
-            role: "tool",
-            tool_call_id: tc.id,
-            content: "ok",
-          });
+          convo.push({ role: "tool", tool_call_id: tc.id, content: "ok" });
         }
       }
 
       if (sawReply) {
-        const message =
-          typeof sawReply.message === "string" ? sawReply.message.trim() : "";
+        const message = typeof sawReply.message === "string" ? sawReply.message.trim() : "";
         return {
           message: message || "…",
           quickReplies: sanitizeQuickReplies(sawReply.quickReplies),
           collectedSlots: sanitizeSlots(sawReply.collectedSlots),
+          sources: sanitizeSources(sawReply.sources),
         };
       }
-      // else: only checkAddress was called → loop again so the model can reply
     }
 
     return {
       message: "Sorry, dat duurde te lang. Probeer het nog eens.",
       quickReplies: FALLBACK_QR,
       collectedSlots: {},
+      sources: [],
     };
   });

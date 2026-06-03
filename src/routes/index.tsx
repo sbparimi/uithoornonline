@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import ReactMarkdown from "react-markdown";
 import { AppShell } from "@/components/AppShell";
 import { chatTurn } from "@/lib/chat.functions";
-import { Send, Sparkles, Loader2 } from "lucide-react";
+import { Send, Sparkles, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: ChatHome,
@@ -21,7 +21,13 @@ export const Route = createFileRoute("/")({
 });
 
 type QuickReply = { label: string; action: string };
-type Msg = { role: "user" | "assistant"; content: string; quickReplies?: QuickReply[] };
+type Source = { title: string; url: string };
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  quickReplies?: QuickReply[];
+  sources?: Source[];
+};
 type Slots = Partial<Record<"name" | "address" | "postcode" | "email" | "phone", string>>;
 
 const GREETING: Msg = {
@@ -104,7 +110,12 @@ function ChatHome() {
       });
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: res.message, quickReplies: res.quickReplies },
+        {
+          role: "assistant",
+          content: res.message,
+          quickReplies: res.quickReplies,
+          sources: (res as { sources?: Source[] }).sources ?? [],
+        },
       ]);
       if (res.collectedSlots && Object.keys(res.collectedSlots).length) {
         setSlots((p) => ({ ...p, ...res.collectedSlots }));
@@ -169,6 +180,25 @@ function ChatHome() {
                   >
                     {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
                   </div>
+                  {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                    <div className="flex flex-col gap-1 pl-1">
+                      <div className="text-[10px] uppercase tracking-wide text-navy/40 font-medium">
+                        Bronnen
+                      </div>
+                      {m.sources.map((s, k) => (
+                        <a
+                          key={k}
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-navy/70 hover:text-red underline-offset-2 hover:underline truncate max-w-full"
+                        >
+                          <ExternalLink size={10} className="shrink-0" />
+                          <span className="truncate">{s.title}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   {showQR && m.quickReplies && m.quickReplies.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {m.quickReplies.map((q, j) => {
