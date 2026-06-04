@@ -20,6 +20,7 @@ const SlotsSchema = z
 const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1).max(40),
   slots: SlotsSchema,
+  lang: z.enum(["nl", "en"]).optional(),
 });
 
 const ALLOWED_ROUTES = ["/check", "/claim", "/log", "/map"] as const;
@@ -257,8 +258,14 @@ export const chatTurn = createServerFn({ method: "POST" })
         ? `\n\nReeds verzamelde gegevens (NIET opnieuw vragen): ${JSON.stringify(data.slots)}`
         : "\n\nNog geen gegevens verzameld.";
 
+    const lang = data.lang ?? "nl";
+    const langDirective =
+      lang === "en"
+        ? "\n\nLANGUAGE OVERRIDE: Reply in ENGLISH. Keep the same scope, tone and rules. Quick-reply labels must also be in English."
+        : "\n\nTAAL: Antwoord in het Nederlands.";
+
     const convo: any[] = [
-      { role: "system", content: SYSTEM_PROMPT + slotsContext },
+      { role: "system", content: SYSTEM_PROMPT + slotsContext + langDirective },
       ...trimmed,
     ];
 

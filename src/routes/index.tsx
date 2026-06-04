@@ -30,38 +30,68 @@ type Msg = {
 };
 type Slots = Partial<Record<"name" | "address" | "postcode" | "email" | "phone", string>>;
 
-const GREETING: Msg = {
-  role: "assistant",
-  content:
-    "Hallo 👋 Ik ben de **Uithoorn-assistent**. Ik help je met Schiphol-geluidsoverlast, het checken van je adres en het indienen van een compensatieclaim.\n\nWaar kan ik je mee helpen?",
-  quickReplies: [
-    { label: "Check mijn adres", action: "ask:Ik wil mijn adres checken" },
-    { label: "Hoe werkt compensatie?", action: "ask:Hoe werkt de compensatie?" },
-    { label: "Geluid melden", action: "ask:Ik wil geluidsoverlast melden" },
-    { label: "Geluidskaart bekijken", action: "route:/map" },
-  ],
+type Lang = "nl" | "en";
+
+const GREETINGS: Record<Lang, Msg> = {
+  nl: {
+    role: "assistant",
+    content:
+      "Hallo 👋 Ik ben de **Uithoorn-assistent**. Ik help je met Schiphol-geluidsoverlast, het checken van je adres en het indienen van een compensatieclaim.\n\nWaar kan ik je mee helpen?",
+    quickReplies: [
+      { label: "Check mijn adres", action: "ask:Ik wil mijn adres checken" },
+      { label: "Hoe werkt compensatie?", action: "ask:Hoe werkt de compensatie?" },
+      { label: "Geluid melden", action: "ask:Ik wil geluidsoverlast melden" },
+      { label: "Geluidskaart bekijken", action: "route:/map" },
+    ],
+  },
+  en: {
+    role: "assistant",
+    content:
+      "Hi 👋 I'm the **Uithoorn assistant**. I help with Schiphol noise nuisance, checking your address and filing a compensation claim.\n\nHow can I help you?",
+    quickReplies: [
+      { label: "Check my address", action: "ask:I want to check my address" },
+      { label: "How does compensation work?", action: "ask:How does compensation work?" },
+      { label: "Report noise", action: "ask:I want to report noise nuisance" },
+      { label: "View noise map", action: "route:/map" },
+    ],
+  },
 };
 
 const ALLOWED_ROUTES = new Set(["/check", "/claim", "/log", "/map"]);
 const STORAGE_KEY = "uithoorn.chat.v1";
+const LANG_KEY = "uithoorn.chat.lang";
 
-function loadPersisted(): { messages: Msg[]; slots: Slots } | null {
+function loadPersisted(): { messages: Msg[]; slots: Slots; lang?: Lang } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.messages)) return null;
-    return { messages: parsed.messages, slots: parsed.slots ?? {} };
+    return { messages: parsed.messages, slots: parsed.slots ?? {}, lang: parsed.lang };
   } catch {
     return null;
   }
 }
 
+function loadLang(): Lang {
+  if (typeof window === "undefined") return "nl";
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (v === "en" || v === "nl") return v;
+  } catch {
+    /* ignore */
+  }
+  return "nl";
+}
+
 function ChatHome() {
   const navigate = useNavigate();
   const callChat = useServerFn(chatTurn);
-  const [messages, setMessages] = useState<Msg[]>(() => loadPersisted()?.messages ?? [GREETING]);
+  const [lang, setLang] = useState<Lang>(() => loadPersisted()?.lang ?? loadLang());
+  const [messages, setMessages] = useState<Msg[]>(
+    () => loadPersisted()?.messages ?? [GREETINGS[loadLang()]],
+  );
   const [slots, setSlots] = useState<Slots>(() => loadPersisted()?.slots ?? {});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,11 +100,12 @@ function ChatHome() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots, lang }));
+      localStorage.setItem(LANG_KEY, lang);
     } catch {
       /* ignore quota / private mode */
     }
-  }, [messages, slots]);
+  }, [messages, slots, lang]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -85,7 +116,30 @@ function ChatHome() {
     return -1;
   })();
 
+  const t = (nl: string, en: string) => (lang === "en" ? en : nl);
+
+  const toggleLang = () => {
+    const next: Lang = lang === "nl" ? "en" : "nl";
+    setLang(next);
+    // Append a system-style assistant note so the user gets immediate feedback
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          next === "en"
+            ? "Switched to **English**. I'll continue in English from here."
+            : "Overgeschakeld naar **Nederlands**. Ik ga verder in het Nederlands.",
+        quickReplies: GREETINGS[next].quickReplies,
+      },
+    ]);
+  };
+
   const handleAction = (action: string) => {
+    if (action === "lang:toggle") {
+      toggleLang();
+      return;
+    }
     if (action.startsWith("route:")) {
       const path = action.slice(6);
       if (ALLOWED_ROUTES.has(path)) navigate({ to: path as any });
@@ -106,6 +160,7 @@ function ChatHome() {
         data: {
           messages: next.map((m) => ({ role: m.role, content: m.content })),
           slots,
+          lang,
         },
       });
       setMessages((prev) => [
@@ -125,7 +180,10 @@ function ChatHome() {
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, er ging iets mis. Probeer het nog eens.",
+          content: t(
+            "Sorry, er ging iets mis. Probeer het nog eens.",
+            "Sorry, something went wrong. Please try again.",
+          ),
           quickReplies: [],
         },
       ]);
@@ -136,7 +194,7 @@ function ChatHome() {
   };
 
   const resetChat = () => {
-    setMessages([GREETING]);
+    setMessages([GREETINGS[lang]]);
     setSlots({});
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -199,9 +257,19 @@ function ChatHome() {
                       ))}
                     </div>
                   )}
-                  {showQR && m.quickReplies && m.quickReplies.length > 0 && (
+                  {showQR && (m.quickReplies?.length || i === lastAssistantIdx) && (
                     <div className="flex flex-wrap gap-2">
-                      {m.quickReplies.map((q, j) => {
+                      <button
+                        key="lang-toggle"
+                        onClick={() => handleAction("lang:toggle")}
+                        disabled={loading}
+                        aria-label={t("Schakel naar Engels", "Switch to Dutch")}
+                        className="rounded-full bg-cream border border-navy/30 text-navy text-xs font-semibold px-3 py-1.5 hover:border-navy hover:bg-white disabled:opacity-50 transition inline-flex items-center gap-1"
+                      >
+                        <span aria-hidden>🌐</span>
+                        <span>{lang === "nl" ? "NL · Switch to English" : "EN · Wissel naar Nederlands"}</span>
+                      </button>
+                      {(m.quickReplies ?? []).map((q, j) => {
                         const isRoute = q.action.startsWith("route:");
                         return (
                           <button
