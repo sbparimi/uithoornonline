@@ -100,11 +100,12 @@ function ChatHome() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots, lang }));
+      localStorage.setItem(LANG_KEY, lang);
     } catch {
       /* ignore quota / private mode */
     }
-  }, [messages, slots]);
+  }, [messages, slots, lang]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -115,7 +116,30 @@ function ChatHome() {
     return -1;
   })();
 
+  const t = (nl: string, en: string) => (lang === "en" ? en : nl);
+
+  const toggleLang = () => {
+    const next: Lang = lang === "nl" ? "en" : "nl";
+    setLang(next);
+    // Append a system-style assistant note so the user gets immediate feedback
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          next === "en"
+            ? "Switched to **English**. I'll continue in English from here."
+            : "Overgeschakeld naar **Nederlands**. Ik ga verder in het Nederlands.",
+        quickReplies: GREETINGS[next].quickReplies,
+      },
+    ]);
+  };
+
   const handleAction = (action: string) => {
+    if (action === "lang:toggle") {
+      toggleLang();
+      return;
+    }
     if (action.startsWith("route:")) {
       const path = action.slice(6);
       if (ALLOWED_ROUTES.has(path)) navigate({ to: path as any });
@@ -136,6 +160,7 @@ function ChatHome() {
         data: {
           messages: next.map((m) => ({ role: m.role, content: m.content })),
           slots,
+          lang,
         },
       });
       setMessages((prev) => [
@@ -155,7 +180,10 @@ function ChatHome() {
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, er ging iets mis. Probeer het nog eens.",
+          content: t(
+            "Sorry, er ging iets mis. Probeer het nog eens.",
+            "Sorry, something went wrong. Please try again.",
+          ),
           quickReplies: [],
         },
       ]);
@@ -166,7 +194,7 @@ function ChatHome() {
   };
 
   const resetChat = () => {
-    setMessages([GREETING]);
+    setMessages([GREETINGS[lang]]);
     setSlots({});
     try {
       localStorage.removeItem(STORAGE_KEY);
