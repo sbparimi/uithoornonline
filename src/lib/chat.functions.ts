@@ -212,17 +212,19 @@ function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) 
   const m = raw.match(/\d{4}/);
   if (!m) return { ok: false, reason: "invalid_postcode", message: "Geen geldige postcode." };
   const num = parseInt(m[0], 10);
-  const inZone = num >= 1420 && num <= 1424;
+  // Postcodes 1421-1424 cover Uithoorn / De Kwakel (postale feit, CBS/PostNL).
+  // Dit zegt NIETS over compensatierecht — dat hangt af van officiële regelingen
+  // die de assistent via searchKnowledge moet ophalen.
+  const inUithoorn = num >= 1421 && num <= 1424;
   return {
     ok: true,
     postcode: m[0],
     houseNumber: args.houseNumber ?? null,
-    inZone,
-    zoneRange: "1420-1424",
-    estimatedCompensation: inZone ? { minEur: 150, maxEur: 2200, period: "per jaar" } : null,
-    message: inZone
-      ? `Postcode ${m[0]} ligt IN de Schiphol-overschrijdingszone (€150-€2.200 per jaar mogelijk).`
-      : `Postcode ${m[0]} ligt BUITEN de zone (1420-1424).`,
+    inUithoorn,
+    note: "Dit is een postale check (postcode hoort wel/niet bij Uithoorn-gebied). Voor concrete compensatieregels, bedragen of deadlines: roep searchKnowledge aan en gebruik uitsluitend wat daaruit komt.",
+    message: inUithoorn
+      ? `Postcode ${m[0]} hoort bij het Uithoorn-gebied (Uithoorn / De Kwakel).`
+      : `Postcode ${m[0]} valt buiten de Uithoorn-postcodes (1421-1424).`,
   };
 }
 
