@@ -257,9 +257,19 @@ function ChatHome() {
                       ))}
                     </div>
                   )}
-                  {showQR && m.quickReplies && m.quickReplies.length > 0 && (
+                  {showQR && (m.quickReplies?.length || i === lastAssistantIdx) && (
                     <div className="flex flex-wrap gap-2">
-                      {m.quickReplies.map((q, j) => {
+                      <button
+                        key="lang-toggle"
+                        onClick={() => handleAction("lang:toggle")}
+                        disabled={loading}
+                        aria-label={t("Schakel naar Engels", "Switch to Dutch")}
+                        className="rounded-full bg-cream border border-navy/30 text-navy text-xs font-semibold px-3 py-1.5 hover:border-navy hover:bg-white disabled:opacity-50 transition inline-flex items-center gap-1"
+                      >
+                        <span aria-hidden>🌐</span>
+                        <span>{lang === "nl" ? "NL · Switch to English" : "EN · Wissel naar Nederlands"}</span>
+                      </button>
+                      {(m.quickReplies ?? []).map((q, j) => {
                         const isRoute = q.action.startsWith("route:");
                         return (
                           <button
