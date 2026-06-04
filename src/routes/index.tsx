@@ -30,16 +30,31 @@ type Msg = {
 };
 type Slots = Partial<Record<"name" | "address" | "postcode" | "email" | "phone", string>>;
 
-const GREETING: Msg = {
-  role: "assistant",
-  content:
-    "Hallo 👋 Ik ben de **Uithoorn-assistent**. Ik help je met Schiphol-geluidsoverlast, het checken van je adres en het indienen van een compensatieclaim.\n\nWaar kan ik je mee helpen?",
-  quickReplies: [
-    { label: "Check mijn adres", action: "ask:Ik wil mijn adres checken" },
-    { label: "Hoe werkt compensatie?", action: "ask:Hoe werkt de compensatie?" },
-    { label: "Geluid melden", action: "ask:Ik wil geluidsoverlast melden" },
-    { label: "Geluidskaart bekijken", action: "route:/map" },
-  ],
+type Lang = "nl" | "en";
+
+const GREETINGS: Record<Lang, Msg> = {
+  nl: {
+    role: "assistant",
+    content:
+      "Hallo 👋 Ik ben de **Uithoorn-assistent**. Ik help je met Schiphol-geluidsoverlast, het checken van je adres en het indienen van een compensatieclaim.\n\nWaar kan ik je mee helpen?",
+    quickReplies: [
+      { label: "Check mijn adres", action: "ask:Ik wil mijn adres checken" },
+      { label: "Hoe werkt compensatie?", action: "ask:Hoe werkt de compensatie?" },
+      { label: "Geluid melden", action: "ask:Ik wil geluidsoverlast melden" },
+      { label: "Geluidskaart bekijken", action: "route:/map" },
+    ],
+  },
+  en: {
+    role: "assistant",
+    content:
+      "Hi 👋 I'm the **Uithoorn assistant**. I help with Schiphol noise nuisance, checking your address and filing a compensation claim.\n\nHow can I help you?",
+    quickReplies: [
+      { label: "Check my address", action: "ask:I want to check my address" },
+      { label: "How does compensation work?", action: "ask:How does compensation work?" },
+      { label: "Report noise", action: "ask:I want to report noise nuisance" },
+      { label: "View noise map", action: "route:/map" },
+    ],
+  },
 };
 
 const ALLOWED_ROUTES = new Set(["/check", "/claim", "/log", "/map"]);
