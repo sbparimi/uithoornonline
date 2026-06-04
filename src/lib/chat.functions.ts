@@ -20,6 +20,7 @@ const SlotsSchema = z
 const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1).max(40),
   slots: SlotsSchema,
+  lang: z.enum(["nl", "en"]).optional(),
 });
 
 const ALLOWED_ROUTES = ["/check", "/claim", "/log", "/map"] as const;
