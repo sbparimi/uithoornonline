@@ -59,24 +59,39 @@ const GREETINGS: Record<Lang, Msg> = {
 
 const ALLOWED_ROUTES = new Set(["/check", "/claim", "/log", "/map"]);
 const STORAGE_KEY = "uithoorn.chat.v1";
+const LANG_KEY = "uithoorn.chat.lang";
 
-function loadPersisted(): { messages: Msg[]; slots: Slots } | null {
+function loadPersisted(): { messages: Msg[]; slots: Slots; lang?: Lang } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.messages)) return null;
-    return { messages: parsed.messages, slots: parsed.slots ?? {} };
+    return { messages: parsed.messages, slots: parsed.slots ?? {}, lang: parsed.lang };
   } catch {
     return null;
   }
 }
 
+function loadLang(): Lang {
+  if (typeof window === "undefined") return "nl";
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (v === "en" || v === "nl") return v;
+  } catch {
+    /* ignore */
+  }
+  return "nl";
+}
+
 function ChatHome() {
   const navigate = useNavigate();
   const callChat = useServerFn(chatTurn);
-  const [messages, setMessages] = useState<Msg[]>(() => loadPersisted()?.messages ?? [GREETING]);
+  const [lang, setLang] = useState<Lang>(() => loadPersisted()?.lang ?? loadLang());
+  const [messages, setMessages] = useState<Msg[]>(
+    () => loadPersisted()?.messages ?? [GREETINGS[loadLang()]],
+  );
   const [slots, setSlots] = useState<Slots>(() => loadPersisted()?.slots ?? {});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
