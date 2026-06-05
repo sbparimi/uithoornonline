@@ -49,7 +49,6 @@ function ClaimSuccess() {
     })();
   }, [user, authLoading, id, navigate]);
 
-  const total = claim?.years_selected?.reduce((s, y) => s + (yearPayouts[y] ?? 0), 0) ?? 0;
   const activePkg = (claim?.package ?? pkg) as "self" | "managed" | "legal" | undefined;
 
   return (
