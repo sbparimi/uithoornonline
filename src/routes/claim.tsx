@@ -26,7 +26,7 @@ function Claim() {
   const [years, setYears] = useState<number[]>([2023, 2024, 2025]);
   const [pkg, setPkg] = useState<"self" | "managed" | "legal" | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const total = years.reduce((s, y) => s + (yearPayouts[y] ?? 0), 0);
+  // Geen client-side berekening van compensatie — alleen jaren registreren.
 
   const toggleYear = (y: number) =>
     setYears((p) => p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort());
