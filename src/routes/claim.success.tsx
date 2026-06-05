@@ -28,7 +28,7 @@ type ClaimRow = {
   created_at: string;
 };
 
-const yearPayouts: Record<number, number> = { 2023: 750, 2024: 980, 2025: 1200 };
+// Geen hardcoded compensatiebedragen — vergoeding wordt officieel vastgesteld.
 
 function ClaimSuccess() {
   const { id, pkg } = Route.useSearch();
