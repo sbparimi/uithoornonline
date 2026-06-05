@@ -144,7 +144,7 @@ function LegalSteps() {
   return (
     <ol className="mt-4 space-y-4">
       <Step n={1} Icon={Scale} title="Intake door jurist" desc="Een gespecialiseerde advocaat neemt binnen 3 werkdagen contact op." />
-      <Step n={2} Icon={Sparkles} title="Beoordeling" desc="Je dossier wordt gratis beoordeeld op kansrijkheid." />
+      <Step n={2} Icon={Sparkles} title="Beoordeling" desc="Je dossier wordt beoordeeld op kansrijkheid. Servicekosten €450 voor het volledige juridische traject." />
       <Step n={3} Icon={FileText} title="Vervolgstappen" desc="Bij voldoende basis wordt een procedure voorgesteld — altijd in overleg met jou." />
     </ol>
   );
