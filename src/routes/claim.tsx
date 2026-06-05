@@ -129,17 +129,17 @@ function Claim() {
               <PackageCard
                 Icon={Sparkles}
                 title="Wij regelen het"
-                price="€29"
-                desc="Wij dienen je claim in en handelen alle correspondentie af."
+                price="€100"
+                desc="Wij dienen je claim namens jou in en handelen alle correspondentie met BAS, Schiphol en gemeente af."
                 onClick={() => { setPkg("managed"); submit("managed"); }}
                 active={pkg === "managed"}
                 highlight
               />
               <PackageCard
                 Icon={Scale}
-                title="Juridisch advies"
-                price="Gratis intake"
-                desc="Doorverwijzing naar een gespecialiseerde advocaat."
+                title="Juridisch traject"
+                price="€450"
+                desc="Volledige juridische behandeling door een gespecialiseerde advocaat — intake, beoordeling en procedure."
                 onClick={() => { setPkg("legal"); submit("legal"); }}
                 active={pkg === "legal"}
               />
