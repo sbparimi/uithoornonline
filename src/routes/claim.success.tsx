@@ -134,7 +134,7 @@ function SelfSteps() {
 function ManagedSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Clock} title="Wachten op betaling" desc="Zodra de betaling (€29) is geactiveerd ontvang je een betaallink per e-mail." />
+      <Step n={1} Icon={Clock} title="Wachten op betaling" desc="Je ontvangt een betaallink per e-mail (servicekosten €100). Na betaling start ons team direct." />
       <Step n={2} Icon={FileText} title="Wij dienen in" desc="Ons team verzorgt alle correspondentie met BAS, ILT en Schiphol namens jou." />
       <Step n={3} Icon={Mail} title="Updates per e-mail" desc="Je krijgt updates bij elke stap. Gemiddelde doorlooptijd: 4–8 weken." />
     </ol>
