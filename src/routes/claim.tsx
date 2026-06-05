@@ -11,7 +11,10 @@ export const Route = createFileRoute("/claim")({
   head: () => ({ meta: [{ title: "Claim — uithoorn.online" }] }),
 });
 
-const yearPayouts: Record<number, number> = { 2023: 750, 2024: 980, 2025: 1200 };
+// Compensatiebedragen worden NIET door de app bepaald. De daadwerkelijke
+// vergoeding wordt vastgesteld door officiële instanties (BAS, Schiphol,
+// ministerie van I&W) op basis van geverifieerde meetgegevens en regelgeving.
+// Zie bezoekbas.nl en schiphol.nl voor actuele cijfers.
 
 function Claim() {
   const { user } = useAuth();
@@ -23,7 +26,7 @@ function Claim() {
   const [years, setYears] = useState<number[]>([2023, 2024, 2025]);
   const [pkg, setPkg] = useState<"self" | "managed" | "legal" | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const total = years.reduce((s, y) => s + (yearPayouts[y] ?? 0), 0);
+  // Geen client-side berekening van compensatie — alleen jaren registreren.
 
   const toggleYear = (y: number) =>
     setYears((p) => p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort());
@@ -96,17 +99,15 @@ function Claim() {
                           <div className="text-[11px] text-muted-foreground">Norm overschreden</div>
                         </div>
                       </div>
-                      <div className="font-mono text-navy text-sm">€{yearPayouts[y]}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">officieel vast te stellen</div>
                     </button>
                   );
                 })}
               </div>
-              <div className="mt-3 rounded-xl bg-navy text-white p-4 flex items-baseline justify-between">
-                <div>
-                  <div className="text-[11px] uppercase text-white/60">Totaal</div>
-                  <div className="text-[10px] text-white/40">{years.length} jaar geselecteerd</div>
-                </div>
-                <div className="font-serif text-2xl">€{total.toLocaleString("nl-NL")}</div>
+              <div className="mt-3 rounded-xl bg-navy text-white p-4">
+                <div className="text-[11px] uppercase text-white/60">Compensatiebedrag</div>
+                <div className="mt-1 text-sm text-white/90">Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van I&amp;W) op basis van geverifieerde meetgegevens. De app toont geen schatting.</div>
+                <div className="mt-2 text-[10px] text-white/50">Bron: bezoekbas.nl • schiphol.nl</div>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3 text-navy">Terug</button>
@@ -128,17 +129,17 @@ function Claim() {
               <PackageCard
                 Icon={Sparkles}
                 title="Wij regelen het"
-                price="€29"
-                desc="Wij dienen je claim in en handelen alle correspondentie af."
+                price="€100"
+                desc="Wij dienen je claim namens jou in en handelen alle correspondentie met BAS, Schiphol en gemeente af."
                 onClick={() => { setPkg("managed"); submit("managed"); }}
                 active={pkg === "managed"}
                 highlight
               />
               <PackageCard
                 Icon={Scale}
-                title="Juridisch advies"
-                price="Gratis intake"
-                desc="Doorverwijzing naar een gespecialiseerde advocaat."
+                title="Juridisch traject"
+                price="€450"
+                desc="Volledige juridische behandeling door een gespecialiseerde advocaat — intake, beoordeling en procedure."
                 onClick={() => { setPkg("legal"); submit("legal"); }}
                 active={pkg === "legal"}
               />

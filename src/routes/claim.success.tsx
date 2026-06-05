@@ -28,7 +28,7 @@ type ClaimRow = {
   created_at: string;
 };
 
-const yearPayouts: Record<number, number> = { 2023: 750, 2024: 980, 2025: 1200 };
+// Geen hardcoded compensatiebedragen — vergoeding wordt officieel vastgesteld.
 
 function ClaimSuccess() {
   const { id, pkg } = Route.useSearch();
@@ -49,7 +49,6 @@ function ClaimSuccess() {
     })();
   }, [user, authLoading, id, navigate]);
 
-  const total = claim?.years_selected?.reduce((s, y) => s + (yearPayouts[y] ?? 0), 0) ?? 0;
   const activePkg = (claim?.package ?? pkg) as "self" | "managed" | "legal" | undefined;
 
   return (
@@ -68,7 +67,7 @@ function ClaimSuccess() {
           <div className="mt-5 rounded-xl bg-white/10 p-4 text-sm">
             <div className="flex justify-between"><span className="text-white/60">Referentie</span><span className="font-mono">{claim.id.slice(0, 8).toUpperCase()}</span></div>
             <div className="flex justify-between mt-1"><span className="text-white/60">Jaren</span><span>{claim.years_selected.join(", ")}</span></div>
-            <div className="flex justify-between mt-1"><span className="text-white/60">Geschatte waarde</span><span className="font-serif text-lg">€{total.toLocaleString("nl-NL")}</span></div>
+            <div className="mt-2 text-[11px] text-white/60">Compensatiebedrag wordt officieel vastgesteld door BAS / Schiphol / ministerie van I&amp;W. De app maakt geen schatting.</div>
           </div>
         )}
       </section>
@@ -135,7 +134,7 @@ function SelfSteps() {
 function ManagedSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Clock} title="Wachten op betaling" desc="Zodra de betaling (€29) is geactiveerd ontvang je een betaallink per e-mail." />
+      <Step n={1} Icon={Clock} title="Wachten op betaling" desc="Je ontvangt een betaallink per e-mail (servicekosten €100). Na betaling start ons team direct." />
       <Step n={2} Icon={FileText} title="Wij dienen in" desc="Ons team verzorgt alle correspondentie met BAS, ILT en Schiphol namens jou." />
       <Step n={3} Icon={Mail} title="Updates per e-mail" desc="Je krijgt updates bij elke stap. Gemiddelde doorlooptijd: 4–8 weken." />
     </ol>
@@ -145,7 +144,7 @@ function LegalSteps() {
   return (
     <ol className="mt-4 space-y-4">
       <Step n={1} Icon={Scale} title="Intake door jurist" desc="Een gespecialiseerde advocaat neemt binnen 3 werkdagen contact op." />
-      <Step n={2} Icon={Sparkles} title="Beoordeling" desc="Je dossier wordt gratis beoordeeld op kansrijkheid." />
+      <Step n={2} Icon={Sparkles} title="Beoordeling" desc="Je dossier wordt beoordeeld op kansrijkheid. Servicekosten €450 voor het volledige juridische traject." />
       <Step n={3} Icon={FileText} title="Vervolgstappen" desc="Bij voldoende basis wordt een procedure voorgesteld — altijd in overleg met jou." />
     </ol>
   );
