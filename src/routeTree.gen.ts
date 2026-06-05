@@ -15,6 +15,7 @@ import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as CheckRouteImport } from './routes/check'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClaimSuccessRouteImport } from './routes/claim.success'
 import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
 import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
 
@@ -48,6 +49,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClaimSuccessRoute = ClaimSuccessRouteImport.update({
+  id: '/success',
+  path: '/success',
+  getParentRoute: () => ClaimRoute,
+} as any)
 const ApiPublicHooksRunEvalsRoute = ApiPublicHooksRunEvalsRouteImport.update({
   id: '/api/public/hooks/run-evals',
   path: '/api/public/hooks/run-evals',
@@ -64,9 +70,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/check': typeof CheckRoute
-  '/claim': typeof ClaimRoute
+  '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/claim/success': typeof ClaimSuccessRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -74,9 +81,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/check': typeof CheckRoute
-  '/claim': typeof ClaimRoute
+  '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/claim/success': typeof ClaimSuccessRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -85,9 +93,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/check': typeof CheckRoute
-  '/claim': typeof ClaimRoute
+  '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/claim/success': typeof ClaimSuccessRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/log'
     | '/map'
+    | '/claim/success'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/log'
     | '/map'
+    | '/claim/success'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   id:
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/log'
     | '/map'
+    | '/claim/success'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   fileRoutesById: FileRoutesById
@@ -128,7 +140,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   CheckRoute: typeof CheckRoute
-  ClaimRoute: typeof ClaimRoute
+  ClaimRoute: typeof ClaimRouteWithChildren
   LogRoute: typeof LogRoute
   MapRoute: typeof MapRoute
   ApiPublicHooksIngestKnowledgeRoute: typeof ApiPublicHooksIngestKnowledgeRoute
@@ -179,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/claim/success': {
+      id: '/claim/success'
+      path: '/success'
+      fullPath: '/claim/success'
+      preLoaderRoute: typeof ClaimSuccessRouteImport
+      parentRoute: typeof ClaimRoute
+    }
     '/api/public/hooks/run-evals': {
       id: '/api/public/hooks/run-evals'
       path: '/api/public/hooks/run-evals'
@@ -196,11 +215,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ClaimRouteChildren {
+  ClaimSuccessRoute: typeof ClaimSuccessRoute
+}
+
+const ClaimRouteChildren: ClaimRouteChildren = {
+  ClaimSuccessRoute: ClaimSuccessRoute,
+}
+
+const ClaimRouteWithChildren = ClaimRoute._addFileChildren(ClaimRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   CheckRoute: CheckRoute,
-  ClaimRoute: ClaimRoute,
+  ClaimRoute: ClaimRouteWithChildren,
   LogRoute: LogRoute,
   MapRoute: MapRoute,
   ApiPublicHooksIngestKnowledgeRoute: ApiPublicHooksIngestKnowledgeRoute,

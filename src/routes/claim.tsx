@@ -31,20 +31,15 @@ function Claim() {
   const submit = async (chosen: "self" | "managed" | "legal") => {
     if (!user) { navigate({ to: "/auth", search: { next: "/claim" } as any }); return; }
     if (!name || !address || !postcode) { toast.error("Vul je gegevens in (stap 1)"); setStep(1); return; }
+    if (years.length === 0) { toast.error("Selecteer minimaal één jaar"); setStep(2); return; }
     setSubmitting(true);
-    const { error } = await supabase.from("claims").insert({
+    const { data, error } = await supabase.from("claims").insert({
       user_id: user.id, name, address, postcode, years_selected: years, package: chosen, paid: false,
-    });
+    }).select("id").single();
     setSubmitting(false);
-    if (error) { toast.error("Kon claim niet opslaan"); return; }
-    if (chosen === "managed") {
-      toast.success("Claim aangemaakt — betaling volgt zodra Stripe is geactiveerd");
-    } else if (chosen === "self") {
-      toast.success("Claim opgeslagen — instructie-PDF wordt naar je email gestuurd");
-    } else {
-      toast.success("Claim opgeslagen — een jurist neemt contact op");
-    }
-    navigate({ to: "/" });
+    if (error || !data) { toast.error("Kon claim niet opslaan"); return; }
+    toast.success("Claim ingediend");
+    navigate({ to: "/claim/success", search: { id: data.id, pkg: chosen } as any });
   };
 
   return (
