@@ -67,7 +67,7 @@ function ClaimSuccess() {
           <div className="mt-5 rounded-xl bg-white/10 p-4 text-sm">
             <div className="flex justify-between"><span className="text-white/60">Referentie</span><span className="font-mono">{claim.id.slice(0, 8).toUpperCase()}</span></div>
             <div className="flex justify-between mt-1"><span className="text-white/60">Jaren</span><span>{claim.years_selected.join(", ")}</span></div>
-            <div className="flex justify-between mt-1"><span className="text-white/60">Geschatte waarde</span><span className="font-serif text-lg">€{total.toLocaleString("nl-NL")}</span></div>
+            <div className="mt-2 text-[11px] text-white/60">Compensatiebedrag wordt officieel vastgesteld door BAS / Schiphol / ministerie van I&amp;W. De app maakt geen schatting.</div>
           </div>
         )}
       </section>
