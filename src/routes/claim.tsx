@@ -11,7 +11,10 @@ export const Route = createFileRoute("/claim")({
   head: () => ({ meta: [{ title: "Claim — uithoorn.online" }] }),
 });
 
-const yearPayouts: Record<number, number> = { 2023: 750, 2024: 980, 2025: 1200 };
+// Compensatiebedragen worden NIET door de app bepaald. De daadwerkelijke
+// vergoeding wordt vastgesteld door officiële instanties (BAS, Schiphol,
+// ministerie van I&W) op basis van geverifieerde meetgegevens en regelgeving.
+// Zie bezoekbas.nl en schiphol.nl voor actuele cijfers.
 
 function Claim() {
   const { user } = useAuth();
