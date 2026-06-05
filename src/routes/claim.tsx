@@ -99,17 +99,15 @@ function Claim() {
                           <div className="text-[11px] text-muted-foreground">Norm overschreden</div>
                         </div>
                       </div>
-                      <div className="font-mono text-navy text-sm">€{yearPayouts[y]}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">officieel vast te stellen</div>
                     </button>
                   );
                 })}
               </div>
-              <div className="mt-3 rounded-xl bg-navy text-white p-4 flex items-baseline justify-between">
-                <div>
-                  <div className="text-[11px] uppercase text-white/60">Totaal</div>
-                  <div className="text-[10px] text-white/40">{years.length} jaar geselecteerd</div>
-                </div>
-                <div className="font-serif text-2xl">€{total.toLocaleString("nl-NL")}</div>
+              <div className="mt-3 rounded-xl bg-navy text-white p-4">
+                <div className="text-[11px] uppercase text-white/60">Compensatiebedrag</div>
+                <div className="mt-1 text-sm text-white/90">Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van I&amp;W) op basis van geverifieerde meetgegevens. De app toont geen schatting.</div>
+                <div className="mt-2 text-[10px] text-white/50">Bron: bezoekbas.nl • schiphol.nl</div>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3 text-navy">Terug</button>
