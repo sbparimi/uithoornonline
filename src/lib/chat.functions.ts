@@ -370,6 +370,9 @@ export const chatTurn = createServerFn({ method: "POST" })
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "searchKnowledge") {
           const result = await executeSearchKnowledge(args);
+          for (const h of result.hits ?? []) {
+            if (h?.url && URL_RE.test(h.url)) allowedSourceUrls.add(h.url);
+          }
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "reply") {
           sawReply = args;
@@ -379,14 +382,26 @@ export const chatTurn = createServerFn({ method: "POST" })
 
       if (sawReply) {
         const message = typeof sawReply.message === "string" ? sawReply.message.trim() : "";
+        const sources = sanitizeSources(sawReply.sources, allowedSourceUrls);
+        // EU AI Act grounding guard: factual-looking claims without a verified
+        // source get replaced with the standard disclaimer. The model can still
+        // ask follow-up questions or do non-factual chit-chat freely.
+        const looksFactual = FACTUAL_CLAIM_RE.test(message);
+        const safeMessage =
+          looksFactual && sources.length === 0
+            ? lang === "en"
+              ? UNGROUNDED_FALLBACK_EN
+              : UNGROUNDED_FALLBACK_NL
+            : message || "…";
         return {
-          message: message || "…",
+          message: safeMessage,
           quickReplies: sanitizeQuickReplies(sawReply.quickReplies),
           collectedSlots: sanitizeSlots(sawReply.collectedSlots),
-          sources: sanitizeSources(sawReply.sources),
+          sources,
         };
       }
     }
+
 
     return {
       message: "Sorry, dat duurde te lang. Probeer het nog eens.",
