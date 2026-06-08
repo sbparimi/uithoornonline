@@ -167,7 +167,17 @@ function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }
   );
 }
 
-function Step({ n, Icon, title, desc }: { n: number; Icon: LucideIcon; title: string; desc: string }) {
+function Step({
+  n,
+  Icon,
+  title,
+  desc,
+}: {
+  n: number;
+  Icon: LucideIcon;
+  title: string;
+  desc: string;
+}) {
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
