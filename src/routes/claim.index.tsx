@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { Check, ChevronRight, FileText, Scale, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Check, FileText, Sparkles, Scale, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ export const Route = createFileRoute("/claim/")({
   component: Claim,
   head: () => ({ meta: [{ title: "Claim — uithoorn.online" }] }),
 });
+
+type PackageChoice = "self" | "managed" | "legal";
 
 // Compensatiebedragen worden NIET door de app bepaald. De daadwerkelijke
 // vergoeding wordt vastgesteld door officiële instanties (BAS, Schiphol,
@@ -24,25 +26,48 @@ function Claim() {
   const [address, setAddress] = useState("");
   const [postcode, setPostcode] = useState("");
   const [years, setYears] = useState<number[]>([2023, 2024, 2025]);
-  const [pkg, setPkg] = useState<"self" | "managed" | "legal" | null>(null);
+  const [pkg, setPkg] = useState<PackageChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Geen client-side berekening van compensatie — alleen jaren registreren.
 
   const toggleYear = (y: number) =>
-    setYears((p) => p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort());
+    setYears((p) => (p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort()));
 
-  const submit = async (chosen: "self" | "managed" | "legal") => {
-    if (!user) { navigate({ to: "/auth", search: { next: "/claim" } as any }); return; }
-    if (!name || !address || !postcode) { toast.error("Vul je gegevens in (stap 1)"); setStep(1); return; }
-    if (years.length === 0) { toast.error("Selecteer minimaal één jaar"); setStep(2); return; }
+  const submit = async (chosen: PackageChoice) => {
+    if (!user) {
+      navigate({ to: "/auth", search: { next: "/claim" } });
+      return;
+    }
+    if (!name || !address || !postcode) {
+      toast.error("Vul je gegevens in (stap 1)");
+      setStep(1);
+      return;
+    }
+    if (years.length === 0) {
+      toast.error("Selecteer minimaal één jaar");
+      setStep(2);
+      return;
+    }
     setSubmitting(true);
-    const { data, error } = await supabase.from("claims").insert({
-      user_id: user.id, name, address, postcode, years_selected: years, package: chosen, paid: false,
-    }).select("id").single();
+    const { data, error } = await supabase
+      .from("claims")
+      .insert({
+        user_id: user.id,
+        name,
+        address,
+        postcode,
+        years_selected: years,
+        package: chosen,
+        paid: false,
+      })
+      .select("id")
+      .single();
     setSubmitting(false);
-    if (error || !data) { toast.error("Kon claim niet opslaan"); return; }
+    if (error || !data) {
+      toast.error("Kon claim niet opslaan");
+      return;
+    }
     toast.success("Claim ingediend");
-    navigate({ to: "/claim/success", search: { id: data.id, pkg: chosen } as any });
+    navigate({ to: "/claim/success", search: { id: data.id, pkg: chosen } });
   };
 
   if (authLoading) {
@@ -61,13 +86,22 @@ function Claim() {
       <AppShell>
         <section className="bg-navy text-navy-foreground px-5 pt-6 pb-7">
           <h1 className="text-2xl font-serif">Start je claim</h1>
-          <p className="mt-1 text-sm text-white/70">Log eerst in zodat je dossier kan worden opgeslagen.</p>
+          <p className="mt-1 text-sm text-white/70">
+            Log eerst in zodat je dossier kan worden opgeslagen.
+          </p>
         </section>
         <section className="px-5 -mt-5 pb-10">
           <div className="rounded-xl bg-white border border-border p-5 shadow-sm">
             <h2 className="font-serif text-xl text-navy">Dossier bewaren</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Na het inloggen kom je terug op deze claimflow en kun je direct doorgaan naar de vervolgstappen.</p>
-            <Link to="/auth" search={{ next: "/claim" } as any} className="mt-4 block rounded-xl bg-red py-3 text-center font-medium text-red-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
+              Na het inloggen kom je terug op deze claimflow en kun je direct doorgaan naar de
+              vervolgstappen.
+            </p>
+            <Link
+              to="/auth"
+              search={{ next: "/claim" }}
+              className="mt-4 block rounded-xl bg-red py-3 text-center font-medium text-red-foreground"
+            >
               Inloggen en claim starten
             </Link>
           </div>
@@ -85,7 +119,11 @@ function Claim() {
           {[1, 2, 3].map((n) => (
             <div key={n} className="space-y-1">
               <div className={`h-1.5 rounded-full ${step >= n ? "bg-red" : "bg-white/15"}`} />
-              <div className={`text-[10px] uppercase tracking-wider ${step >= n ? "text-red" : "text-white/40"}`}>
+              <div
+                className={`text-[10px] uppercase tracking-wider ${
+                  step >= n ? "text-red" : "text-white/40"
+                }`}
+              >
                 Stap {n}
               </div>
             </div>
@@ -100,12 +138,20 @@ function Claim() {
               <h2 className="font-serif text-xl text-navy">Jouw gegevens</h2>
               <Field label="Volledige naam" value={name} onChange={setName} placeholder="Jan de Vries" />
               <Field label="Adres" value={address} onChange={setAddress} placeholder="Dorpsstraat 12" />
-              <Field label="Postcode" value={postcode} onChange={(v) => setPostcode(v.toUpperCase())} placeholder="1421 AB" maxLength={7} />
+              <Field
+                label="Postcode"
+                value={postcode}
+                onChange={(v) => setPostcode(v.toUpperCase())}
+                placeholder="1421 AB"
+                maxLength={7}
+              />
               <button
                 onClick={() => setStep(2)}
                 disabled={!name || !address || !postcode}
                 className="mt-2 w-full rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
-              >Volgende</button>
+              >
+                Volgende
+              </button>
             </div>
           )}
           {step === 2 && (
@@ -119,10 +165,16 @@ function Claim() {
                     <button
                       key={y}
                       onClick={() => toggleYear(y)}
-                      className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left ${on ? "border-red bg-red/5" : "border-border bg-cream"}`}
+                      className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left ${
+                        on ? "border-red bg-red/5" : "border-border bg-cream"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`h-5 w-5 rounded-md grid place-items-center ${on ? "bg-red text-white" : "bg-white border border-border"}`}>
+                        <div
+                          className={`h-5 w-5 rounded-md grid place-items-center ${
+                            on ? "bg-red text-white" : "bg-white border border-border"
+                          }`}
+                        >
                           {on && <Check size={14} />}
                         </div>
                         <div>
@@ -137,12 +189,25 @@ function Claim() {
               </div>
               <div className="mt-3 rounded-xl bg-navy text-white p-4">
                 <div className="text-[11px] uppercase text-white/60">Compensatiebedrag</div>
-                <div className="mt-1 text-sm text-white/90">Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van I&amp;W) op basis van geverifieerde meetgegevens. De app toont geen schatting.</div>
-                <div className="mt-2 text-[10px] text-white/50">Bronnen in kennisbank: bezoekbas.nl • schiphol.nl</div>
+                <div className="mt-1 text-sm text-white/90">
+                  Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van I&amp;W)
+                  op basis van geverifieerde meetgegevens. De app toont geen schatting.
+                </div>
+                <div className="mt-2 text-[10px] text-white/50">
+                  Bronnen in kennisbank: bezoekbas.nl • schiphol.nl
+                </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3 text-navy">Terug</button>
-                <button onClick={() => setStep(3)} disabled={years.length === 0} className="flex-1 rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40">Volgende</button>
+                <button onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3 text-navy">
+                  Terug
+                </button>
+                <button
+                  onClick={() => setStep(3)}
+                  disabled={years.length === 0}
+                  className="flex-1 rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
+                >
+                  Volgende
+                </button>
               </div>
             </div>
           )}
@@ -154,7 +219,10 @@ function Claim() {
                 title="Zelf doen"
                 price="Gratis"
                 desc="Na indienen krijg je direct je claimoverzicht en officiële bronnen voor de vervolgstap."
-                onClick={() => { setPkg("self"); submit("self"); }}
+                onClick={() => {
+                  setPkg("self");
+                  submit("self");
+                }}
                 active={pkg === "self"}
               />
               <PackageCard
@@ -162,7 +230,10 @@ function Claim() {
                 title="Wij regelen het"
                 price="€100"
                 desc="Je aanvraag wordt opgeslagen voor behandeling namens jou; de vergoeding zelf wordt niet door de app bepaald."
-                onClick={() => { setPkg("managed"); submit("managed"); }}
+                onClick={() => {
+                  setPkg("managed");
+                  submit("managed");
+                }}
                 active={pkg === "managed"}
                 highlight
               />
@@ -171,16 +242,16 @@ function Claim() {
                 title="Juridisch traject"
                 price="€450"
                 desc="Je aanvraag wordt opgeslagen voor juridische intake en beoordeling van vervolgstappen."
-                onClick={() => { setPkg("legal"); submit("legal"); }}
+                onClick={() => {
+                  setPkg("legal");
+                  submit("legal");
+                }}
                 active={pkg === "legal"}
               />
-              <button onClick={() => setStep(2)} className="mt-2 w-full rounded-xl border border-border py-3 text-navy">Terug</button>
+              <button onClick={() => setStep(2)} className="mt-2 w-full rounded-xl border border-border py-3 text-navy">
+                Terug
+              </button>
               {submitting && <p className="text-center text-xs text-muted-foreground">Bezig met opslaan...</p>}
-              {!user && (
-                <Link to="/auth" search={{ next: "/claim" } as any} className="block text-center text-xs text-red mt-2">
-                  Inloggen vereist om te claimen →
-                </Link>
-              )}
             </div>
           )}
         </div>
@@ -189,9 +260,7 @@ function Claim() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, maxLength }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; maxLength?: number;
-}) {
+function Field({ label, value, onChange, placeholder, maxLength }: FieldProps) {
   return (
     <div>
       <label className="text-xs font-medium text-navy">{label}</label>
@@ -206,9 +275,7 @@ function Field({ label, value, onChange, placeholder, maxLength }: {
   );
 }
 
-function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: {
-  Icon: any; title: string; price: string; desc: string; onClick: () => void; active?: boolean; highlight?: boolean;
-}) {
+function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: PackageCardProps) {
   return (
     <button
       onClick={onClick}
@@ -218,7 +285,9 @@ function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: {
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className={`h-10 w-10 rounded-xl grid place-items-center ${highlight ? "bg-red text-white" : "bg-navy text-white"}`}>
+        <div
+          className={`h-10 w-10 rounded-xl grid place-items-center ${highlight ? "bg-red text-white" : "bg-navy text-white"}`}
+        >
           <Icon size={18} />
         </div>
         <div className="flex-1">
@@ -233,3 +302,21 @@ function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: {
     </button>
   );
 }
+
+type FieldProps = {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+};
+
+type PackageCardProps = {
+  Icon: typeof FileText;
+  title: string;
+  price: string;
+  desc: string;
+  onClick: () => void;
+  active?: boolean;
+  highlight?: boolean;
+};
