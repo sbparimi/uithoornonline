@@ -15,6 +15,7 @@ import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as CheckRouteImport } from './routes/check'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClaimIndexRouteImport } from './routes/claim.index'
 import { Route as ClaimSuccessRouteImport } from './routes/claim.success'
 import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
 import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClaimIndexRoute = ClaimIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClaimRoute,
+} as any)
 const ClaimSuccessRoute = ClaimSuccessRouteImport.update({
   id: '/success',
   path: '/success',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/log': typeof LogRoute
   '/map': typeof MapRoute
   '/claim/success': typeof ClaimSuccessRoute
+  '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -81,10 +88,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/check': typeof CheckRoute
-  '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
   '/claim/success': typeof ClaimSuccessRoute
+  '/claim': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -97,6 +104,7 @@ export interface FileRoutesById {
   '/log': typeof LogRoute
   '/map': typeof MapRoute
   '/claim/success': typeof ClaimSuccessRoute
+  '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
@@ -110,6 +118,7 @@ export interface FileRouteTypes {
     | '/log'
     | '/map'
     | '/claim/success'
+    | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
@@ -117,10 +126,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/check'
-    | '/claim'
     | '/log'
     | '/map'
     | '/claim/success'
+    | '/claim'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   id:
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/log'
     | '/map'
     | '/claim/success'
+    | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
     | '/api/public/hooks/run-evals'
   fileRoutesById: FileRoutesById
@@ -191,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/claim/': {
+      id: '/claim/'
+      path: '/'
+      fullPath: '/claim/'
+      preLoaderRoute: typeof ClaimIndexRouteImport
+      parentRoute: typeof ClaimRoute
+    }
     '/claim/success': {
       id: '/claim/success'
       path: '/success'
@@ -217,10 +234,12 @@ declare module '@tanstack/react-router' {
 
 interface ClaimRouteChildren {
   ClaimSuccessRoute: typeof ClaimSuccessRoute
+  ClaimIndexRoute: typeof ClaimIndexRoute
 }
 
 const ClaimRouteChildren: ClaimRouteChildren = {
   ClaimSuccessRoute: ClaimSuccessRoute,
+  ClaimIndexRoute: ClaimIndexRoute,
 }
 
 const ClaimRouteWithChildren = ClaimRoute._addFileChildren(ClaimRouteChildren)
@@ -238,3 +257,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
