@@ -136,8 +136,18 @@ function Claim() {
           {step === 1 && (
             <div className="space-y-3">
               <h2 className="font-serif text-xl text-navy">Jouw gegevens</h2>
-              <Field label="Volledige naam" value={name} onChange={setName} placeholder="Jan de Vries" />
-              <Field label="Adres" value={address} onChange={setAddress} placeholder="Dorpsstraat 12" />
+              <Field
+                label="Volledige naam"
+                value={name}
+                onChange={setName}
+                placeholder="Jan de Vries"
+              />
+              <Field
+                label="Adres"
+                value={address}
+                onChange={setAddress}
+                placeholder="Dorpsstraat 12"
+              />
               <Field
                 label="Postcode"
                 value={postcode}
@@ -157,7 +167,9 @@ function Claim() {
           {step === 2 && (
             <div className="space-y-3">
               <h2 className="font-serif text-xl text-navy">Welke jaren claimen?</h2>
-              <p className="text-xs text-muted-foreground">Selecteer de jaren waarin je overlast had.</p>
+              <p className="text-xs text-muted-foreground">
+                Selecteer de jaren waarin je overlast had.
+              </p>
               <div className="mt-2 space-y-2">
                 {[2023, 2024, 2025].map((y) => {
                   const on = years.includes(y);
@@ -179,10 +191,14 @@ function Claim() {
                         </div>
                         <div>
                           <div className="font-serif text-navy">{y}</div>
-                          <div className="text-[11px] text-muted-foreground">Jaar toevoegen aan dossier</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Jaar toevoegen aan dossier
+                          </div>
                         </div>
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-mono">officieel vast te stellen</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        officieel vast te stellen
+                      </div>
                     </button>
                   );
                 })}
@@ -190,15 +206,18 @@ function Claim() {
               <div className="mt-3 rounded-xl bg-navy text-white p-4">
                 <div className="text-[11px] uppercase text-white/60">Compensatiebedrag</div>
                 <div className="mt-1 text-sm text-white/90">
-                  Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van I&amp;W)
-                  op basis van geverifieerde meetgegevens. De app toont geen schatting.
+                  Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van
+                  I&amp;W) op basis van geverifieerde meetgegevens. De app toont geen schatting.
                 </div>
                 <div className="mt-2 text-[10px] text-white/50">
                   Bronnen in kennisbank: bezoekbas.nl • schiphol.nl
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3 text-navy">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 rounded-xl border border-border py-3 text-navy"
+                >
                   Terug
                 </button>
                 <button
@@ -248,10 +267,15 @@ function Claim() {
                 }}
                 active={pkg === "legal"}
               />
-              <button onClick={() => setStep(2)} className="mt-2 w-full rounded-xl border border-border py-3 text-navy">
+              <button
+                onClick={() => setStep(2)}
+                className="mt-2 w-full rounded-xl border border-border py-3 text-navy"
+              >
                 Terug
               </button>
-              {submitting && <p className="text-center text-xs text-muted-foreground">Bezig met opslaan...</p>}
+              {submitting && (
+                <p className="text-center text-xs text-muted-foreground">Bezig met opslaan...</p>
+              )}
             </div>
           )}
         </div>
@@ -281,7 +305,11 @@ function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: P
       onClick={onClick}
       disabled={active}
       className={`w-full text-left rounded-xl border p-4 transition ${
-        active ? "border-red bg-red/5 opacity-70" : highlight ? "border-navy bg-white" : "border-border bg-white"
+        active
+          ? "border-red bg-red/5 opacity-70"
+          : highlight
+            ? "border-navy bg-white"
+            : "border-border bg-white"
       }`}
     >
       <div className="flex items-start gap-3">

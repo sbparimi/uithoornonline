@@ -2,7 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { AppShell } from "@/components/AppShell";
-import { CheckCircle2, FileText, Mail, Scale, Sparkles, Download, ArrowRight, Clock } from "lucide-react";
+import {
+  CheckCircle2,
+  FileText,
+  Mail,
+  Scale,
+  Sparkles,
+  Download,
+  ArrowRight,
+  Clock,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -44,9 +53,17 @@ function ClaimSuccess() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { navigate({ to: "/auth", search: { next: "/claim" } as any }); return; }
+    if (!user) {
+      navigate({ to: "/auth", search: { next: "/claim" } as any });
+      return;
+    }
     (async () => {
-      let q = supabase.from("claims").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
+      let q = supabase
+        .from("claims")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
       if (id) q = supabase.from("claims").select("*").eq("user_id", user.id).eq("id", id).limit(1);
       const { data } = await q;
       setClaim((data?.[0] as ClaimRow) ?? null);
@@ -70,9 +87,18 @@ function ClaimSuccess() {
         </div>
         {claim && (
           <div className="mt-5 rounded-xl bg-white/10 p-4 text-sm">
-            <div className="flex justify-between"><span className="text-white/60">Referentie</span><span className="font-mono">{claim.id.slice(0, 8).toUpperCase()}</span></div>
-            <div className="flex justify-between mt-1"><span className="text-white/60">Jaren</span><span>{claim.years_selected.join(", ")}</span></div>
-            <div className="mt-2 text-[11px] text-white/60">Compensatiebedrag wordt officieel vastgesteld door BAS / Schiphol / ministerie van I&amp;W. De app maakt geen schatting.</div>
+            <div className="flex justify-between">
+              <span className="text-white/60">Referentie</span>
+              <span className="font-mono">{claim.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-white/60">Jaren</span>
+              <span>{claim.years_selected.join(", ")}</span>
+            </div>
+            <div className="mt-2 text-[11px] text-white/60">
+              Compensatiebedrag wordt officieel vastgesteld door BAS / Schiphol / ministerie van
+              I&amp;W. De app maakt geen schatting.
+            </div>
           </div>
         )}
       </section>
@@ -110,15 +136,30 @@ function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }
       </p>
       <div className="mt-3 grid gap-2">
         {officialLinks.map((link) => (
-          <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-            <span className="text-sm font-medium text-navy">{link.label}</span><ArrowRight size={16} className="text-navy/60" />
+          <a
+            key={link.href}
+            href={link.href}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"
+          >
+            <span className="text-sm font-medium text-navy">{link.label}</span>
+            <ArrowRight size={16} className="text-navy/60" />
           </a>
         ))}
-        <Link to="/log" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-          <span className="text-sm font-medium text-navy">Overlast loggen</span><ArrowRight size={16} className="text-navy/60" />
+        <Link
+          to="/log"
+          className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"
+        >
+          <span className="text-sm font-medium text-navy">Overlast loggen</span>
+          <ArrowRight size={16} className="text-navy/60" />
         </Link>
-        <Link to="/" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-          <span className="text-sm font-medium text-navy">Vraag aan de assistent</span><ArrowRight size={16} className="text-navy/60" />
+        <Link
+          to="/"
+          className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"
+        >
+          <span className="text-sm font-medium text-navy">Vraag aan de assistent</span>
+          <ArrowRight size={16} className="text-navy/60" />
         </Link>
       </div>
     </div>
@@ -129,10 +170,15 @@ function Step({ n, Icon, title, desc }: { n: number; Icon: any; title: string; d
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
-        <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-sm font-mono">{n}</div>
+        <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-sm font-mono">
+          {n}
+        </div>
       </div>
       <div className="flex-1 pb-1">
-        <div className="flex items-center gap-2 text-navy"><Icon size={16} /><span className="font-medium text-sm">{title}</span></div>
+        <div className="flex items-center gap-2 text-navy">
+          <Icon size={16} />
+          <span className="font-medium text-sm">{title}</span>
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
       </div>
     </li>
@@ -142,27 +188,72 @@ function Step({ n, Icon, title, desc }: { n: number; Icon: any; title: string; d
 function SelfSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={CheckCircle2} title="Dossier opgeslagen" desc="Je claimgegevens en gekozen jaren staan nu in je account." />
-      <Step n={2} Icon={FileText} title="Officiële route openen" desc="Gebruik het BAS-meldformulier hieronder voor een melding of vraag bij het Bewoners Aanspreekpunt Schiphol." />
-      <Step n={3} Icon={Download} title="Bewijs blijven verzamelen" desc="Log nieuwe overlastmomenten in de app zodat je dossier actueel blijft." />
+      <Step
+        n={1}
+        Icon={CheckCircle2}
+        title="Dossier opgeslagen"
+        desc="Je claimgegevens en gekozen jaren staan nu in je account."
+      />
+      <Step
+        n={2}
+        Icon={FileText}
+        title="Officiële route openen"
+        desc="Gebruik het BAS-meldformulier hieronder voor een melding of vraag bij het Bewoners Aanspreekpunt Schiphol."
+      />
+      <Step
+        n={3}
+        Icon={Download}
+        title="Bewijs blijven verzamelen"
+        desc="Log nieuwe overlastmomenten in de app zodat je dossier actueel blijft."
+      />
     </ol>
   );
 }
 function ManagedSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Clock} title="Dossier opgeslagen" desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100." />
-      <Step n={2} Icon={FileText} title="Voorbereiding" desc="Bewaar aanvullende meldingen en documenten zodat de behandeling op basis van jouw dossier kan plaatsvinden." />
-      <Step n={3} Icon={Mail} title="Volgende actie" desc="Gebruik hieronder de officiële BAS-link voor actuele informatie of om zelf aanvullend te melden." />
+      <Step
+        n={1}
+        Icon={Clock}
+        title="Dossier opgeslagen"
+        desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100."
+      />
+      <Step
+        n={2}
+        Icon={FileText}
+        title="Voorbereiding"
+        desc="Bewaar aanvullende meldingen en documenten zodat de behandeling op basis van jouw dossier kan plaatsvinden."
+      />
+      <Step
+        n={3}
+        Icon={Mail}
+        title="Volgende actie"
+        desc="Gebruik hieronder de officiële BAS-link voor actuele informatie of om zelf aanvullend te melden."
+      />
     </ol>
   );
 }
 function LegalSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Scale} title="Dossier opgeslagen" desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450." />
-      <Step n={2} Icon={Sparkles} title="Dossier aanvullen" desc="Voeg relevante overlastlogs en documenten toe voordat juridische beoordeling plaatsvindt." />
-      <Step n={3} Icon={FileText} title="Officiële bronnen raadplegen" desc="Gebruik de officiële links hieronder voor de actuele informatie waarop vervolgstappen moeten worden gebaseerd." />
+      <Step
+        n={1}
+        Icon={Scale}
+        title="Dossier opgeslagen"
+        desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450."
+      />
+      <Step
+        n={2}
+        Icon={Sparkles}
+        title="Dossier aanvullen"
+        desc="Voeg relevante overlastlogs en documenten toe voordat juridische beoordeling plaatsvindt."
+      />
+      <Step
+        n={3}
+        Icon={FileText}
+        title="Officiële bronnen raadplegen"
+        desc="Gebruik de officiële links hieronder voor de actuele informatie waarop vervolgstappen moeten worden gebaseerd."
+      />
     </ol>
   );
 }
