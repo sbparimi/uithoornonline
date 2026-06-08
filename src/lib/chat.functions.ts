@@ -296,6 +296,9 @@ export const chatTurn = createServerFn({ method: "POST" })
       ...trimmed,
     ];
 
+    const allowedSourceUrls = new Set<string>();
+
+
     for (let step = 0; step < 4; step++) {
       let res: Response;
       try {
