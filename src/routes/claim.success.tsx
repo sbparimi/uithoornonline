@@ -11,6 +11,7 @@ import {
   Download,
   ArrowRight,
   Clock,
+  type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -54,7 +55,7 @@ function ClaimSuccess() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate({ to: "/auth", search: { next: "/claim" } as any });
+      navigate({ to: "/auth", search: { next: "/claim" } });
       return;
     }
     (async () => {
@@ -166,7 +167,7 @@ function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }
   );
 }
 
-function Step({ n, Icon, title, desc }: { n: number; Icon: any; title: string; desc: string }) {
+function Step({ n, Icon, title, desc }: { n: number; Icon: LucideIcon; title: string; desc: string }) {
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
