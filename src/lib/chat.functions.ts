@@ -32,12 +32,16 @@ const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een vriendelijke Nederlandse a
 - Het melden / loggen van geluidsoverlast
 - De geluidskaart van de regio
 
-ABSOLUTE FEITELIJKHEIDSREGELS (overtreden = fout):
-A. Noem GEEN bedragen, percentages, datums, deadlines, namen van regelingen, kamerstuknummers, wetsartikelen, geluidsniveaus (dB, Lden, Lnight), aantallen vluchten, of contactgegevens — TENZIJ deze letterlijk uit een searchKnowledge-resultaat van DEZE beurt komen, met bijbehorende source-URL in 'sources'.
-B. Verzin NOOIT URLs, telefoonnummers, e-mailadressen of formulier-namen.
-C. Als searchKnowledge leeg is of similarity te laag, zeg EXPLICIET: "Daar heb ik geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele cijfers." Geef GEEN getallen of regelingsnamen uit je eigen geheugen.
-D. Bij vragen over "hoeveel krijg ik?" / "wanneer?" / "hoe hoog is de vergoeding?" / officiële procedures / wetgeving / nieuws: ALTIJD eerst searchKnowledge aanroepen. Antwoord pas daarna, en uitsluitend met info die in de hits staat.
-E. Parafraseer kort, citeer geen lange tekst. Vermeld na een feitelijke uitspraak de bron via 'sources'.
+EU AI ACT TRANSPARANTIE (Art. 50): je bent een AI-systeem. Bij twijfel of bij de eerste beurt: benoem dat je een AI-assistent bent en dat antwoorden afkomstig zijn uit publieke bronnen (BAS, Schiphol, ILT, gemeente Uithoorn, rijksoverheid). Geef nooit juridisch, medisch of financieel advies — verwijs door naar een gekwalificeerde professional.
+
+ABSOLUTE FEITELIJKHEIDSREGELS — GROUNDING ONLY (overtreden = fout):
+A. Elke feitelijke uitspraak (bedragen, percentages, datums, deadlines, namen van regelingen/wetten/kamerstukken/artikelen, geluidsniveaus zoals dB/Lden/Lnight, aantallen vluchten, namen van instanties, contactgegevens, URLs) MOET letterlijk herleidbaar zijn naar een searchKnowledge-hit uit DEZE beurt. Geen hit = geen uitspraak.
+B. Verzin NOOIT URLs, telefoonnummers, e-mailadressen, formulier-namen, bedragen of datums. Geen "ongeveer", geen "meestal", geen "rond de €X" — dat is hallucinatie zonder bron.
+C. Als searchKnowledge geen relevante hit oplevert (leeg of lage similarity), antwoord LETTERLIJK: "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie." Voeg GEEN eigen kennis toe.
+D. Voor ELKE vraag die feiten, cijfers, procedures, wetgeving, instanties of nieuws raakt: roep EERST searchKnowledge aan. Antwoord pas daarna, uitsluitend met info die in de hits staat. Bij "hoeveel krijg ik?" / "wanneer?" / "is dit toegestaan?" — altijd searchKnowledge.
+E. Parafraseer kort (max 1-2 zinnen per feit), citeer geen lange tekst. Elke feitelijke uitspraak krijgt een bron in 'sources' (URL exact zoals door searchKnowledge geleverd). Sources die NIET uit searchKnowledge van deze beurt komen zijn verboden.
+F. Procedures uitleggen mag alleen als de stappen letterlijk in een hit staan. Anders: doorverwijzen naar de officiële bron.
+G. Geen speculatie over uitkomst van een claim, geen schattingen van vergoeding, geen beloften. App en assistent stellen GEEN bedragen vast — dat doen BAS / Schiphol / ministerie van I&W.
 
 CONVERSATIEREGELS:
 1. Antwoord in het Nederlands (tenzij LANGUAGE OVERRIDE actief), warm en kort (max 3 zinnen).
@@ -186,7 +190,7 @@ function sanitizeQuickReplies(input: unknown) {
     .slice(0, 4);
 }
 
-function sanitizeSources(input: unknown) {
+function sanitizeSources(input: unknown, allowed: Set<string>) {
   if (!Array.isArray(input)) return [] as { title: string; url: string }[];
   const seen = new Set<string>();
   const out: { title: string; url: string }[] = [];
@@ -200,12 +204,28 @@ function sanitizeSources(input: unknown) {
     const url = (s as { url: string }).url.trim();
     const title = (s as { title: string }).title.trim().slice(0, 120);
     if (!URL_RE.test(url) || seen.has(url)) continue;
+    // GROUNDING: only accept URLs that the model actually retrieved this turn.
+    if (allowed.size > 0 && !allowed.has(url)) continue;
+    if (allowed.size === 0) continue;
     seen.add(url);
     out.push({ title: title || url, url });
     if (out.length >= 4) break;
   }
   return out;
 }
+
+// Detects likely factual claims: € amounts, percentages, dB/Lden/Lnight, years,
+// concrete dates, statute/article refs. If the reply contains any of these but
+// the model did not cite a verified source, we replace the message with the
+// standard "no verified source" disclaimer (EU AI Act grounding requirement).
+const FACTUAL_CLAIM_RE =
+  /(€\s?\d|\d+\s?%|\b\d{1,3}\s?(dB|decibel)\b|\bL(den|night|aeq)\b|\b(19|20)\d{2}\b|\bartikel\s?\d|\bart\.\s?\d|\bwet\b|\bregeling\b|\bbesluit\b|\bkamerstuk\b|\bdeadline\b|\bvergoeding\s+van\b|\buitkering\s+van\b)/i;
+
+const UNGROUNDED_FALLBACK_NL =
+  "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie.";
+const UNGROUNDED_FALLBACK_EN =
+  "I don't have a verified source for that right now. Please check bezoekbas.nl or schiphol.nl for current official information.";
+
 
 function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) {
   const raw = String(args.postcode ?? "").trim();
@@ -275,6 +295,9 @@ export const chatTurn = createServerFn({ method: "POST" })
       { role: "system", content: SYSTEM_PROMPT + slotsContext + langDirective },
       ...trimmed,
     ];
+
+    const allowedSourceUrls = new Set<string>();
+
 
     for (let step = 0; step < 4; step++) {
       let res: Response;
@@ -347,6 +370,9 @@ export const chatTurn = createServerFn({ method: "POST" })
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "searchKnowledge") {
           const result = await executeSearchKnowledge(args);
+          for (const h of result.hits ?? []) {
+            if (h?.url && URL_RE.test(h.url)) allowedSourceUrls.add(h.url);
+          }
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "reply") {
           sawReply = args;
@@ -356,14 +382,26 @@ export const chatTurn = createServerFn({ method: "POST" })
 
       if (sawReply) {
         const message = typeof sawReply.message === "string" ? sawReply.message.trim() : "";
+        const sources = sanitizeSources(sawReply.sources, allowedSourceUrls);
+        // EU AI Act grounding guard: factual-looking claims without a verified
+        // source get replaced with the standard disclaimer. The model can still
+        // ask follow-up questions or do non-factual chit-chat freely.
+        const looksFactual = FACTUAL_CLAIM_RE.test(message);
+        const safeMessage =
+          looksFactual && sources.length === 0
+            ? lang === "en"
+              ? UNGROUNDED_FALLBACK_EN
+              : UNGROUNDED_FALLBACK_NL
+            : message || "…";
         return {
-          message: message || "…",
+          message: safeMessage,
           quickReplies: sanitizeQuickReplies(sawReply.quickReplies),
           collectedSlots: sanitizeSlots(sawReply.collectedSlots),
-          sources: sanitizeSources(sawReply.sources),
+          sources,
         };
       }
     }
+
 
     return {
       message: "Sorry, dat duurde te lang. Probeer het nog eens.",
