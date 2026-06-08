@@ -190,7 +190,7 @@ function sanitizeQuickReplies(input: unknown) {
     .slice(0, 4);
 }
 
-function sanitizeSources(input: unknown) {
+function sanitizeSources(input: unknown, allowed: Set<string>) {
   if (!Array.isArray(input)) return [] as { title: string; url: string }[];
   const seen = new Set<string>();
   const out: { title: string; url: string }[] = [];
@@ -204,12 +204,28 @@ function sanitizeSources(input: unknown) {
     const url = (s as { url: string }).url.trim();
     const title = (s as { title: string }).title.trim().slice(0, 120);
     if (!URL_RE.test(url) || seen.has(url)) continue;
+    // GROUNDING: only accept URLs that the model actually retrieved this turn.
+    if (allowed.size > 0 && !allowed.has(url)) continue;
+    if (allowed.size === 0) continue;
     seen.add(url);
     out.push({ title: title || url, url });
     if (out.length >= 4) break;
   }
   return out;
 }
+
+// Detects likely factual claims: € amounts, percentages, dB/Lden/Lnight, years,
+// concrete dates, statute/article refs. If the reply contains any of these but
+// the model did not cite a verified source, we replace the message with the
+// standard "no verified source" disclaimer (EU AI Act grounding requirement).
+const FACTUAL_CLAIM_RE =
+  /(€\s?\d|\d+\s?%|\b\d{1,3}\s?(dB|decibel)\b|\bL(den|night|aeq)\b|\b(19|20)\d{2}\b|\bartikel\s?\d|\bart\.\s?\d|\bwet\b|\bregeling\b|\bbesluit\b|\bkamerstuk\b|\bdeadline\b|\bvergoeding\s+van\b|\buitkering\s+van\b)/i;
+
+const UNGROUNDED_FALLBACK_NL =
+  "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie.";
+const UNGROUNDED_FALLBACK_EN =
+  "I don't have a verified source for that right now. Please check bezoekbas.nl or schiphol.nl for current official information.";
+
 
 function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) {
   const raw = String(args.postcode ?? "").trim();
