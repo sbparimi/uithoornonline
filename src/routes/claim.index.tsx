@@ -17,7 +17,7 @@ export const Route = createFileRoute("/claim/")({
 // Zie bezoekbas.nl en schiphol.nl voor actuele cijfers.
 
 function Claim() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
@@ -44,6 +44,37 @@ function Claim() {
     toast.success("Claim ingediend");
     navigate({ to: "/claim/success", search: { id: data.id, pkg: chosen } as any });
   };
+
+  if (authLoading) {
+    return (
+      <AppShell>
+        <section className="bg-navy text-navy-foreground px-5 pt-6 pb-7">
+          <h1 className="text-2xl font-serif">Start je claim</h1>
+          <p className="mt-1 text-sm text-white/70">Je sessie wordt gecontroleerd…</p>
+        </section>
+      </AppShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AppShell>
+        <section className="bg-navy text-navy-foreground px-5 pt-6 pb-7">
+          <h1 className="text-2xl font-serif">Start je claim</h1>
+          <p className="mt-1 text-sm text-white/70">Log eerst in zodat je dossier kan worden opgeslagen.</p>
+        </section>
+        <section className="px-5 -mt-5 pb-10">
+          <div className="rounded-xl bg-white border border-border p-5 shadow-sm">
+            <h2 className="font-serif text-xl text-navy">Dossier bewaren</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Na het inloggen kom je terug op deze claimflow en kun je direct doorgaan naar de vervolgstappen.</p>
+            <Link to="/auth" search={{ next: "/claim" } as any} className="mt-4 block rounded-xl bg-red py-3 text-center font-medium text-red-foreground">
+              Inloggen en claim starten
+            </Link>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
