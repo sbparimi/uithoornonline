@@ -30,6 +30,11 @@ type ClaimRow = {
 
 // Geen hardcoded compensatiebedragen — vergoeding wordt officieel vastgesteld.
 
+const officialLinks = [
+  { href: "https://meldingen-bezoekbas.nl/", label: "Open BAS-meldformulier" },
+  { href: "https://www.schiphol.nl/nl/schiphol-als-buur/", label: "Schiphol als buur" },
+];
+
 function ClaimSuccess() {
   const { id, pkg } = Route.useSearch();
   const { user, loading: authLoading } = useAuth();
@@ -88,23 +93,35 @@ function ClaimSuccess() {
           )}
         </div>
 
-        <div className="rounded-xl bg-cream border border-border p-5">
-          <h3 className="font-serif text-navy">Versterk je claim</h3>
-          <p className="text-xs text-muted-foreground mt-1">Hoe meer overlast je logt, hoe sterker je dossier.</p>
-          <div className="mt-3 grid gap-2">
-            <Link to="/log" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-              <span className="text-sm font-medium text-navy">Overlast loggen</span><ArrowRight size={16} className="text-navy/60" />
-            </Link>
-            <Link to="/map" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-              <span className="text-sm font-medium text-navy">Bekijk de overlastkaart</span><ArrowRight size={16} className="text-navy/60" />
-            </Link>
-            <Link to="/" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
-              <span className="text-sm font-medium text-navy">Stel een vraag aan de assistent</span><ArrowRight size={16} className="text-navy/60" />
-            </Link>
-          </div>
-        </div>
+        <NextActions activePkg={activePkg} />
       </section>
     </AppShell>
+  );
+}
+
+function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }) {
+  return (
+    <div className="rounded-xl bg-cream border border-border p-5">
+      <h3 className="font-serif text-navy">Direct verder</h3>
+      <p className="text-xs text-muted-foreground mt-1">
+        {activePkg === "self"
+          ? "Gebruik de officiële BAS-route om je melding of vraag zelf door te zetten."
+          : "Je dossier is opgeslagen; voeg extra meldingen toe of raadpleeg de officiële informatie terwijl je aanvraag wordt opgevolgd."}
+      </p>
+      <div className="mt-3 grid gap-2">
+        {officialLinks.map((link) => (
+          <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
+            <span className="text-sm font-medium text-navy">{link.label}</span><ArrowRight size={16} className="text-navy/60" />
+          </a>
+        ))}
+        <Link to="/log" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
+          <span className="text-sm font-medium text-navy">Overlast loggen</span><ArrowRight size={16} className="text-navy/60" />
+        </Link>
+        <Link to="/" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
+          <span className="text-sm font-medium text-navy">Vraag aan de assistent</span><ArrowRight size={16} className="text-navy/60" />
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -125,27 +142,27 @@ function Step({ n, Icon, title, desc }: { n: number; Icon: any; title: string; d
 function SelfSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Mail} title="Bevestigingsmail" desc="Je ontvangt binnen enkele minuten een bevestiging op je e-mailadres." />
-      <Step n={2} Icon={Download} title="Instructie-PDF" desc="In de mail zit een PDF met stap-voor-stap instructies en voorbeeldbrieven." />
-      <Step n={3} Icon={FileText} title="Zelf indienen" desc="Stuur de brieven naar BAS en Schiphol volgens de instructies. Wij volgen het op afstand." />
+      <Step n={1} Icon={CheckCircle2} title="Dossier opgeslagen" desc="Je claimgegevens en gekozen jaren staan nu in je account." />
+      <Step n={2} Icon={FileText} title="Officiële route openen" desc="Gebruik het BAS-meldformulier hieronder voor een melding of vraag bij het Bewoners Aanspreekpunt Schiphol." />
+      <Step n={3} Icon={Download} title="Bewijs blijven verzamelen" desc="Log nieuwe overlastmomenten in de app zodat je dossier actueel blijft." />
     </ol>
   );
 }
 function ManagedSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Clock} title="Wachten op betaling" desc="Je ontvangt een betaallink per e-mail (servicekosten €100). Na betaling start ons team direct." />
-      <Step n={2} Icon={FileText} title="Wij dienen in" desc="Ons team verzorgt alle correspondentie met BAS, ILT en Schiphol namens jou." />
-      <Step n={3} Icon={Mail} title="Updates per e-mail" desc="Je krijgt updates bij elke stap. Gemiddelde doorlooptijd: 4–8 weken." />
+      <Step n={1} Icon={Clock} title="Dossier opgeslagen" desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100." />
+      <Step n={2} Icon={FileText} title="Voorbereiding" desc="Bewaar aanvullende meldingen en documenten zodat de behandeling op basis van jouw dossier kan plaatsvinden." />
+      <Step n={3} Icon={Mail} title="Volgende actie" desc="Gebruik hieronder de officiële BAS-link voor actuele informatie of om zelf aanvullend te melden." />
     </ol>
   );
 }
 function LegalSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step n={1} Icon={Scale} title="Intake door jurist" desc="Een gespecialiseerde advocaat neemt binnen 3 werkdagen contact op." />
-      <Step n={2} Icon={Sparkles} title="Beoordeling" desc="Je dossier wordt beoordeeld op kansrijkheid. Servicekosten €450 voor het volledige juridische traject." />
-      <Step n={3} Icon={FileText} title="Vervolgstappen" desc="Bij voldoende basis wordt een procedure voorgesteld — altijd in overleg met jou." />
+      <Step n={1} Icon={Scale} title="Dossier opgeslagen" desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450." />
+      <Step n={2} Icon={Sparkles} title="Dossier aanvullen" desc="Voeg relevante overlastlogs en documenten toe voordat juridische beoordeling plaatsvindt." />
+      <Step n={3} Icon={FileText} title="Officiële bronnen raadplegen" desc="Gebruik de officiële links hieronder voor de actuele informatie waarop vervolgstappen moeten worden gebaseerd." />
     </ol>
   );
 }
