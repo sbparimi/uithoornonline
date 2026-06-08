@@ -1,21 +1,29 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 
+const searchSchema = z.object({
+  next: z.string().optional(),
+});
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: searchSchema,
   component: AuthPage,
   head: () => ({ meta: [{ title: "Inloggen — uithoorn.online" }] }),
 });
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const safeNext = next?.startsWith("/") ? next : "/";
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +33,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Ingelogd");
-        navigate({ to: "/" });
+        navigate({ to: safeNext as any });
       } else {
         const { error } = await supabase.auth.signUp({
           email, password,
@@ -41,10 +49,10 @@ function AuthPage() {
 
   const google = async () => {
     setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}${safeNext}` });
     if (res.error) { toast.error("Google sign-in mislukt"); setBusy(false); return; }
     if (res.redirected) return;
-    navigate({ to: "/" });
+    navigate({ to: safeNext as any });
   };
 
   return (
