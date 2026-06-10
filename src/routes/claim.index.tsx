@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, ChevronRight, FileText, Scale, Sparkles } from "lucide-react";
+import { Check, ChevronRight, FileText, Scale, Sparkles, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,38 +13,43 @@ export const Route = createFileRoute("/claim/")({
 
 type PackageChoice = "self" | "managed" | "legal";
 
-// Compensatiebedragen worden NIET door de app bepaald. De daadwerkelijke
-// vergoeding wordt vastgesteld door officiële instanties (BAS, Schiphol,
-// ministerie van I&W) op basis van geverifieerde meetgegevens en regelgeving.
-// Zie bezoekbas.nl en schiphol.nl voor actuele cijfers.
+const PACKAGE_META: Record<PackageChoice, { title: string; price: string; priceLabel: string }> = {
+  self: { title: "Zelf doen", price: "Gratis", priceLabel: "€0" },
+  managed: { title: "Wij regelen het", price: "€100", priceLabel: "€100" },
+  legal: { title: "Juridisch traject", price: "€450", priceLabel: "€450" },
+};
+
+const STEP_LABELS = ["Gegevens", "Pakket & betaling", "Bevestiging"] as const;
 
 function Claim() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [postcode, setPostcode] = useState("");
   const [years, setYears] = useState<number[]>([2023, 2024, 2025]);
   const [pkg, setPkg] = useState<PackageChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [claimId, setClaimId] = useState<string | null>(null);
 
   const toggleYear = (y: number) =>
     setYears((p) => (p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort()));
 
-  const submit = async (chosen: PackageChoice) => {
+  const detailsValid = !!name && !!address && !!postcode && years.length > 0;
+
+  const confirmAndPay = async () => {
     if (!user) {
       navigate({ to: "/auth", search: { next: "/claim" } });
       return;
     }
-    if (!name || !address || !postcode) {
-      toast.error("Vul je gegevens in (stap 1)");
-      setStep(1);
+    if (!pkg) {
+      toast.error("Kies een pakket");
       return;
     }
-    if (years.length === 0) {
-      toast.error("Selecteer minimaal één jaar");
-      setStep(2);
+    if (!detailsValid) {
+      toast.error("Vul je gegevens in (stap 1)");
+      setStep(1);
       return;
     }
     setSubmitting(true);
@@ -56,8 +61,8 @@ function Claim() {
         address,
         postcode,
         years_selected: years,
-        package: chosen,
-        paid: false,
+        package: pkg,
+        paid: pkg === "self",
       })
       .select("id")
       .single();
@@ -66,8 +71,9 @@ function Claim() {
       toast.error("Kon claim niet opslaan");
       return;
     }
+    setClaimId(data.id);
+    setStep(3);
     toast.success("Claim ingediend");
-    navigate({ to: "/claim/success", search: { id: data.id, pkg: chosen } });
   };
 
   if (authLoading) {
@@ -94,8 +100,7 @@ function Claim() {
           <div className="rounded-xl bg-white border border-border p-5 shadow-sm">
             <h2 className="font-serif text-xl text-navy">Dossier bewaren</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Na het inloggen kom je terug op deze claimflow en kun je direct doorgaan naar de
-              vervolgstappen.
+              Na het inloggen kom je terug op deze claimflow en kun je direct doorgaan.
             </p>
             <Link
               to="/auth"
@@ -114,20 +119,25 @@ function Claim() {
     <AppShell>
       <section className="bg-navy text-navy-foreground px-5 pt-6 pb-7">
         <h1 className="text-2xl font-serif">Start je claim</h1>
-        <p className="mt-1 text-sm text-white/70">Drie stappen tot je compensatie</p>
+        <p className="mt-1 text-sm text-white/70">
+          Stap {step} van 3 — {STEP_LABELS[step - 1]}
+        </p>
         <div className="mt-5 grid grid-cols-3 gap-2">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="space-y-1">
-              <div className={`h-1.5 rounded-full ${step >= n ? "bg-red" : "bg-white/15"}`} />
-              <div
-                className={`text-[10px] uppercase tracking-wider ${
-                  step >= n ? "text-red" : "text-white/40"
-                }`}
-              >
-                Stap {n}
+          {STEP_LABELS.map((label, i) => {
+            const n = (i + 1) as 1 | 2 | 3;
+            return (
+              <div key={label} className="space-y-1">
+                <div className={`h-1.5 rounded-full ${step >= n ? "bg-red" : "bg-white/15"}`} />
+                <div
+                  className={`text-[10px] uppercase tracking-wider ${
+                    step >= n ? "text-red" : "text-white/40"
+                  }`}
+                >
+                  {label}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -136,18 +146,8 @@ function Claim() {
           {step === 1 && (
             <div className="space-y-3">
               <h2 className="font-serif text-xl text-navy">Jouw gegevens</h2>
-              <Field
-                label="Volledige naam"
-                value={name}
-                onChange={setName}
-                placeholder="Jan de Vries"
-              />
-              <Field
-                label="Adres"
-                value={address}
-                onChange={setAddress}
-                placeholder="Dorpsstraat 12"
-              />
+              <Field label="Volledige naam" value={name} onChange={setName} placeholder="Jan de Vries" />
+              <Field label="Adres" value={address} onChange={setAddress} placeholder="Dorpsstraat 12" />
               <Field
                 label="Postcode"
                 value={postcode}
@@ -155,65 +155,92 @@ function Claim() {
                 placeholder="1421 AB"
                 maxLength={7}
               />
+              <div>
+                <div className="text-xs font-medium text-navy mt-2">Jaren met overlast</div>
+                <div className="mt-2 space-y-2">
+                  {[2023, 2024, 2025].map((y) => {
+                    const on = years.includes(y);
+                    return (
+                      <button
+                        key={y}
+                        onClick={() => toggleYear(y)}
+                        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left ${
+                          on ? "border-red bg-red/5" : "border-border bg-cream"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`h-5 w-5 rounded-md grid place-items-center ${
+                              on ? "bg-red text-white" : "bg-white border border-border"
+                            }`}
+                          >
+                            {on && <Check size={14} />}
+                          </div>
+                          <div className="font-serif text-navy">{y}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <button
                 onClick={() => setStep(2)}
-                disabled={!name || !address || !postcode}
-                className="mt-2 w-full rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
+                disabled={!detailsValid}
+                className="mt-3 w-full rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
               >
-                Volgende
+                Volgende: pakket kiezen
               </button>
             </div>
           )}
+
           {step === 2 && (
             <div className="space-y-3">
-              <h2 className="font-serif text-xl text-navy">Welke jaren claimen?</h2>
+              <h2 className="font-serif text-xl text-navy">Kies je pakket</h2>
               <p className="text-xs text-muted-foreground">
-                Selecteer de jaren waarin je overlast had.
+                Het pakket bepaalt de servicekosten. De vergoeding zelf wordt vastgesteld door BAS /
+                Schiphol / ministerie van I&amp;W.
               </p>
-              <div className="mt-2 space-y-2">
-                {[2023, 2024, 2025].map((y) => {
-                  const on = years.includes(y);
-                  return (
-                    <button
-                      key={y}
-                      onClick={() => toggleYear(y)}
-                      className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left ${
-                        on ? "border-red bg-red/5" : "border-border bg-cream"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-5 w-5 rounded-md grid place-items-center ${
-                            on ? "bg-red text-white" : "bg-white border border-border"
-                          }`}
-                        >
-                          {on && <Check size={14} />}
-                        </div>
-                        <div>
-                          <div className="font-serif text-navy">{y}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            Jaar toevoegen aan dossier
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-mono">
-                        officieel vast te stellen
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 rounded-xl bg-navy text-white p-4">
-                <div className="text-[11px] uppercase text-white/60">Compensatiebedrag</div>
-                <div className="mt-1 text-sm text-white/90">
-                  Wordt vastgesteld door officiële instanties (BAS / Schiphol / ministerie van
-                  I&amp;W) op basis van geverifieerde meetgegevens. De app toont geen schatting.
+              <PackageCard
+                Icon={FileText}
+                title={PACKAGE_META.self.title}
+                price={PACKAGE_META.self.price}
+                desc="Je krijgt je claimoverzicht en officiële bronnen voor de vervolgstap."
+                onClick={() => setPkg("self")}
+                active={pkg === "self"}
+              />
+              <PackageCard
+                Icon={Sparkles}
+                title={PACKAGE_META.managed.title}
+                price={PACKAGE_META.managed.price}
+                desc="Behandeling namens jou; aanvraag wordt opgeslagen en voorbereid."
+                onClick={() => setPkg("managed")}
+                active={pkg === "managed"}
+                highlight
+              />
+              <PackageCard
+                Icon={Scale}
+                title={PACKAGE_META.legal.title}
+                price={PACKAGE_META.legal.price}
+                desc="Juridische intake en beoordeling van vervolgstappen."
+                onClick={() => setPkg("legal")}
+                active={pkg === "legal"}
+              />
+
+              {pkg && (
+                <div className="mt-3 rounded-xl bg-cream border border-border p-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-navy">Te betalen servicekosten</span>
+                    <span className="font-mono text-navy">{PACKAGE_META[pkg].priceLabel}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {pkg === "self"
+                      ? "Geen kosten. Je bevestigt en gaat direct door."
+                      : "Door te bevestigen sla je je aanvraag op. Betaling wordt verwerkt voordat behandeling start."}
+                  </p>
                 </div>
-                <div className="mt-2 text-[10px] text-white/50">
-                  Bronnen in kennisbank: bezoekbas.nl • schiphol.nl
-                </div>
-              </div>
-              <div className="flex gap-2">
+              )}
+
+              <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => setStep(1)}
                   className="flex-1 rounded-xl border border-border py-3 text-navy"
@@ -221,66 +248,71 @@ function Claim() {
                   Terug
                 </button>
                 <button
-                  onClick={() => setStep(3)}
-                  disabled={years.length === 0}
+                  onClick={confirmAndPay}
+                  disabled={!pkg || submitting}
                   className="flex-1 rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
                 >
-                  Volgende
+                  {submitting
+                    ? "Bezig…"
+                    : pkg === "self"
+                      ? "Bevestigen"
+                      : `Betalen ${pkg ? PACKAGE_META[pkg].priceLabel : ""}`}
                 </button>
               </div>
             </div>
           )}
+
           {step === 3 && (
-            <div className="space-y-3">
-              <h2 className="font-serif text-xl text-navy">Hoe wil je claimen?</h2>
-              <PackageCard
-                Icon={FileText}
-                title="Zelf doen"
-                price="Gratis"
-                desc="Na indienen krijg je direct je claimoverzicht en officiële bronnen voor de vervolgstap."
-                onClick={() => {
-                  setPkg("self");
-                  submit("self");
-                }}
-                active={pkg === "self"}
-              />
-              <PackageCard
-                Icon={Sparkles}
-                title="Wij regelen het"
-                price="€100"
-                desc="Je aanvraag wordt opgeslagen voor behandeling namens jou; de vergoeding zelf wordt niet door de app bepaald."
-                onClick={() => {
-                  setPkg("managed");
-                  submit("managed");
-                }}
-                active={pkg === "managed"}
-                highlight
-              />
-              <PackageCard
-                Icon={Scale}
-                title="Juridisch traject"
-                price="€450"
-                desc="Je aanvraag wordt opgeslagen voor juridische intake en beoordeling van vervolgstappen."
-                onClick={() => {
-                  setPkg("legal");
-                  submit("legal");
-                }}
-                active={pkg === "legal"}
-              />
-              <button
-                onClick={() => setStep(2)}
-                className="mt-2 w-full rounded-xl border border-border py-3 text-navy"
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-red grid place-items-center">
+                  <CheckCircle2 size={22} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="font-serif text-xl text-navy">Claim bevestigd</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Referentie {claimId ? claimId.slice(0, 8).toUpperCase() : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-cream border border-border p-4 text-sm space-y-1">
+                <Row label="Naam" value={name} />
+                <Row label="Adres" value={`${address}, ${postcode}`} />
+                <Row label="Jaren" value={years.join(", ")} />
+                <Row label="Pakket" value={pkg ? PACKAGE_META[pkg].title : "—"} />
+                <Row label="Servicekosten" value={pkg ? PACKAGE_META[pkg].priceLabel : "—"} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                De vergoeding zelf wordt vastgesteld door officiële instanties (BAS / Schiphol /
+                ministerie van I&amp;W) op basis van geverifieerde meetgegevens.
+              </p>
+              <Link
+                to="/claim/success"
+                search={claimId ? { id: claimId, pkg: pkg ?? undefined } : { pkg: pkg ?? undefined }}
+                className="block w-full rounded-xl bg-red py-3 text-center text-red-foreground font-medium"
               >
-                Terug
-              </button>
-              {submitting && (
-                <p className="text-center text-xs text-muted-foreground">Bezig met opslaan...</p>
-              )}
+                Bekijk vervolgstappen
+              </Link>
+              <Link
+                to="/log"
+                className="block w-full rounded-xl border border-border py-3 text-center text-navy"
+              >
+                Overlast loggen
+              </Link>
             </div>
           )}
         </div>
       </section>
     </AppShell>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-navy text-right">{value}</span>
+    </div>
   );
 }
 
@@ -303,10 +335,9 @@ function PackageCard({ Icon, title, price, desc, onClick, active, highlight }: P
   return (
     <button
       onClick={onClick}
-      disabled={active}
       className={`w-full text-left rounded-xl border p-4 transition ${
         active
-          ? "border-red bg-red/5 opacity-70"
+          ? "border-red bg-red/5"
           : highlight
             ? "border-navy bg-white"
             : "border-border bg-white"
