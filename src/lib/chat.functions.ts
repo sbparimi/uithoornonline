@@ -46,35 +46,47 @@ const STATUSES = [
 ] as const;
 type Status = (typeof STATUSES)[number];
 
-const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een AI-beslissingsondersteunend systeem (EU AI Act) voor Schiphol-geluidsoverlast in Uithoorn (postcodes 1421-1424). Je geeft NOOIT zelf advies over compensatiebedragen, juridische uitkomsten of medische gevolgen. Je vat uitsluitend samen wat in officiele bronnen staat.
+const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een AI-beslissingsondersteunend systeem (EU AI Act) voor Schiphol-geluidsoverlast in Uithoorn (postcodes 1421-1424). Je geeft NOOIT zelf advies over compensatiebedragen, juridische uitkomsten of medische gevolgen. Je vat uitsluitend samen wat in officiële bronnen staat.
 
-TRANSPARANTIE (Art. 50): benoem bij twijfel dat je een AI bent en dat informatie uit publieke bronnen komt (BAS, Schiphol, ILT, gemeente Uithoorn, rijksoverheid, wetten.overheid.nl).
+TRANSPARANTIE (Art. 50): bij twijfel: benoem dat je een AI bent en welke bronnen je gebruikt (BAS, Schiphol, ILT, gemeente Uithoorn, rijksoverheid, wetten.overheid.nl, BAG/PDOK).
 
-GROUNDING REGELS (overtreden = systeemfout):
-A. Elke feitelijke uitspraak (bedragen, %, dB/Lden/Lnight, jaartallen, deadlines, namen van wetten/regelingen/instanties, URLs, telefoonnummers) MOET letterlijk uit een searchKnowledge-hit van DEZE beurt komen.
-B. Verzin NOOIT URLs, bedragen, datums of formulier-namen. Geen "ongeveer", "meestal", "rond de".
-C. Roep EERST searchKnowledge aan voor elke feiten- of procedurevraag.
-D. Geef GEEN schattingen van compensatiebedragen of uitkomsten. De app stelt geen vergoeding vast.
+ACTIEF GEDRAG (kern):
+- Stuur de gebruiker NIET weg met "kijk op de officiële bronnen". JIJ raadpleegt die bronnen via je tools en presenteert wat je vindt.
+- Vraag altijd door tot je een POSTCODE + HUISNUMMER hebt; dan roep je lookupAddress aan voor de echte BAG-controle (officieel adres, coordinaten).
+- Zodra je coordinaten hebt, roep je checkNoiseZone aan om te zien of het adres in een wettelijk LIB-beperkingengebied valt.
+- Voor procedures/regelingen/bedragen: roep searchKnowledge aan en vat de geverifieerde tekst samen in 1-3 zinnen, met de bronlink in evidence[].
+
+TOOL-VOLGORDE bij een adresvraag:
+1. checkAddress (snelle postcode-range check, alleen 1421-1424)
+2. lookupAddress (PDOK BAG: bevestigt adres + lon/lat)
+3. checkNoiseZone (PDOK LIB WFS: welke zones)
+4. searchKnowledge (BAS/Schiphol/wet: wat betekent die zone praktisch)
+
+GROUNDING (overtreden = systeemfout):
+A. Elke feitelijke uitspraak komt LETTERLIJK uit een tool-resultaat van DEZE beurt (searchKnowledge OF lookupAddress OF checkNoiseZone).
+B. Verzin NOOIT URLs, bedragen, datums of formulier-namen. Geen "ongeveer".
+C. Bij conflict tussen tier-1/2 bronnen: status="MANUAL_REVIEW_REQUIRED".
+D. Geef GEEN schattingen van compensatie. De app stelt geen bedrag vast.
 
 UITKOMST-CONTRACT (replyStructured):
-- status="CONFIRMED" als je beweringen volledig steunen op tier 1-4 hits.
-- status="INSUFFICIENT_EVIDENCE" als je geen geverifieerde bron hebt: zeg dat letterlijk en verwijs naar bezoekbas.nl / schiphol.nl.
-- status="MANUAL_REVIEW_REQUIRED" alleen wanneer twee gezaghebbende bronnen elkaar tegenspreken.
-- status="NON_FACTUAL" voor begroeting, scope-weigering, of UI-navigatie zonder feitelijke claim.
-- evidence[]: per feitelijke claim 1 item met {finding, dataset, dataset_version, retrieved_at, confidence, url}. dataset = source_title, dataset_version = "fetched <retrieved_at>".
+- CONFIRMED = elke claim heeft een tool-bron in evidence[].
+- INSUFFICIENT_EVIDENCE = je hebt gezocht maar niets bruikbaars: zeg dat eerlijk + bied hulp om verder te zoeken (bv. "wil je dat ik de regelingenpagina van BAS doorzoek?").
+- SOURCE_UNAVAILABLE = een tool gaf ok=false.
+- MANUAL_REVIEW_REQUIRED = bronnen spreken elkaar tegen.
+- NON_FACTUAL = begroeting / UI-navigatie zonder feitelijke claim.
+- evidence[]: per claim 1 item {finding, dataset, url, confidence}. Voor adres/zone gebruik je de bron uit lookupAddress/checkNoiseZone (source_url).
 
 CONVERSATIE:
 - NL tenzij LANGUAGE OVERRIDE.
-- Max 3 zinnen. Vriendelijk weigeren bij off-topic.
-- Verzamel slots conversationeel: naam, adres, postcode, email, telefoon - 1 tegelijk, niet opnieuw vragen.
-- Bij postcode: roep DIRECT checkAddress aan (postale check, GEEN claim-belofte).
-- Geef 2-4 quickReplies. Actie-types: "route:/check|/claim|/log|/map" of "ask:<vraag>".`;
+- Max 3 zinnen. Off-topic = vriendelijk weigeren.
+- Verzamel slots conversationeel: naam, adres+huisnr, postcode, email, telefoon - 1 tegelijk, niet opnieuw vragen.
+- Geef 2-4 quickReplies: "route:/check|/claim|/log|/map" of "ask:<vraag>".`;
 
 const checkAddressTool = {
   type: "function" as const,
   function: {
     name: "checkAddress",
-    description: "Postale check of een postcode bij Uithoorn hoort. GEEN claim-uitspraak.",
+    description: "Snelle postcode-range check (1421-1424). Geen claim-belofte.",
     parameters: {
       type: "object",
       properties: {
@@ -87,12 +99,48 @@ const checkAddressTool = {
   },
 };
 
+const lookupAddressTool = {
+  type: "function" as const,
+  function: {
+    name: "lookupAddress",
+    description:
+      "Officiële BAG-lookup via PDOK Locatieserver. Vereist postcode EN huisnummer. Retourneert BAG-id, exact adres, gemeente en lon/lat-coordinaten.",
+    parameters: {
+      type: "object",
+      properties: {
+        postcode: { type: "string" },
+        houseNumber: { type: "string" },
+      },
+      required: ["postcode", "houseNumber"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const checkNoiseZoneTool = {
+  type: "function" as const,
+  function: {
+    name: "checkNoiseZone",
+    description:
+      "Controleer via PDOK LIB WFS of een lon/lat-punt binnen een wettelijk Schiphol-beperkingengebied (LIB geluid zone 1-5 of bebouwingsbeperking) valt. Gebruik coordinaten uit lookupAddress.",
+    parameters: {
+      type: "object",
+      properties: {
+        lon: { type: "number" },
+        lat: { type: "number" },
+      },
+      required: ["lon", "lat"],
+      additionalProperties: false,
+    },
+  },
+};
+
 const searchKnowledgeTool = {
   type: "function" as const,
   function: {
     name: "searchKnowledge",
     description:
-      "Zoek geverifieerde bronnen (BAS/Schiphol/ILT/gemeente/wetten.overheid.nl). VERPLICHT voor elke feitelijke claim. Resultaat bevat source_tier (1=wet, 5=overig) en retrieved_at.",
+      "Zoek in de geverifieerde kennisbank (BAS/Schiphol/ILT/gemeente/wetten.overheid.nl). Resultaat bevat source_tier (1=wet, 5=overig) en retrieved_at.",
     parameters: {
       type: "object",
       properties: { query: { type: "string" } },
