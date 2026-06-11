@@ -305,9 +305,9 @@ async function logAudit(row: {
       question: row.question.slice(0, 4000),
       status: row.status,
       message: row.message.slice(0, 4000),
-      evidence: row.evidence,
-      sources: row.sources,
-      flags: row.flags,
+      evidence: row.evidence as unknown as any,
+      sources: row.sources as unknown as any,
+      flags: row.flags as unknown as any,
     });
   } catch (e) {
     console.error("audit log failed", e);
