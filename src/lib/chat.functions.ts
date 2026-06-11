@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { searchKnowledge } from "@/lib/knowledge.server";
+import { searchKnowledgeWithStatus, type KnowledgeHit } from "@/lib/knowledge.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
@@ -25,48 +26,55 @@ const InputSchema = z.object({
 
 const ALLOWED_ROUTES = ["/check", "/claim", "/log", "/map"] as const;
 
-const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een vriendelijke Nederlandse assistent die UITSLUITEND helpt met:
-- Schiphol-geluidsoverlast in Uithoorn en omliggende postcodes
-- Controle of een adres in het Uithoorn-gebied ligt (postcodes 1421-1424 = Uithoorn / De Kwakel; dit is een POSTALE controle, GEEN claim-belofte)
-- Uitleg over hoe het klacht- en compensatieproces formeel werkt (procedure, instanties, formulieren)
-- Het melden / loggen van geluidsoverlast
-- De geluidskaart van de regio
+// EU AI Act regulated decision-support: every assistant turn returns one of
+// these statuses. CONFIRMED means every factual claim has a tier 1-4 source.
+// INSUFFICIENT_EVIDENCE means we have no usable source and refused to guess.
+// SOURCE_UNAVAILABLE means a required authoritative source could not be
+// reached. MANUAL_REVIEW_REQUIRED means two authoritative sources conflicted.
+// NON_FACTUAL covers chit-chat / scope refusal / pure UI guidance.
+const STATUSES = [
+  "CONFIRMED",
+  "INSUFFICIENT_EVIDENCE",
+  "SOURCE_UNAVAILABLE",
+  "MANUAL_REVIEW_REQUIRED",
+  "NON_FACTUAL",
+] as const;
+type Status = (typeof STATUSES)[number];
 
-EU AI ACT TRANSPARANTIE (Art. 50): je bent een AI-systeem. Bij twijfel of bij de eerste beurt: benoem dat je een AI-assistent bent en dat antwoorden afkomstig zijn uit publieke bronnen (BAS, Schiphol, ILT, gemeente Uithoorn, rijksoverheid). Geef nooit juridisch, medisch of financieel advies — verwijs door naar een gekwalificeerde professional.
+const SYSTEM_PROMPT = `Je bent "Uithoorn Online", een AI-beslissingsondersteunend systeem (EU AI Act) voor Schiphol-geluidsoverlast in Uithoorn (postcodes 1421-1424). Je geeft NOOIT zelf advies over compensatiebedragen, juridische uitkomsten of medische gevolgen. Je vat uitsluitend samen wat in officiele bronnen staat.
 
-ABSOLUTE FEITELIJKHEIDSREGELS — GROUNDING ONLY (overtreden = fout):
-A. Elke feitelijke uitspraak (bedragen, percentages, datums, deadlines, namen van regelingen/wetten/kamerstukken/artikelen, geluidsniveaus zoals dB/Lden/Lnight, aantallen vluchten, namen van instanties, contactgegevens, URLs) MOET letterlijk herleidbaar zijn naar een searchKnowledge-hit uit DEZE beurt. Geen hit = geen uitspraak.
-B. Verzin NOOIT URLs, telefoonnummers, e-mailadressen, formulier-namen, bedragen of datums. Geen "ongeveer", geen "meestal", geen "rond de €X" — dat is hallucinatie zonder bron.
-C. Als searchKnowledge geen relevante hit oplevert (leeg of lage similarity), antwoord LETTERLIJK: "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie." Voeg GEEN eigen kennis toe.
-D. Voor ELKE vraag die feiten, cijfers, procedures, wetgeving, instanties of nieuws raakt: roep EERST searchKnowledge aan. Antwoord pas daarna, uitsluitend met info die in de hits staat. Bij "hoeveel krijg ik?" / "wanneer?" / "is dit toegestaan?" — altijd searchKnowledge.
-E. Parafraseer kort (max 1-2 zinnen per feit), citeer geen lange tekst. Elke feitelijke uitspraak krijgt een bron in 'sources' (URL exact zoals door searchKnowledge geleverd). Sources die NIET uit searchKnowledge van deze beurt komen zijn verboden.
-F. Procedures uitleggen mag alleen als de stappen letterlijk in een hit staan. Anders: doorverwijzen naar de officiële bron.
-G. Geen speculatie over uitkomst van een claim, geen schattingen van vergoeding, geen beloften. App en assistent stellen GEEN bedragen vast — dat doen BAS / Schiphol / ministerie van I&W.
+TRANSPARANTIE (Art. 50): benoem bij twijfel dat je een AI bent en dat informatie uit publieke bronnen komt (BAS, Schiphol, ILT, gemeente Uithoorn, rijksoverheid, wetten.overheid.nl).
 
-CONVERSATIEREGELS:
-1. Antwoord in het Nederlands (tenzij LANGUAGE OVERRIDE actief), warm en kort (max 3 zinnen).
-2. Wijk NOOIT af van bovenstaande scope. Off-topic = vriendelijk weigeren.
-3. BIED GEEN claim direct aan — leg eerst kort het proces uit (uit RAG-bronnen) en stuur de gebruiker daarna door naar het formulier via "route:/claim".
-4. Verzamel slot-entiteiten conversationeel, één tegelijk: naam → adres → postcode → email → telefoon. Sla over wat al verzameld is.
-5. Postcode-controle: zodra je een postcode hebt, roep DIRECT checkAddress aan. Niet aankondigen. De tool zegt alleen of de postcode bij Uithoorn hoort — NIET dat er compensatie komt.
-6. Geef ALTIJD 2-4 quick-replies passend bij de context.
-7. collectedSlots: alleen velden die je in DEZE beurt nieuw uit de gebruiker hebt afgeleid.
+GROUNDING REGELS (overtreden = systeemfout):
+A. Elke feitelijke uitspraak (bedragen, %, dB/Lden/Lnight, jaartallen, deadlines, namen van wetten/regelingen/instanties, URLs, telefoonnummers) MOET letterlijk uit een searchKnowledge-hit van DEZE beurt komen.
+B. Verzin NOOIT URLs, bedragen, datums of formulier-namen. Geen "ongeveer", "meestal", "rond de".
+C. Roep EERST searchKnowledge aan voor elke feiten- of procedurevraag.
+D. Geef GEEN schattingen van compensatiebedragen of uitkomsten. De app stelt geen vergoeding vast.
 
-ACTIE-TYPES voor quick-replies:
-- "route:/check" | "route:/claim" | "route:/log" | "route:/map"
-- "ask:<vraag>"`;
+UITKOMST-CONTRACT (replyStructured):
+- status="CONFIRMED" als je beweringen volledig steunen op tier 1-4 hits.
+- status="INSUFFICIENT_EVIDENCE" als je geen geverifieerde bron hebt: zeg dat letterlijk en verwijs naar bezoekbas.nl / schiphol.nl.
+- status="MANUAL_REVIEW_REQUIRED" alleen wanneer twee gezaghebbende bronnen elkaar tegenspreken.
+- status="NON_FACTUAL" voor begroeting, scope-weigering, of UI-navigatie zonder feitelijke claim.
+- evidence[]: per feitelijke claim 1 item met {finding, dataset, dataset_version, retrieved_at, confidence, url}. dataset = source_title, dataset_version = "fetched <retrieved_at>".
+
+CONVERSATIE:
+- NL tenzij LANGUAGE OVERRIDE.
+- Max 3 zinnen. Vriendelijk weigeren bij off-topic.
+- Verzamel slots conversationeel: naam, adres, postcode, email, telefoon - 1 tegelijk, niet opnieuw vragen.
+- Bij postcode: roep DIRECT checkAddress aan (postale check, GEEN claim-belofte).
+- Geef 2-4 quickReplies. Actie-types: "route:/check|/claim|/log|/map" of "ask:<vraag>".`;
 
 const checkAddressTool = {
   type: "function" as const,
   function: {
     name: "checkAddress",
-    description:
-      "Controleer of een postcode in de Uithoorn-overschrijdingszone ligt. Roep DIRECT aan zodra je een postcode hebt.",
+    description: "Postale check of een postcode bij Uithoorn hoort. GEEN claim-uitspraak.",
     parameters: {
       type: "object",
       properties: {
-        postcode: { type: "string", description: "4-cijferige postcode, bv. 1422" },
-        houseNumber: { type: "string", description: "Huisnummer, optioneel" },
+        postcode: { type: "string" },
+        houseNumber: { type: "string" },
       },
       required: ["postcode"],
       additionalProperties: false,
@@ -79,31 +87,28 @@ const searchKnowledgeTool = {
   function: {
     name: "searchKnowledge",
     description:
-      "Zoek in de geverifieerde kennisbank (BAS, Schiphol, ILT, Gemeente Uithoorn, recent nieuws). VERPLICHT te gebruiken voor elke feitelijke claim over organisaties, regelingen, procedures of nieuws.",
+      "Zoek geverifieerde bronnen (BAS/Schiphol/ILT/gemeente/wetten.overheid.nl). VERPLICHT voor elke feitelijke claim. Resultaat bevat source_tier (1=wet, 5=overig) en retrieved_at.",
     parameters: {
       type: "object",
-      properties: {
-        query: { type: "string", description: "Korte zoekvraag in het Nederlands." },
-      },
+      properties: { query: { type: "string" } },
       required: ["query"],
       additionalProperties: false,
     },
   },
 };
 
-const replyTool = {
+const replyStructuredTool = {
   type: "function" as const,
   function: {
-    name: "reply",
-    description:
-      "Stuur het uiteindelijke antwoord. Geef sources mee wanneer je searchKnowledge-resultaten gebruikt.",
+    name: "replyStructured",
+    description: "Definitief antwoord met EU-AI-Act status en evidence blocks.",
     parameters: {
       type: "object",
       properties: {
+        status: { type: "string", enum: STATUSES as unknown as string[] },
         message: { type: "string" },
         quickReplies: {
           type: "array",
-          minItems: 0,
           maxItems: 4,
           items: {
             type: "object",
@@ -123,22 +128,26 @@ const replyTool = {
           },
           additionalProperties: false,
         },
-        sources: {
+        evidence: {
           type: "array",
-          maxItems: 4,
-          description: "Bronnen die je in deze beurt gebruikt hebt (van searchKnowledge).",
+          maxItems: 6,
+          description: "1 item per feitelijke claim. Leeg bij NON_FACTUAL / INSUFFICIENT_EVIDENCE.",
           items: {
             type: "object",
             properties: {
-              title: { type: "string" },
+              finding: { type: "string" },
+              dataset: { type: "string" },
+              dataset_version: { type: "string" },
+              retrieved_at: { type: "string" },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
               url: { type: "string" },
             },
-            required: ["title", "url"],
+            required: ["finding", "dataset", "url"],
             additionalProperties: false,
           },
         },
       },
-      required: ["message", "quickReplies"],
+      required: ["status", "message", "quickReplies"],
       additionalProperties: false,
     },
   },
@@ -154,6 +163,19 @@ const POSTCODE_RE = /\b(142[0-4])\s?[A-Z]{0,2}\b/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s\-()]{6,}$/;
 const URL_RE = /^https?:\/\/[^\s]{4,300}$/i;
+const STALE_DAYS = 180;
+
+const FACTUAL_CLAIM_RE =
+  /(€\s?\d|\d+\s?%|\b\d{1,3}\s?(dB|decibel)\b|\bL(den|night|aeq)\b|\b(19|20)\d{2}\b|\bartikel\s?\d|\bart\.\s?\d|\bwet\b|\bregeling\b|\bbesluit\b|\bkamerstuk\b|\bdeadline\b|\bvergoeding\s+van\b|\buitkering\s+van\b)/i;
+
+const UNGROUNDED_FALLBACK_NL =
+  "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie.";
+const UNGROUNDED_FALLBACK_EN =
+  "I don't have a verified source for that right now. Please check bezoekbas.nl or schiphol.nl for current official information.";
+const SOURCE_UNAVAILABLE_NL =
+  "Ik kan de officiële bronnen op dit moment niet bereiken (SOURCE UNAVAILABLE). Probeer het later opnieuw of kijk rechtstreeks op bezoekbas.nl en schiphol.nl.";
+const SOURCE_UNAVAILABLE_EN =
+  "I can't reach the official sources right now (SOURCE UNAVAILABLE). Please try again later or visit bezoekbas.nl and schiphol.nl directly.";
 
 function sanitizeSlots(input: Record<string, unknown> | undefined) {
   const out: Record<string, string> = {};
@@ -190,114 +212,148 @@ function sanitizeQuickReplies(input: unknown) {
     .slice(0, 4);
 }
 
-function sanitizeSources(input: unknown, allowed: Set<string>) {
-  if (!Array.isArray(input)) return [] as { title: string; url: string }[];
+type Evidence = {
+  finding: string;
+  dataset: string;
+  dataset_version: string;
+  retrieved_at: string;
+  confidence: "high" | "medium" | "low";
+  url: string;
+  tier: number;
+  stale: boolean;
+};
+
+function sanitizeEvidence(input: unknown, hitsByUrl: Map<string, KnowledgeHit>) {
+  if (!Array.isArray(input)) return [] as Evidence[];
+  const out: Evidence[] = [];
   const seen = new Set<string>();
-  const out: { title: string; url: string }[] = [];
-  for (const s of input) {
-    if (
-      !s ||
-      typeof (s as { url?: unknown }).url !== "string" ||
-      typeof (s as { title?: unknown }).title !== "string"
-    )
-      continue;
-    const url = (s as { url: string }).url.trim();
-    const title = (s as { title: string }).title.trim().slice(0, 120);
+  for (const e of input) {
+    if (!e || typeof e !== "object") continue;
+    const url = String((e as { url?: unknown }).url ?? "").trim();
     if (!URL_RE.test(url) || seen.has(url)) continue;
-    // GROUNDING: only accept URLs that the model actually retrieved this turn.
-    if (allowed.size > 0 && !allowed.has(url)) continue;
-    if (allowed.size === 0) continue;
+    const hit = hitsByUrl.get(url);
+    if (!hit) continue; // grounding: must come from this turn's search
     seen.add(url);
-    out.push({ title: title || url, url });
-    if (out.length >= 4) break;
+    const fetchedAt = hit.fetched_at;
+    const ageDays =
+      (Date.now() - new Date(fetchedAt).getTime()) / (1000 * 60 * 60 * 24);
+    out.push({
+      finding: String((e as { finding?: unknown }).finding ?? "").slice(0, 280),
+      dataset: hit.source_title || hit.source_url,
+      dataset_version: `fetched ${fetchedAt.slice(0, 10)}`,
+      retrieved_at: fetchedAt,
+      confidence:
+        ((e as { confidence?: unknown }).confidence as Evidence["confidence"]) ?? "medium",
+      url,
+      tier: hit.source_tier,
+      stale: ageDays > STALE_DAYS,
+    });
+    if (out.length >= 6) break;
   }
   return out;
 }
 
-// Detects likely factual claims: € amounts, percentages, dB/Lden/Lnight, years,
-// concrete dates, statute/article refs. If the reply contains any of these but
-// the model did not cite a verified source, we replace the message with the
-// standard "no verified source" disclaimer (EU AI Act grounding requirement).
-const FACTUAL_CLAIM_RE =
-  /(€\s?\d|\d+\s?%|\b\d{1,3}\s?(dB|decibel)\b|\bL(den|night|aeq)\b|\b(19|20)\d{2}\b|\bartikel\s?\d|\bart\.\s?\d|\bwet\b|\bregeling\b|\bbesluit\b|\bkamerstuk\b|\bdeadline\b|\bvergoeding\s+van\b|\buitkering\s+van\b)/i;
+function detectConflict(evidence: Evidence[]): boolean {
+  // Two authoritative (tier <= 3) sources cited for findings that look like
+  // numeric/regulatory facts but from different domains => manual review.
+  const auth = evidence.filter((e) => e.tier <= 3 && FACTUAL_CLAIM_RE.test(e.finding));
+  if (auth.length < 2) return false;
+  const hosts = new Set(auth.map((e) => safeHost(e.url)));
+  return hosts.size >= 2;
+}
 
-const UNGROUNDED_FALLBACK_NL =
-  "Daar heb ik op dit moment geen geverifieerde bron voor. Kijk op bezoekbas.nl of schiphol.nl voor actuele en officiële informatie.";
-const UNGROUNDED_FALLBACK_EN =
-  "I don't have a verified source for that right now. Please check bezoekbas.nl or schiphol.nl for current official information.";
-
+function safeHost(u: string): string {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+}
 
 function executeCheckAddress(args: { postcode?: string; houseNumber?: string }) {
   const raw = String(args.postcode ?? "").trim();
   const m = raw.match(/\d{4}/);
   if (!m) return { ok: false, reason: "invalid_postcode", message: "Geen geldige postcode." };
   const num = parseInt(m[0], 10);
-  // Postcodes 1421-1424 cover Uithoorn / De Kwakel (postale feit, CBS/PostNL).
-  // Dit zegt NIETS over compensatierecht — dat hangt af van officiële regelingen
-  // die de assistent via searchKnowledge moet ophalen.
   const inUithoorn = num >= 1421 && num <= 1424;
   return {
     ok: true,
     postcode: m[0],
     houseNumber: args.houseNumber ?? null,
     inUithoorn,
-    note: "Dit is een postale check (postcode hoort wel/niet bij Uithoorn-gebied). Voor concrete compensatieregels, bedragen of deadlines: roep searchKnowledge aan en gebruik uitsluitend wat daaruit komt.",
+    note: "Postale check; zegt niets over compensatierecht.",
     message: inUithoorn
-      ? `Postcode ${m[0]} hoort bij het Uithoorn-gebied (Uithoorn / De Kwakel).`
-      : `Postcode ${m[0]} valt buiten de Uithoorn-postcodes (1421-1424).`,
+      ? `Postcode ${m[0]} hoort bij Uithoorn / De Kwakel.`
+      : `Postcode ${m[0]} valt buiten 1421-1424.`,
   };
 }
 
-async function executeSearchKnowledge(args: { query?: string }) {
-  const q = String(args.query ?? "").trim().slice(0, 300);
-  if (!q) return { ok: false, hits: [] };
-  const hits = await searchKnowledge(q, 4);
-  return {
-    ok: true,
-    hits: hits.map((h) => ({
-      title: h.source_title,
-      url: h.source_url,
-      type: h.source_type,
-      similarity: Number(h.similarity.toFixed(3)),
-      excerpt: h.content.slice(0, 800),
-    })),
-  };
+async function logAudit(row: {
+  request_id: string;
+  lang: string;
+  question: string;
+  status: Status;
+  message: string;
+  evidence: Evidence[];
+  sources: { title: string; url: string }[];
+  flags: Record<string, unknown>;
+}) {
+  try {
+    await supabaseAdmin.from("chat_audit_log").insert({
+      request_id: row.request_id,
+      lang: row.lang,
+      question: row.question.slice(0, 4000),
+      status: row.status,
+      message: row.message.slice(0, 4000),
+      evidence: row.evidence as unknown as any,
+      sources: row.sources as unknown as any,
+      flags: row.flags as unknown as any,
+    });
+  } catch (e) {
+    console.error("audit log failed", e);
+  }
 }
 
 export const chatTurn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
+    const requestId = crypto.randomUUID();
+    const lang = data.lang ?? "nl";
+    const lastUser =
+      [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       return {
         message: "De AI-assistent is nog niet geconfigureerd.",
         quickReplies: FALLBACK_QR,
-        collectedSlots: {} as Record<string, string>,
-        sources: [] as { title: string; url: string }[],
+        collectedSlots: {},
+        sources: [],
+        status: "SOURCE_UNAVAILABLE" as Status,
+        evidence: [] as Evidence[],
+        requestId,
       };
     }
 
     const trimmed =
       data.messages.length > 20 ? [data.messages[0], ...data.messages.slice(-19)] : data.messages;
-
     const slotsContext =
       data.slots && Object.keys(data.slots).length
-        ? `\n\nReeds verzamelde gegevens (NIET opnieuw vragen): ${JSON.stringify(data.slots)}`
+        ? `\n\nReeds verzameld: ${JSON.stringify(data.slots)}`
         : "\n\nNog geen gegevens verzameld.";
-
-    const lang = data.lang ?? "nl";
     const langDirective =
       lang === "en"
-        ? "\n\nLANGUAGE OVERRIDE: Reply in ENGLISH. Keep the same scope, tone and rules. Quick-reply labels must also be in English."
-        : "\n\nTAAL: Antwoord in het Nederlands.";
+        ? "\n\nLANGUAGE OVERRIDE: reply in English."
+        : "\n\nTAAL: Nederlands.";
 
     const convo: any[] = [
       { role: "system", content: SYSTEM_PROMPT + slotsContext + langDirective },
       ...trimmed,
     ];
 
-    const allowedSourceUrls = new Set<string>();
-
+    const hitsByUrl = new Map<string, KnowledgeHit>();
+    let sourceUnavailable = false;
+    let searchAttempts = 0;
 
     for (let step = 0; step < 4; step++) {
       let res: Response;
@@ -311,17 +367,31 @@ export const chatTurn = createServerFn({ method: "POST" })
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: convo,
-            tools: [checkAddressTool, searchKnowledgeTool, replyTool],
+            tools: [checkAddressTool, searchKnowledgeTool, replyStructuredTool],
             tool_choice: "required",
           }),
         });
       } catch (e) {
         console.error("AI gateway fetch failed", e);
+        const message = lang === "en" ? SOURCE_UNAVAILABLE_EN : SOURCE_UNAVAILABLE_NL;
+        await logAudit({
+          request_id: requestId,
+          lang,
+          question: lastUser,
+          status: "SOURCE_UNAVAILABLE",
+          message,
+          evidence: [],
+          sources: [],
+          flags: { gateway_error: true },
+        });
         return {
-          message: "Sorry, ik kan even geen verbinding maken. Probeer het zo opnieuw.",
+          message,
           quickReplies: FALLBACK_QR,
           collectedSlots: {},
           sources: [],
+          status: "SOURCE_UNAVAILABLE" as Status,
+          evidence: [],
+          requestId,
         };
       }
 
@@ -333,8 +403,28 @@ export const chatTurn = createServerFn({ method: "POST" })
             ? "Even geduld — te veel aanvragen."
             : res.status === 402
               ? "De assistent heeft tijdelijk geen credits."
-              : "Sorry, ik kan nu even niet antwoorden.";
-        return { message, quickReplies: FALLBACK_QR, collectedSlots: {}, sources: [] };
+              : lang === "en"
+                ? SOURCE_UNAVAILABLE_EN
+                : SOURCE_UNAVAILABLE_NL;
+        await logAudit({
+          request_id: requestId,
+          lang,
+          question: lastUser,
+          status: "SOURCE_UNAVAILABLE",
+          message,
+          evidence: [],
+          sources: [],
+          flags: { gateway_status: res.status },
+        });
+        return {
+          message,
+          quickReplies: FALLBACK_QR,
+          collectedSlots: {},
+          sources: [],
+          status: "SOURCE_UNAVAILABLE" as Status,
+          evidence: [],
+          requestId,
+        };
       }
 
       const json = await res.json().catch(() => null);
@@ -343,11 +433,25 @@ export const chatTurn = createServerFn({ method: "POST" })
 
       if (!toolCalls.length) {
         const text = typeof choice?.content === "string" ? choice.content.trim() : "";
+        const msg = text || "Sorry, kun je het anders verwoorden?";
+        await logAudit({
+          request_id: requestId,
+          lang,
+          question: lastUser,
+          status: "NON_FACTUAL",
+          message: msg,
+          evidence: [],
+          sources: [],
+          flags: { no_tool_call: true },
+        });
         return {
-          message: text || "Sorry, ik begreep dat niet helemaal. Kun je het anders verwoorden?",
+          message: msg,
           quickReplies: FALLBACK_QR,
           collectedSlots: {},
           sources: [],
+          status: "NON_FACTUAL" as Status,
+          evidence: [],
+          requestId,
         };
       }
 
@@ -369,44 +473,121 @@ export const chatTurn = createServerFn({ method: "POST" })
           const result = executeCheckAddress(args);
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "searchKnowledge") {
-          const result = await executeSearchKnowledge(args);
-          for (const h of result.hits ?? []) {
-            if (h?.url && URL_RE.test(h.url)) allowedSourceUrls.add(h.url);
+          searchAttempts++;
+          const q = String(args?.query ?? "").trim().slice(0, 300);
+          const result = q
+            ? await searchKnowledgeWithStatus(q, 4)
+            : { ok: true as const, hits: [] };
+          if (!result.ok) sourceUnavailable = true;
+          const hits = result.ok ? result.hits : [];
+          for (const h of hits) {
+            if (h?.source_url && URL_RE.test(h.source_url)) hitsByUrl.set(h.source_url, h);
           }
-          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
-        } else if (name === "reply") {
+          convo.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            content: JSON.stringify({
+              ok: result.ok,
+              hits: hits.map((h) => ({
+                title: h.source_title,
+                url: h.source_url,
+                tier: h.source_tier,
+                retrieved_at: h.fetched_at,
+                similarity: Number(h.similarity.toFixed(3)),
+                excerpt: h.content.slice(0, 800),
+              })),
+            }),
+          });
+        } else if (name === "replyStructured") {
           sawReply = args;
           convo.push({ role: "tool", tool_call_id: tc.id, content: "ok" });
         }
       }
 
       if (sawReply) {
-        const message = typeof sawReply.message === "string" ? sawReply.message.trim() : "";
-        const sources = sanitizeSources(sawReply.sources, allowedSourceUrls);
-        // EU AI Act grounding guard: factual-looking claims without a verified
-        // source get replaced with the standard disclaimer. The model can still
-        // ask follow-up questions or do non-factual chit-chat freely.
+        const modelStatus = (
+          STATUSES as readonly string[]
+        ).includes(sawReply.status)
+          ? (sawReply.status as Status)
+          : "INSUFFICIENT_EVIDENCE";
+        let message =
+          typeof sawReply.message === "string" ? sawReply.message.trim() : "";
+        const evidence = sanitizeEvidence(sawReply.evidence, hitsByUrl);
         const looksFactual = FACTUAL_CLAIM_RE.test(message);
-        const safeMessage =
-          looksFactual && sources.length === 0
-            ? lang === "en"
-              ? UNGROUNDED_FALLBACK_EN
-              : UNGROUNDED_FALLBACK_NL
-            : message || "…";
+
+        // Server-side status override: model cannot lie its way to CONFIRMED.
+        let status: Status = modelStatus;
+        const flags: Record<string, unknown> = {
+          search_attempts: searchAttempts,
+          stale_evidence: evidence.some((e) => e.stale),
+        };
+
+        if (sourceUnavailable && evidence.length === 0 && looksFactual) {
+          status = "SOURCE_UNAVAILABLE";
+          message = lang === "en" ? SOURCE_UNAVAILABLE_EN : SOURCE_UNAVAILABLE_NL;
+        } else if (looksFactual && evidence.length === 0) {
+          status = "INSUFFICIENT_EVIDENCE";
+          message = lang === "en" ? UNGROUNDED_FALLBACK_EN : UNGROUNDED_FALLBACK_NL;
+        } else if (detectConflict(evidence)) {
+          status = "MANUAL_REVIEW_REQUIRED";
+          flags.conflict = true;
+        } else if (looksFactual && evidence.length > 0) {
+          status = "CONFIRMED";
+        } else if (!looksFactual && evidence.length === 0) {
+          status = "NON_FACTUAL";
+        }
+
+        if (flags.stale_evidence) {
+          const note =
+            lang === "en"
+              ? "\n\n_Note: some sources are older than 6 months and may not reflect the latest publication._"
+              : "\n\n_Let op: sommige bronnen zijn ouder dan 6 maanden en weerspiegelen mogelijk niet de laatste publicatie._";
+          message += note;
+        }
+
+        const sources = evidence.map((e) => ({ title: e.dataset, url: e.url }));
+
+        await logAudit({
+          request_id: requestId,
+          lang,
+          question: lastUser,
+          status,
+          message,
+          evidence,
+          sources,
+          flags,
+        });
+
         return {
-          message: safeMessage,
+          message: message || "…",
           quickReplies: sanitizeQuickReplies(sawReply.quickReplies),
           collectedSlots: sanitizeSlots(sawReply.collectedSlots),
           sources,
+          status,
+          evidence,
+          requestId,
         };
       }
     }
 
-
+    const fallbackMsg = "Sorry, dat duurde te lang. Probeer het nog eens.";
+    await logAudit({
+      request_id: requestId,
+      lang,
+      question: lastUser,
+      status: "SOURCE_UNAVAILABLE",
+      message: fallbackMsg,
+      evidence: [],
+      sources: [],
+      flags: { loop_exhausted: true },
+    });
     return {
-      message: "Sorry, dat duurde te lang. Probeer het nog eens.",
+      message: fallbackMsg,
       quickReplies: FALLBACK_QR,
       collectedSlots: {},
       sources: [],
+      status: "SOURCE_UNAVAILABLE" as Status,
+      evidence: [],
+      requestId,
     };
   });
