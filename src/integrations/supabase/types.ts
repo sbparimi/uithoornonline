@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_audit_log: {
+        Row: {
+          created_at: string
+          evidence: Json
+          flags: Json
+          id: string
+          lang: string
+          message: string
+          model: string
+          question: string
+          request_id: string
+          sources: Json
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence?: Json
+          flags?: Json
+          id?: string
+          lang?: string
+          message: string
+          model?: string
+          question: string
+          request_id?: string
+          sources?: Json
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence?: Json
+          flags?: Json
+          id?: string
+          lang?: string
+          message?: string
+          model?: string
+          question?: string
+          request_id?: string
+          sources?: Json
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       chat_eval_runs: {
         Row: {
           actual_answer: string | null
@@ -99,6 +144,7 @@ export type Database = {
           language: string
           model_version: string
           source_id: string | null
+          source_tier: number
           source_title: string | null
           source_type: string
           source_url: string
@@ -112,6 +158,7 @@ export type Database = {
           language?: string
           model_version?: string
           source_id?: string | null
+          source_tier?: number
           source_title?: string | null
           source_type: string
           source_url: string
@@ -125,6 +172,7 @@ export type Database = {
           language?: string
           model_version?: string
           source_id?: string | null
+          source_tier?: number
           source_title?: string | null
           source_type?: string
           source_url?: string
@@ -147,6 +195,7 @@ export type Database = {
           label: string
           last_scraped_at: string | null
           last_status: string | null
+          source_tier: number
           source_type: string
           url: string
         }
@@ -157,6 +206,7 @@ export type Database = {
           label: string
           last_scraped_at?: string | null
           last_status?: string | null
+          source_tier?: number
           source_type: string
           url: string
         }
@@ -167,6 +217,7 @@ export type Database = {
           label?: string
           last_scraped_at?: string | null
           last_status?: string | null
+          source_tier?: number
           source_type?: string
           url?: string
         }
@@ -248,6 +299,7 @@ export type Database = {
           fetched_at: string
           id: string
           similarity: number
+          source_tier: number
           source_title: string
           source_type: string
           source_url: string
