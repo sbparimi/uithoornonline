@@ -108,17 +108,48 @@ type Source = {
   url: string;
   label: string;
   source_type: "official" | "news" | "legal" | "search";
+  source_tier?: number;
 };
+
+// Domain allow-list with tier (1 = law, 5 = other). Anything not matching is
+// rejected at ingest so the RAG cannot be polluted with low-trust sources.
+const TIER_RULES: { re: RegExp; tier: number }[] = [
+  { re: /(^|\.)wetten\.overheid\.nl$|(^|\.)eur-lex\.europa\.eu$/i, tier: 1 },
+  { re: /(^|\.)rijksoverheid\.nl$|(^|\.)tweedekamer\.nl$|(^|\.)government\.nl$/i, tier: 2 },
+  {
+    re: /(^|\.)ilent\.nl$|(^|\.)ilt\.nl$|(^|\.)bezoekbas\.nl$|(^|\.)schiphol\.nl$|(^|\.)rivm\.nl$|(^|\.)knmi\.nl$/i,
+    tier: 3,
+  },
+  { re: /(^|\.)uithoorn\.nl$|gemeente/i, tier: 4 },
+];
+
+export function tierForUrl(url: string): number | null {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return null;
+  }
+  for (const r of TIER_RULES) if (r.re.test(host)) return r.tier;
+  return null;
+}
 
 async function ingestDoc(source: Source, doc: FirecrawlDoc, overrideUrl?: string) {
   const url = overrideUrl ?? doc.metadata?.sourceURL ?? source.url;
   const title = doc.metadata?.title ?? source.label;
   const md = doc.markdown ?? "";
+
+  // Allow-list enforcement: only ingest from trusted domains.
+  const tier = tierForUrl(url) ?? source.source_tier ?? null;
+  if (tier === null) {
+    console.warn("ingest: rejecting non-allowlisted URL", url);
+    return 0;
+  }
+
   const chunks = chunkMarkdown(md);
   let inserted = 0;
   for (const content of chunks) {
     const content_hash = hashChunk(content);
-    // dedupe early
     const { data: existing } = await supabaseAdmin
       .from("knowledge_chunks")
       .select("id")
@@ -138,13 +169,13 @@ async function ingestDoc(source: Source, doc: FirecrawlDoc, overrideUrl?: string
       source_url: url,
       source_title: title,
       source_type: source.source_type === "search" ? "news" : source.source_type,
+      source_tier: tier,
       content,
       content_hash,
-      embedding: embedding as unknown as string, // pgvector accepts array
+      embedding: embedding as unknown as string,
       model_version: EMBED_MODEL,
     });
     if (error) {
-      // 23505 unique violation = dup; ignore
       if (!error.message.includes("duplicate")) console.error("insert chunk", error);
     } else {
       inserted++;
