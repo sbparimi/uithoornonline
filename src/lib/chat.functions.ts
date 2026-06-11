@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { searchKnowledgeWithStatus, type KnowledgeHit } from "@/lib/knowledge.server";
+import {
+  pdokLookupAddress,
+  pdokCheckNoiseZone,
+  type AddressLookup,
+} from "@/lib/official-sources.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const MessageSchema = z.object({
