@@ -225,17 +225,31 @@ export type KnowledgeHit = {
   source_url: string;
   source_title: string | null;
   source_type: string;
+  source_tier: number;
   content: string;
   similarity: number;
+  fetched_at: string;
 };
 
+export type KnowledgeSearchResult =
+  | { ok: true; hits: KnowledgeHit[] }
+  | { ok: false; reason: "embed_failed" | "rpc_failed"; hits: [] };
+
 export async function searchKnowledge(query: string, k = 4): Promise<KnowledgeHit[]> {
+  const res = await searchKnowledgeWithStatus(query, k);
+  return res.hits;
+}
+
+export async function searchKnowledgeWithStatus(
+  query: string,
+  k = 4,
+): Promise<KnowledgeSearchResult> {
   let embedding: number[];
   try {
     embedding = await embedText(query);
   } catch (e) {
     console.error("searchKnowledge embed failed", e);
-    return [];
+    return { ok: false, reason: "embed_failed", hits: [] };
   }
   const { data, error } = await supabaseAdmin.rpc("match_knowledge", {
     query_embedding: embedding as unknown as string,
@@ -244,7 +258,7 @@ export async function searchKnowledge(query: string, k = 4): Promise<KnowledgeHi
   });
   if (error) {
     console.error("match_knowledge rpc", error);
-    return [];
+    return { ok: false, reason: "rpc_failed", hits: [] };
   }
-  return (data ?? []) as KnowledgeHit[];
+  return { ok: true, hits: (data ?? []) as KnowledgeHit[] };
 }
