@@ -408,7 +408,7 @@ export const chatTurn = createServerFn({ method: "POST" })
     let sourceUnavailable = false;
     let searchAttempts = 0;
 
-    for (let step = 0; step < 4; step++) {
+    for (let step = 0; step < 6; step++) {
       let res: Response;
       try {
         res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -420,7 +420,13 @@ export const chatTurn = createServerFn({ method: "POST" })
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: convo,
-            tools: [checkAddressTool, searchKnowledgeTool, replyStructuredTool],
+            tools: [
+              checkAddressTool,
+              lookupAddressTool,
+              checkNoiseZoneTool,
+              searchKnowledgeTool,
+              replyStructuredTool,
+            ],
             tool_choice: "required",
           }),
         });
