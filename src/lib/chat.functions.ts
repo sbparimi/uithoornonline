@@ -531,6 +531,44 @@ export const chatTurn = createServerFn({ method: "POST" })
         if (name === "checkAddress") {
           const result = executeCheckAddress(args);
           convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+        } else if (name === "lookupAddress") {
+          const result: AddressLookup = await pdokLookupAddress(
+            String(args?.postcode ?? ""),
+            String(args?.houseNumber ?? ""),
+          );
+          if (!result.ok && result.reason === "unavailable") sourceUnavailable = true;
+          if (result.ok) {
+            // Register as a citable source for evidence[].
+            hitsByUrl.set(result.source_url, {
+              source_url: result.source_url,
+              source_title: `BAG: ${result.label}`,
+              source_type: "official",
+              source_tier: 2,
+              content: JSON.stringify(result),
+              similarity: 1,
+              fetched_at: result.retrieved_at,
+            });
+          }
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+        } else if (name === "checkNoiseZone") {
+          const lon = Number(args?.lon);
+          const lat = Number(args?.lat);
+          const result = Number.isFinite(lon) && Number.isFinite(lat)
+            ? await pdokCheckNoiseZone(lon, lat)
+            : { ok: false as const, reason: "unavailable" as const, message: "lon/lat ontbreekt." };
+          if (!result.ok && result.reason === "unavailable") sourceUnavailable = true;
+          if (result.ok) {
+            hitsByUrl.set(result.source_url, {
+              source_url: result.source_url,
+              source_title: "PDOK — Luchthavenindelingbesluit Schiphol (LIB)",
+              source_type: "official",
+              source_tier: 2,
+              content: JSON.stringify(result),
+              similarity: 1,
+              fetched_at: result.retrieved_at,
+            });
+          }
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
         } else if (name === "searchKnowledge") {
           searchAttempts++;
           const q = String(args?.query ?? "").trim().slice(0, 300);
