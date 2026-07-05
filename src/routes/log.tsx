@@ -19,13 +19,8 @@ type Log = {
   db_level: number | null;
 };
 
-const airlines = ["KL", "EZY", "TRA", "HV", "AF", "BA"];
-const randInt = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a;
-const mockFlight = () => ({
-  flight_number: `${airlines[randInt(0, airlines.length - 1)]}${randInt(1000, 9999)}`,
-  altitude: randInt(450, 1100),
-  db_level: randInt(62, 84),
-});
+// No mock flight data. The user reports what they hear; optional fields stay
+// null until we integrate a licensed Schiphol/LVNL feed.
 
 function LogPage() {
   const { user, loading } = useAuth();
@@ -34,6 +29,9 @@ function LogPage() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [last, setLast] = useState<Log | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [db, setDb] = useState<number>(70);
+  const [flight, setFlight] = useState<string>("");
+  const [geoErr, setGeoErr] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -46,20 +44,38 @@ function LogPage() {
       .then(({ data }) => setLogs((data as Log[]) ?? []));
   }, [user]);
 
+  const getCoords = () =>
+    new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => resolve(null),
+        { timeout: 4000, maximumAge: 60_000 },
+      );
+    });
+
   const submit = async () => {
     if (!user) { navigate({ to: "/auth", search: { next: "/log" } as any }); return; }
     setSubmitting(true);
-    const f = mockFlight();
-    const lat = 52.2333 + (Math.random() - 0.5) * 0.02;
-    const lng = 4.8333 + (Math.random() - 0.5) * 0.02;
+    setGeoErr(null);
+    const coords = await getCoords();
+    if (!coords) setGeoErr("Locatie niet beschikbaar — melding wordt zonder coördinaten opgeslagen.");
     const { data, error } = await supabase.from("noise_logs")
-      .insert({ user_id: user.id, ...f, lat, lng })
+      .insert({
+        user_id: user.id,
+        flight_number: flight.trim() || null,
+        altitude: null,
+        db_level: db,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      })
       .select().single();
     setSubmitting(false);
     if (error) { toast.error("Kon melding niet opslaan"); return; }
     const row = data as Log;
     setLast(row); setLogs((p) => [row, ...p]);
-    toast.success("Melding geregistreerd");
+    setFlight("");
+    toast.success("Melding geregistreerd met tijdstempel");
     if (navigator.vibrate) navigator.vibrate(40);
   };
 
