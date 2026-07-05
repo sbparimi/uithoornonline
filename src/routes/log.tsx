@@ -161,48 +161,6 @@ function LogPage() {
           </div>
         </section>
       )}
-        </p>
-        <div className="mt-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm">
-          <div className="text-[11px] uppercase tracking-wider text-white/50">Nu</div>
-          <div className="font-mono tabular-nums">{now.toLocaleString("nl-NL")}</div>
-        </div>
-      </section>
-
-      <section className="px-5 -mt-5">
-        <button
-          onClick={submit}
-          disabled={submitting || loading}
-          className="w-full rounded-2xl bg-red text-red-foreground py-6 shadow-[0_8px_24px_-8px_rgba(255,60,42,0.6)] active:scale-[0.99] transition"
-        >
-          <div className="flex flex-col items-center gap-2">
-            <Plane size={26} />
-            <span className="font-serif text-xl">Meld nu geluidshinder</span>
-            <span className="text-xs text-red-foreground/80">{submitting ? "Bezig..." : "Tap hierboven"}</span>
-          </div>
-        </button>
-      </section>
-
-      {last && (
-        <section className="px-5 mt-4">
-          <div className="rounded-xl bg-white border border-border p-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="text-[11px] uppercase tracking-wider text-red font-medium">Laatste melding</div>
-            <div className="mt-1 flex items-baseline justify-between">
-              <div className="font-serif text-navy text-lg">{last.flight_number}</div>
-              <div className="text-xs text-muted-foreground">{new Date(last.timestamp).toLocaleTimeString("nl-NL")}</div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-cream p-3">
-                <div className="text-[10px] uppercase text-muted-foreground">Hoogte</div>
-                <div className="font-mono text-navy">{last.altitude} m</div>
-              </div>
-              <div className="rounded-lg bg-cream p-3">
-                <div className="text-[10px] uppercase text-muted-foreground">Geluid</div>
-                <div className="font-mono text-navy">{last.db_level} dB</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       <section className="px-5 mt-6">
         <h2 className="text-sm font-medium text-navy">Jouw meldingen</h2>
