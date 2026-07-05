@@ -1,25 +1,41 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/AppShell";
-import { MapPin, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
+import { MapPin, CheckCircle2, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
+import { EvidenceList } from "@/components/Evidence";
+import { checkAddressLive, type AddressCheck } from "@/lib/live-data.functions";
 
 export const Route = createFileRoute("/check")({
   component: Check,
   head: () => ({ meta: [{ title: "Check je adres — uithoorn.online" }] }),
 });
 
-type Result = { inZone: boolean; postcode: string } | null;
-
 function Check() {
   const [postcode, setPostcode] = useState("");
-  const [result, setResult] = useState<Result>(null);
+  const [house, setHouse] = useState("");
+  const [result, setResult] = useState<AddressCheck | null>(null);
+  const [loading, setLoading] = useState(false);
+  const run = useServerFn(checkAddressLive);
 
-  const onCheck = (e: React.FormEvent) => {
+  const onCheck = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = postcode.replace(/\s/g, "").slice(0, 4);
-    const num = parseInt(clean, 10);
-    if (isNaN(num)) return;
-    setResult({ inZone: num >= 1420 && num <= 1424, postcode: clean });
+    if (!postcode.trim() || !house.trim()) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await run({ data: { postcode, house_number: house } });
+      setResult(res);
+    } catch (err) {
+      setResult({
+        ok: false,
+        reason: "unavailable",
+        message: err instanceof Error ? err.message : "Onbekende fout",
+        evidence: [],
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,7 +44,7 @@ function Check() {
         <p className="text-xs uppercase tracking-wider text-red font-medium">Stap 1 van 3</p>
         <h1 className="mt-2 text-2xl font-serif">Check jouw adres</h1>
         <p className="mt-2 text-sm text-white/70">
-          Vul je postcode in om te zien of je in de overschrijdingszone woont.
+          Live controle via het officiële BAG-adressenregister (Kadaster) en de LIB Schiphol WFS.
         </p>
       </section>
 
@@ -46,76 +62,91 @@ function Check() {
               autoFocus
             />
           </div>
+          <label className="mt-3 block text-xs font-medium text-navy">Huisnummer</label>
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-cream px-3 py-2.5">
+            <input
+              value={house}
+              onChange={(e) => setHouse(e.target.value)}
+              placeholder="12A"
+              className="flex-1 bg-transparent outline-none text-base"
+              maxLength={10}
+            />
+          </div>
           <button
             type="submit"
-            className="mt-3 w-full rounded-xl bg-red py-3 text-red-foreground font-medium"
+            disabled={loading}
+            className="mt-3 w-full rounded-xl bg-red py-3 text-red-foreground font-medium inline-flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            Check postcode
+            {loading && <Loader2 size={16} className="animate-spin" />}
+            {loading ? "Officiële bronnen raadplegen…" : "Check adres"}
           </button>
         </form>
       </section>
 
-      {result && (
+      {result && result.ok && (
         <section className="px-5 mt-5">
-          {result.inZone ? (
-            <div className="rounded-xl border border-red/30 bg-white p-5">
-              <div className="flex items-center gap-2 text-red">
-                <CheckCircle2 size={20} />
-                <span className="text-xs font-medium uppercase tracking-wider">In de zone</span>
-              </div>
-              <h2 className="mt-2 text-xl font-serif text-navy">
-                Jij hebt recht op compensatie
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Postcode {result.postcode} ligt in de overschrijdingszone van Schiphol.
-              </p>
-              <div className="mt-4 rounded-xl bg-cream p-4">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Geschatte compensatie</div>
-                <div className="mt-1 font-serif text-2xl text-navy">€150 – €2.200</div>
-                <div className="text-xs text-muted-foreground">per jaar, afhankelijk van overschrijding</div>
-              </div>
-              <Link to="/claim" className="mt-4 flex items-center justify-between rounded-xl bg-red px-4 py-3 text-red-foreground font-medium">
-                Start mijn claim
-                <ChevronRight size={18} />
-              </Link>
+          <div
+            className={`rounded-xl border bg-white p-5 ${
+              result.in_lib_zone ? "border-red/30" : "border-navy/20"
+            }`}
+          >
+            <div className={`flex items-center gap-2 ${result.in_lib_zone ? "text-red" : "text-navy"}`}>
+              {result.in_lib_zone ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+              <span className="text-xs font-medium uppercase tracking-wider">
+                {result.in_lib_zone ? "In LIB-zone" : "Buiten LIB-zones"}
+              </span>
             </div>
-          ) : (
-            <div className="rounded-xl border border-navy/20 bg-white p-5">
-              <div className="flex items-center gap-2 text-navy">
-                <AlertCircle size={20} />
-                <span className="text-xs font-medium uppercase tracking-wider">Buiten zone</span>
-              </div>
-              <h2 className="mt-2 text-xl font-serif text-navy">
-                Postcode {result.postcode} valt buiten de zone
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Je hebt geen directe compensatie-aanspraak, maar je melding helpt wel om de overlast in beeld te brengen.
-              </p>
-              <Link to="/log" className="mt-4 flex items-center justify-between rounded-xl bg-navy px-4 py-3 text-white font-medium">
-                Meld toch geluidshinder
-                <ChevronRight size={18} />
-              </Link>
+            <h2 className="mt-2 text-xl font-serif text-navy">{result.address.label}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Gemeente {result.address.municipality || "—"} · BAG {result.address.bag_id}
+            </p>
+
+            {result.zones.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {result.zones.map((z) => (
+                  <li key={z} className="text-sm text-navy">• {z}</li>
+                ))}
+              </ul>
+            )}
+
+            <p className="mt-3 text-sm text-muted-foreground">{result.note}</p>
+
+            <div className="mt-4">
+              <EvidenceList items={result.evidence} />
             </div>
-          )}
+
+            <Link
+              to="/claim"
+              className="mt-4 flex items-center justify-between rounded-xl bg-red px-4 py-3 text-red-foreground font-medium"
+            >
+              {result.in_lib_zone ? "Start compensatie-onderzoek" : "Meld toch geluidshinder"}
+              <ChevronRight size={18} />
+            </Link>
+          </div>
         </section>
       )}
 
-      {/* Zone map placeholder */}
-      <section className="px-5 mt-6 mb-10">
-        <h3 className="text-sm font-medium text-navy">Overschrijdingszone</h3>
-        <div className="mt-2 aspect-[4/3] rounded-xl bg-white border border-border overflow-hidden relative">
-          <div className="absolute inset-0" style={{
-            background:
-              "radial-gradient(circle at 50% 55%, rgba(255,60,42,0.35) 0%, rgba(255,60,42,0.18) 30%, rgba(13,31,60,0.05) 60%, transparent 75%)",
-          }} />
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="text-center">
-              <div className="font-serif text-navy text-lg">Uithoorn e.o.</div>
-              <div className="text-[11px] text-muted-foreground">Postcodes 1420 – 1424</div>
+      {result && !result.ok && (
+        <section className="px-5 mt-5">
+          <div className="rounded-xl border border-amber-400/50 bg-amber-50 p-5">
+            <div className="flex items-center gap-2 text-amber-900">
+              <AlertCircle size={20} />
+              <span className="text-xs font-medium uppercase tracking-wider">
+                {result.reason === "not_found" ? "Adres niet gevonden" : "Bron niet bereikbaar"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-amber-900">{result.message}</p>
+            <div className="mt-3">
+              <EvidenceList items={result.evidence} />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      <p className="px-5 mt-6 mb-10 text-[11px] text-muted-foreground">
+        We tonen geen postcode-schattingen meer. Elk resultaat komt van
+        PDOK/Kadaster met tijdstempel en directe bronlink.
+      </p>
     </AppShell>
   );
 }
