@@ -27,6 +27,7 @@ const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1).max(40),
   slots: SlotsSchema,
   lang: z.enum(["nl", "en"]).optional(),
+  sessionId: z.string().uuid().optional(),
 });
 
 const ALLOWED_ROUTES = ["/check", "/claim", "/log", "/map"] as const;
@@ -367,6 +368,25 @@ async function logAudit(row: {
   }
 }
 
+async function assertPaidSession(sessionId?: string): Promise<{ ok: boolean }> {
+  if (!sessionId) return { ok: false };
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("ai_sessions")
+      .select("paid")
+      .eq("id", sessionId)
+      .maybeSingle();
+    if (error) {
+      console.error("ai_session gate lookup failed", error);
+      return { ok: false };
+    }
+    return { ok: !!data?.paid };
+  } catch (e) {
+    console.error("ai_session gate failed", e);
+    return { ok: false };
+  }
+}
+
 export const chatTurn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
@@ -374,6 +394,24 @@ export const chatTurn = createServerFn({ method: "POST" })
     const lang = data.lang ?? "nl";
     const lastUser =
       [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
+    // Paywall: an AI turn requires a paid ai_sessions row (EUR 5 per sessie).
+    const gate = await assertPaidSession(data.sessionId);
+    if (!gate.ok) {
+      return {
+        message:
+          lang === "en"
+            ? "To ask the assistant about your situation, please complete the one-off EUR 5 payment first. The address check (/check) and noise logging (/log) remain free."
+            : "Om de assistent over jouw situatie te vragen, rond je eerst de eenmalige betaling van EUR 5 af. De adrescheck (/check) en het melden van overlast (/log) blijven gratis.",
+        quickReplies: FALLBACK_QR,
+        collectedSlots: {},
+        sources: [],
+        status: "NON_FACTUAL" as Status,
+        evidence: [] as Evidence[],
+        requestId,
+        paymentRequired: true,
+      };
+    }
 
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {

@@ -15,10 +15,14 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useServerFn } from "@tanstack/react-start";
+import { createDossierExportPayment, getPaymentStatus } from "@/lib/payments.functions";
+import { toast } from "sonner";
 
 const searchSchema = z.object({
   id: z.string().uuid().optional(),
   pkg: z.enum(["self", "managed", "legal"]).optional(),
+  export: z.string().uuid().optional(),
 });
 
 export const Route = createFileRoute("/claim/success")({
@@ -46,7 +50,7 @@ const officialLinks = [
 ];
 
 function ClaimSuccess() {
-  const { id, pkg } = Route.useSearch();
+  const { id, pkg, export: exportId } = Route.useSearch();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [claim, setClaim] = useState<ClaimRow | null>(null);
@@ -120,9 +124,116 @@ function ClaimSuccess() {
           )}
         </div>
 
+        <DossierExport claim={claim} exportId={exportId} />
+
         <NextActions activePkg={activePkg} />
       </section>
     </AppShell>
+  );
+}
+
+function DossierExport({ claim, exportId }: { claim: ClaimRow | null; exportId?: string }) {
+  const startExportPayment = useServerFn(createDossierExportPayment);
+  const readStatus = useServerFn(getPaymentStatus);
+  const [paid, setPaid] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!exportId || paid) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tick = async () => {
+      attempts += 1;
+      try {
+        const res = await readStatus({ data: { kind: "dossier_export", id: exportId } });
+        if (cancelled) return;
+        if (res.paid) {
+          setPaid(true);
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled && attempts < 10) setTimeout(tick, 2500);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [exportId, paid, readStatus]);
+
+  const pay = async () => {
+    setBusy(true);
+    try {
+      const res = await startExportPayment({
+        data: { claimId: claim?.id, origin: window.location.origin },
+      });
+      if (!res.ok) {
+        toast.error(
+          res.error === "Payment provider not configured yet"
+            ? "Betalen is nog niet geactiveerd. Voeg de Mollie API-sleutel toe in de projectinstellingen."
+            : res.error,
+        );
+        return;
+      }
+      window.location.href = res.checkoutUrl;
+    } catch {
+      toast.error("Betaling kon niet worden gestart.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = () => {
+    if (!claim) return;
+    const lines = [
+      "DOSSIER — uithoorn.online",
+      `Referentie: ${claim.id.slice(0, 8).toUpperCase()}`,
+      `Aangemaakt: ${new Date(claim.created_at).toLocaleString("nl-NL")}`,
+      "",
+      `Naam: ${claim.name}`,
+      `Adres: ${claim.address}, ${claim.postcode}`,
+      `Jaren met overlast: ${claim.years_selected.join(", ")}`,
+      `Pakket: ${claim.package}`,
+      "",
+      "De hoogte van een eventuele vergoeding wordt vastgesteld door BAS / Schiphol /",
+      "ministerie van I&W. Deze app doet geen uitspraak over bedragen.",
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dossier-${claim.id.slice(0, 8)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="rounded-xl bg-white border border-border p-5 shadow-sm">
+      <h3 className="font-serif text-lg text-navy">Dossier-export</h3>
+      <p className="text-xs text-muted-foreground mt-1">
+        {paid
+          ? "Betaling ontvangen. Je kunt je dossier nu downloaden."
+          : "Download je volledige dossier als bestand voor eigen gebruik of om mee te sturen met een officiële melding. Eenmalig €5."}
+      </p>
+      {paid ? (
+        <button
+          onClick={download}
+          disabled={!claim}
+          className="mt-3 w-full rounded-xl bg-navy py-3 text-sm font-medium text-white disabled:opacity-40"
+        >
+          Dossier downloaden
+        </button>
+      ) : (
+        <button
+          onClick={pay}
+          disabled={busy}
+          className="mt-3 w-full rounded-xl bg-red py-3 text-sm font-medium text-red-foreground disabled:opacity-50"
+        >
+          {busy ? "Bezig…" : "Betaal €5 en download dossier"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -227,7 +338,7 @@ function ManagedSteps() {
         n={1}
         Icon={Clock}
         title="Dossier opgeslagen"
-        desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100."
+        desc="Je aanvraag voor behandeling namens jou is opgeslagen. No cure no pay: 15% van een toegekende vergoeding, maximaal €300."
       />
       <Step
         n={2}
@@ -251,7 +362,7 @@ function LegalSteps() {
         n={1}
         Icon={Scale}
         title="Dossier opgeslagen"
-        desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450."
+        desc="Je aanvraag is opgeslagen. De doorverwijzing naar een gespecialiseerde jurist is gratis."
       />
       <Step
         n={2}

@@ -15,8 +15,12 @@ type PackageChoice = "self" | "managed" | "legal";
 
 const PACKAGE_META: Record<PackageChoice, { title: string; price: string; priceLabel: string }> = {
   self: { title: "Zelf doen", price: "Gratis", priceLabel: "€0" },
-  managed: { title: "Wij regelen het", price: "€100", priceLabel: "€100" },
-  legal: { title: "Juridisch traject", price: "€450", priceLabel: "€450" },
+  managed: {
+    title: "Wij regelen het",
+    price: "15% no cure no pay",
+    priceLabel: "€0 vooraf · 15% (max €300)",
+  },
+  legal: { title: "Juridische doorverwijzing", price: "Gratis", priceLabel: "€0" },
 };
 
 const STEP_LABELS = ["Gegevens", "Pakket & betaling", "Bevestiging"] as const;
@@ -62,7 +66,7 @@ function Claim() {
         postcode,
         years_selected: years,
         package: pkg,
-        paid: pkg === "self",
+        paid: true,
       })
       .select("id")
       .single();
@@ -197,8 +201,8 @@ function Claim() {
             <div className="space-y-3">
               <h2 className="font-serif text-xl text-navy">Kies je pakket</h2>
               <p className="text-xs text-muted-foreground">
-                Het pakket bepaalt de servicekosten. De vergoeding zelf wordt vastgesteld door BAS /
-                Schiphol / ministerie van I&amp;W.
+                Je betaalt vooraf niets voor een pakket. De vergoeding zelf wordt vastgesteld door
+                BAS / Schiphol / ministerie van I&amp;W.
               </p>
               <PackageCard
                 Icon={FileText}
@@ -212,7 +216,7 @@ function Claim() {
                 Icon={Sparkles}
                 title={PACKAGE_META.managed.title}
                 price={PACKAGE_META.managed.price}
-                desc="Behandeling namens jou; aanvraag wordt opgeslagen en voorbereid."
+                desc="Wij behandelen je aanvraag. No cure no pay: 15% van een toegekende vergoeding, met een maximum van €300. Geen vergoeding = geen kosten."
                 onClick={() => setPkg("managed")}
                 active={pkg === "managed"}
                 highlight
@@ -221,7 +225,7 @@ function Claim() {
                 Icon={Scale}
                 title={PACKAGE_META.legal.title}
                 price={PACKAGE_META.legal.price}
-                desc="Juridische intake en beoordeling van vervolgstappen."
+                desc="Gratis doorverwijzing naar een gespecialiseerde jurist. Eventuele kosten spreek je rechtstreeks met de jurist af."
                 onClick={() => setPkg("legal")}
                 active={pkg === "legal"}
               />
@@ -229,13 +233,15 @@ function Claim() {
               {pkg && (
                 <div className="mt-3 rounded-xl bg-cream border border-border p-4 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-navy">Te betalen servicekosten</span>
+                    <span className="text-navy">Kosten vooraf</span>
                     <span className="font-mono text-navy">{PACKAGE_META[pkg].priceLabel}</span>
                   </div>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {pkg === "self"
                       ? "Geen kosten. Je bevestigt en gaat direct door."
-                      : "Door te bevestigen sla je je aanvraag op. Betaling wordt verwerkt voordat behandeling start."}
+                      : pkg === "managed"
+                        ? "Geen kosten vooraf. Alleen bij een toegekende vergoeding rekenen wij 15% (maximaal €300)."
+                        : "Geen kosten. Wij verwijzen je door naar een gespecialiseerde jurist."}
                   </p>
                 </div>
               )}
@@ -256,7 +262,7 @@ function Claim() {
                     ? "Bezig…"
                     : pkg === "self"
                       ? "Bevestigen"
-                      : `Betalen ${pkg ? PACKAGE_META[pkg].priceLabel : ""}`}
+                      : "Bevestigen"}
                 </button>
               </div>
             </div>
@@ -280,7 +286,7 @@ function Claim() {
                 <Row label="Adres" value={`${address}, ${postcode}`} />
                 <Row label="Jaren" value={years.join(", ")} />
                 <Row label="Pakket" value={pkg ? PACKAGE_META[pkg].title : "—"} />
-                <Row label="Servicekosten" value={pkg ? PACKAGE_META[pkg].priceLabel : "—"} />
+                <Row label="Kosten" value={pkg ? PACKAGE_META[pkg].priceLabel : "—"} />
               </div>
               <p className="text-xs text-muted-foreground">
                 De vergoeding zelf wordt vastgesteld door officiële instanties (BAS / Schiphol /
