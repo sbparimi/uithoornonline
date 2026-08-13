@@ -227,7 +227,7 @@ function ManagedSteps() {
         n={1}
         Icon={Clock}
         title="Dossier opgeslagen"
-        desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100."
+        desc="Je aanvraag voor behandeling namens jou is opgeslagen. No cure no pay: 15% van een toegekende vergoeding, maximaal €300."
       />
       <Step
         n={2}
@@ -251,7 +251,7 @@ function LegalSteps() {
         n={1}
         Icon={Scale}
         title="Dossier opgeslagen"
-        desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450."
+        desc="Je aanvraag is opgeslagen. De doorverwijzing naar een gespecialiseerde jurist is gratis."
       />
       <Step
         n={2}
