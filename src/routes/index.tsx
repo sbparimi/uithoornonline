@@ -4,10 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import ReactMarkdown from "react-markdown";
 import { AppShell } from "@/components/AppShell";
 import { chatTurn } from "@/lib/chat.functions";
-import { createAiSessionPayment, getPaymentStatus } from "@/lib/payments.functions";
-import { useAuth } from "@/hooks/use-auth";
-import { toast } from "sonner";
-import { Send, Sparkles, ExternalLink, Lock } from "lucide-react";
+import { Send, Sparkles, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: ChatHome,
@@ -63,8 +60,6 @@ const GREETINGS: Record<Lang, Msg> = {
 const ALLOWED_ROUTES = new Set(["/check", "/claim", "/log", "/map"]);
 const STORAGE_KEY = "uithoorn.chat.v1";
 const LANG_KEY = "uithoorn.chat.lang";
-const SESSION_KEY = "uithoorn.ai.session";
-const AI_SESSION_PRICE = "\u20ac5";
 
 function loadPersisted(): { messages: Msg[]; slots: Slots; lang?: Lang } | null {
   if (typeof window === "undefined") return null;
@@ -93,12 +88,6 @@ function loadLang(): Lang {
 function ChatHome() {
   const navigate = useNavigate();
   const callChat = useServerFn(chatTurn);
-  const startAiPayment = useServerFn(createAiSessionPayment);
-  const readPaymentStatus = useServerFn(getPaymentStatus);
-  const { user, loading: authLoading } = useAuth();
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionPaid, setSessionPaid] = useState(false);
-  const [payBusy, setPayBusy] = useState(false);
   const [lang, setLang] = useState<Lang>(() => loadPersisted()?.lang ?? loadLang());
   const [messages, setMessages] = useState<Msg[]>(
     () => loadPersisted()?.messages ?? [GREETINGS[loadLang()]],
@@ -117,87 +106,6 @@ function ChatHome() {
       /* ignore quota / private mode */
     }
   }, [messages, slots, lang]);
-
-  // Pick up the session id from localStorage or the Mollie return URL.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const fromUrl = new URLSearchParams(window.location.search).get("session");
-    const stored = (() => {
-      try {
-        return localStorage.getItem(SESSION_KEY);
-      } catch {
-        return null;
-      }
-    })();
-    const id = fromUrl ?? stored;
-    if (!id) return;
-    setSessionId(id);
-    try {
-      localStorage.setItem(SESSION_KEY, id);
-    } catch {
-      /* ignore */
-    }
-    if (fromUrl) window.history.replaceState({}, "", window.location.pathname);
-  }, []);
-
-  // Poll payment status shortly after returning from the payment provider.
-  useEffect(() => {
-    if (!sessionId || sessionPaid || authLoading || !user) return;
-    let cancelled = false;
-    let attempts = 0;
-    const tick = async () => {
-      attempts += 1;
-      try {
-        const res = await readPaymentStatus({ data: { kind: "ai_session", id: sessionId } });
-        if (cancelled) return;
-        if (res.paid) {
-          setSessionPaid(true);
-          return;
-        }
-      } catch {
-        /* ignore */
-      }
-      if (!cancelled && attempts < 10) setTimeout(tick, 2500);
-    };
-    void tick();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, sessionPaid, user, authLoading, readPaymentStatus]);
-
-  const beginPayment = async () => {
-    if (!user) {
-      navigate({ to: "/auth", search: { next: "/" } });
-      return;
-    }
-    setPayBusy(true);
-    try {
-      const res = await startAiPayment({
-        data: { question: input.trim().slice(0, 2000) || undefined, origin: window.location.origin },
-      });
-      if (!res.ok) {
-        toast.error(
-          res.error === "Payment provider not configured yet"
-            ? t(
-                "Betalen is nog niet geactiveerd. Voeg de Mollie API-sleutel toe in de projectinstellingen.",
-                "Payments are not activated yet. Add the Mollie API key in project settings.",
-              )
-            : res.error,
-        );
-        return;
-      }
-      try {
-        localStorage.setItem(SESSION_KEY, res.id);
-      } catch {
-        /* ignore */
-      }
-      window.location.href = res.checkoutUrl;
-    } catch {
-      toast.error(t("Betaling kon niet worden gestart.", "Could not start the payment."));
-    } finally {
-      setPayBusy(false);
-    }
-  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -243,10 +151,6 @@ function ChatHome() {
   const send = async (text: string) => {
     const trimmed = text.trim().slice(0, 2000);
     if (!trimmed || loading) return;
-    if (!sessionPaid) {
-      void beginPayment();
-      return;
-    }
     const next: Msg[] = [...messages, { role: "user", content: trimmed }];
     setMessages(next);
     setInput("");
@@ -257,7 +161,6 @@ function ChatHome() {
           messages: next.map((m) => ({ role: m.role, content: m.content })),
           slots,
           lang,
-          sessionId: sessionId ?? undefined,
         },
       });
       setMessages((prev) => [
@@ -408,38 +311,6 @@ function ChatHome() {
           }}
           className="border-t border-border bg-cream px-3 py-3"
         >
-          {!sessionPaid && (
-            <div className="mb-2 rounded-xl border border-navy/15 bg-white px-3.5 py-3">
-              <div className="flex items-center gap-2 text-navy">
-                <Lock size={14} className="text-red" />
-                <span className="text-sm font-medium">
-                  {t(
-                    `AI-assistent: ${AI_SESSION_PRICE} per sessie`,
-                    `AI assistant: ${AI_SESSION_PRICE} per session`,
-                  )}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                {t(
-                  "Eenmalig betalen voor onbeperkt vragen in deze sessie. Adrescheck, overlast loggen en de geluidskaart blijven gratis.",
-                  "One-off payment for unlimited questions in this session. Address check, noise logging and the map stay free.",
-                )}
-              </p>
-              <button
-                type="button"
-                onClick={beginPayment}
-                disabled={payBusy || authLoading}
-                className="mt-2.5 w-full rounded-xl bg-red py-2.5 text-sm font-medium text-red-foreground disabled:opacity-50"
-              >
-                {payBusy
-                  ? t("Bezig…", "Working…")
-                  : t(
-                      `Betaal ${AI_SESSION_PRICE} en start de sessie`,
-                      `Pay ${AI_SESSION_PRICE} and start the session`,
-                    )}
-              </button>
-            </div>
-          )}
           <div className="flex items-center gap-2 rounded-full bg-white border border-border pl-4 pr-1.5 py-1.5 shadow-sm focus-within:border-navy">
             <input
               ref={inputRef}

@@ -18,7 +18,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ClaimIndexRouteImport } from './routes/claim.index'
 import { Route as ClaimSuccessRouteImport } from './routes/claim.success'
 import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
-import { Route as ApiPublicHooksMollieWebhookRouteImport } from './routes/api/public/hooks/mollie-webhook'
 import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
 
 const MapRoute = MapRouteImport.update({
@@ -66,12 +65,6 @@ const ApiPublicHooksRunEvalsRoute = ApiPublicHooksRunEvalsRouteImport.update({
   path: '/api/public/hooks/run-evals',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksMollieWebhookRoute =
-  ApiPublicHooksMollieWebhookRouteImport.update({
-    id: '/api/public/hooks/mollie-webhook',
-    path: '/api/public/hooks/mollie-webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicHooksIngestKnowledgeRoute =
   ApiPublicHooksIngestKnowledgeRouteImport.update({
     id: '/api/public/hooks/ingest-knowledge',
@@ -89,7 +82,6 @@ export interface FileRoutesByFullPath {
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
-  '/api/public/hooks/mollie-webhook': typeof ApiPublicHooksMollieWebhookRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRoutesByTo {
@@ -101,7 +93,6 @@ export interface FileRoutesByTo {
   '/claim/success': typeof ClaimSuccessRoute
   '/claim': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
-  '/api/public/hooks/mollie-webhook': typeof ApiPublicHooksMollieWebhookRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRoutesById {
@@ -115,7 +106,6 @@ export interface FileRoutesById {
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
-  '/api/public/hooks/mollie-webhook': typeof ApiPublicHooksMollieWebhookRoute
   '/api/public/hooks/run-evals': typeof ApiPublicHooksRunEvalsRoute
 }
 export interface FileRouteTypes {
@@ -130,7 +120,6 @@ export interface FileRouteTypes {
     | '/claim/success'
     | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
-    | '/api/public/hooks/mollie-webhook'
     | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -142,7 +131,6 @@ export interface FileRouteTypes {
     | '/claim/success'
     | '/claim'
     | '/api/public/hooks/ingest-knowledge'
-    | '/api/public/hooks/mollie-webhook'
     | '/api/public/hooks/run-evals'
   id:
     | '__root__'
@@ -155,7 +143,6 @@ export interface FileRouteTypes {
     | '/claim/success'
     | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
-    | '/api/public/hooks/mollie-webhook'
     | '/api/public/hooks/run-evals'
   fileRoutesById: FileRoutesById
 }
@@ -167,7 +154,6 @@ export interface RootRouteChildren {
   LogRoute: typeof LogRoute
   MapRoute: typeof MapRoute
   ApiPublicHooksIngestKnowledgeRoute: typeof ApiPublicHooksIngestKnowledgeRoute
-  ApiPublicHooksMollieWebhookRoute: typeof ApiPublicHooksMollieWebhookRoute
   ApiPublicHooksRunEvalsRoute: typeof ApiPublicHooksRunEvalsRoute
 }
 
@@ -236,13 +222,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunEvalsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/mollie-webhook': {
-      id: '/api/public/hooks/mollie-webhook'
-      path: '/api/public/hooks/mollie-webhook'
-      fullPath: '/api/public/hooks/mollie-webhook'
-      preLoaderRoute: typeof ApiPublicHooksMollieWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/hooks/ingest-knowledge': {
       id: '/api/public/hooks/ingest-knowledge'
       path: '/api/public/hooks/ingest-knowledge'
@@ -273,19 +252,8 @@ const rootRouteChildren: RootRouteChildren = {
   LogRoute: LogRoute,
   MapRoute: MapRoute,
   ApiPublicHooksIngestKnowledgeRoute: ApiPublicHooksIngestKnowledgeRoute,
-  ApiPublicHooksMollieWebhookRoute: ApiPublicHooksMollieWebhookRoute,
   ApiPublicHooksRunEvalsRoute: ApiPublicHooksRunEvalsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

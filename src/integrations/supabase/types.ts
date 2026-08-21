@@ -14,33 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      ai_sessions: {
-        Row: {
-          created_at: string
-          id: string
-          mollie_payment_id: string | null
-          paid: boolean
-          question: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          mollie_payment_id?: string | null
-          paid?: boolean
-          question?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          mollie_payment_id?: string | null
-          paid?: boolean
-          question?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       chat_audit_log: {
         Row: {
           created_at: string
@@ -160,41 +133,6 @@ export type Database = {
           years_selected?: number[]
         }
         Relationships: []
-      }
-      dossier_exports: {
-        Row: {
-          claim_id: string | null
-          created_at: string
-          id: string
-          mollie_payment_id: string | null
-          paid: boolean
-          user_id: string
-        }
-        Insert: {
-          claim_id?: string | null
-          created_at?: string
-          id?: string
-          mollie_payment_id?: string | null
-          paid?: boolean
-          user_id: string
-        }
-        Update: {
-          claim_id?: string | null
-          created_at?: string
-          id?: string
-          mollie_payment_id?: string | null
-          paid?: boolean
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dossier_exports_claim_id_fkey"
-            columns: ["claim_id"]
-            isOneToOne: false
-            referencedRelation: "claims"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       knowledge_chunks: {
         Row: {
