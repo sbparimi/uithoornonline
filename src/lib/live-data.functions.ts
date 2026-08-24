@@ -104,6 +104,8 @@ export type AddressCheck =
       in_uithoorn: boolean;
       zones: string[]; // LIB zones matched
       in_lib_zone: boolean;
+      /** "in_zone" | "outside" (service answered, no hit) | "unavailable" (no statement possible) */
+      zone_status: "in_zone" | "outside" | "unavailable";
       note: string;
       evidence: EvidenceItem[];
     }
