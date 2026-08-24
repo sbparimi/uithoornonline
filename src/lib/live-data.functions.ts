@@ -144,7 +144,9 @@ export const checkAddressLive = createServerFn({ method: "POST" })
       },
     ];
     let zones: string[] = [];
+    let zone_status: "in_zone" | "outside" | "unavailable" = "unavailable";
     if (zoneRes.ok) {
+      zone_status = "in_zone";
       zones = zoneRes.zones;
       evidence.push({
         finding: `LIB Schiphol beperkingengebied: ${zones.join(", ")}`,
@@ -154,6 +156,7 @@ export const checkAddressLive = createServerFn({ method: "POST" })
         retrieved_at: zoneRes.retrieved_at,
       });
     } else if (zoneRes.reason === "no_intersection") {
+      zone_status = "outside";
       evidence.push({
         finding: "Adres buiten alle gepubliceerde LIB-beperkingengebieden",
         source_name: "Luchthavenindelingbesluit Schiphol (PDOK WFS)",
