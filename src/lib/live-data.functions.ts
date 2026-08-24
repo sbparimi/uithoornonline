@@ -188,12 +188,16 @@ export const checkAddressLive = createServerFn({ method: "POST" })
       },
       in_uithoorn,
       zones,
-      in_lib_zone: zones.length > 0,
-      note: zones.length
-        ? "Dit adres ligt in een wettelijk LIB-beperkingengebied. Dat zegt iets over bouw- en gebruiksbeperkingen, niet automatisch over compensatierecht."
-        : in_uithoorn
-          ? "Adres ligt in gemeente Uithoorn maar buiten de gepubliceerde LIB-zones. Overlast kan bestaan; raadpleeg BAS/Schiphol voor actuele contouren."
-          : "Adres ligt buiten gemeente Uithoorn.",
+      in_lib_zone: zone_status === "in_zone",
+      zone_status,
+      note:
+        zone_status === "in_zone"
+          ? "Dit adres ligt in een wettelijk LIB-beperkingengebied. Dat zegt iets over bouw- en gebruiksbeperkingen, niet automatisch over compensatierecht."
+          : zone_status === "outside"
+            ? in_uithoorn
+              ? "Adres ligt in gemeente Uithoorn maar buiten de gepubliceerde LIB-zones. Overlast kan bestaan; raadpleeg BAS/Schiphol voor actuele contouren."
+              : "Adres ligt buiten de gepubliceerde LIB-zones."
+            : "De officiële LIB-kaartlaag is nu niet opvraagbaar. Wij doen daarom géén uitspraak of dit adres binnen of buiten een LIB-zone ligt. Raadpleeg het Luchthavenindelingbesluit via de Rijksoverheid of uw gemeente.",
       evidence,
     };
   });
