@@ -87,13 +87,29 @@ function Check() {
         <section className="px-5 mt-5">
           <div
             className={`rounded-xl border bg-white p-5 ${
-              result.in_lib_zone ? "border-red/30" : "border-navy/20"
+              result.zone_status === "in_zone"
+                ? "border-red/30"
+                : result.zone_status === "unavailable"
+                  ? "border-amber-400/50"
+                  : "border-navy/20"
             }`}
           >
-            <div className={`flex items-center gap-2 ${result.in_lib_zone ? "text-red" : "text-navy"}`}>
-              {result.in_lib_zone ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+            <div
+              className={`flex items-center gap-2 ${
+                result.zone_status === "in_zone"
+                  ? "text-red"
+                  : result.zone_status === "unavailable"
+                    ? "text-amber-900"
+                    : "text-navy"
+              }`}
+            >
+              {result.zone_status === "in_zone" ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
               <span className="text-xs font-medium uppercase tracking-wider">
-                {result.in_lib_zone ? "In LIB-zone" : "Buiten LIB-zones"}
+                {result.zone_status === "in_zone"
+                  ? "In LIB-zone"
+                  : result.zone_status === "outside"
+                    ? "Buiten LIB-zones"
+                    : "Zone-check niet beschikbaar"}
               </span>
             </div>
             <h2 className="mt-2 text-xl font-serif text-navy">{result.address.label}</h2>
