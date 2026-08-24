@@ -135,7 +135,7 @@ function Check() {
               to="/claim"
               className="mt-4 flex items-center justify-between rounded-xl bg-red px-4 py-3 text-red-foreground font-medium"
             >
-              {result.in_lib_zone ? "Start compensatie-onderzoek" : "Meld toch geluidshinder"}
+              {result.zone_status === "in_zone" ? "Start compensatie-onderzoek" : "Meld geluidshinder"}
               <ChevronRight size={18} />
             </Link>
           </div>
