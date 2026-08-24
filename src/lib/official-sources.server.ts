@@ -64,6 +64,20 @@ export async function pdokLookupAddress(
     if (!doc) {
       return { ok: false, reason: "not_found", message: "Adres niet gevonden in BAG." };
     }
+    // PDOK /free is a fuzzy search: it always returns a "best" match, also for
+    // addresses that do not exist. Only accept an exact postcode + huisnummer
+    // match, otherwise we would present someone else's address as fact.
+    const docPc = (doc.postcode ?? "").replace(/\s+/g, "").toUpperCase();
+    const docHn = (doc.huis_nlt ?? "").replace(/\s+/g, "").toUpperCase();
+    const wantHn = hn.replace(/\s+/g, "").toUpperCase();
+    const pcMatches = pc.length === 4 ? docPc.startsWith(pc) : docPc === pc;
+    if (!pcMatches || docHn !== wantHn) {
+      return {
+        ok: false,
+        reason: "not_found",
+        message: "Dit exacte adres staat niet in de BAG (postcode/huisnummer komen niet overeen).",
+      };
+    }
     const m = doc.centroide_ll?.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
     if (!m) return { ok: false, reason: "unavailable", message: "BAG centroide ontbreekt." };
     return {
