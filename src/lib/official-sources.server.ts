@@ -64,6 +64,20 @@ export async function pdokLookupAddress(
     if (!doc) {
       return { ok: false, reason: "not_found", message: "Adres niet gevonden in BAG." };
     }
+    // PDOK /free is a fuzzy search: it always returns a "best" match, also for
+    // addresses that do not exist. Only accept an exact postcode + huisnummer
+    // match, otherwise we would present someone else's address as fact.
+    const docPc = (doc.postcode ?? "").replace(/\s+/g, "").toUpperCase();
+    const docHn = (doc.huis_nlt ?? "").replace(/\s+/g, "").toUpperCase();
+    const wantHn = hn.replace(/\s+/g, "").toUpperCase();
+    const pcMatches = pc.length === 4 ? docPc.startsWith(pc) : docPc === pc;
+    if (!pcMatches || docHn !== wantHn) {
+      return {
+        ok: false,
+        reason: "not_found",
+        message: "Dit exacte adres staat niet in de BAG (postcode/huisnummer komen niet overeen).",
+      };
+    }
     const m = doc.centroide_ll?.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
     if (!m) return { ok: false, reason: "unavailable", message: "BAG centroide ontbreekt." };
     return {
@@ -116,15 +130,32 @@ export async function pdokCheckNoiseZone(
   const bbox = `${lon - d},${lat - d},${lon + d},${lat + d},EPSG:4326`;
   const found: string[] = [];
   const layersHit: string[] = [];
+  // CRITICAL (accuracy): a failing layer request must NEVER be interpreted as
+  // "not in a zone". If any layer cannot be queried we report unavailable, so
+  // no user is ever told their address lies outside the LIB on the basis of a
+  // broken upstream call.
   try {
     for (const layer of LIB_LAYERS) {
       const url = `${LIB_WFS}?service=WFS&version=2.0.0&request=GetFeature&typeNames=${encodeURIComponent(
         layer,
       )}&bbox=${encodeURIComponent(bbox)}&count=1&outputFormat=application/json`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) continue;
-      const json = (await res.json()) as { features?: unknown[] };
-      if (Array.isArray(json.features) && json.features.length > 0) {
+      if (!res.ok) {
+        return {
+          ok: false,
+          reason: "unavailable",
+          message: `LIB-kaartlaag "${layer}" niet opvraagbaar (HTTP ${res.status}). Wij doen geen uitspraak over de zone.`,
+        };
+      }
+      const json = (await res.json().catch(() => null)) as { features?: unknown[] } | null;
+      if (!json || !Array.isArray(json.features)) {
+        return {
+          ok: false,
+          reason: "unavailable",
+          message: "LIB-service gaf een onbruikbaar antwoord. Wij doen geen uitspraak over de zone.",
+        };
+      }
+      if (json.features.length > 0) {
         layersHit.push(layer);
         const m = layer.match(/zone_(\d)/);
         if (m) found.push(`LIB geluid zone ${m[1]}`);
@@ -139,7 +170,8 @@ export async function pdokCheckNoiseZone(
     return {
       ok: false,
       reason: "no_intersection",
-      message: "Adres valt buiten alle gepubliceerde LIB-beperkingengebieden.",
+      message:
+        "Alle LIB-kaartlagen zijn geraadpleegd en gaven geen resultaat op dit punt: het adres ligt buiten de gepubliceerde LIB-beperkingengebieden.",
     };
   }
   return {

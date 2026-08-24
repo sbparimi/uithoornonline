@@ -104,6 +104,8 @@ export type AddressCheck =
       in_uithoorn: boolean;
       zones: string[]; // LIB zones matched
       in_lib_zone: boolean;
+      /** "in_zone" | "outside" (service answered, no hit) | "unavailable" (no statement possible) */
+      zone_status: "in_zone" | "outside" | "unavailable";
       note: string;
       evidence: EvidenceItem[];
     }
@@ -142,7 +144,9 @@ export const checkAddressLive = createServerFn({ method: "POST" })
       },
     ];
     let zones: string[] = [];
+    let zone_status: "in_zone" | "outside" | "unavailable" = "unavailable";
     if (zoneRes.ok) {
+      zone_status = "in_zone";
       zones = zoneRes.zones;
       evidence.push({
         finding: `LIB Schiphol beperkingengebied: ${zones.join(", ")}`,
@@ -152,6 +156,7 @@ export const checkAddressLive = createServerFn({ method: "POST" })
         retrieved_at: zoneRes.retrieved_at,
       });
     } else if (zoneRes.reason === "no_intersection") {
+      zone_status = "outside";
       evidence.push({
         finding: "Adres buiten alle gepubliceerde LIB-beperkingengebieden",
         source_name: "Luchthavenindelingbesluit Schiphol (PDOK WFS)",
@@ -183,12 +188,16 @@ export const checkAddressLive = createServerFn({ method: "POST" })
       },
       in_uithoorn,
       zones,
-      in_lib_zone: zones.length > 0,
-      note: zones.length
-        ? "Dit adres ligt in een wettelijk LIB-beperkingengebied. Dat zegt iets over bouw- en gebruiksbeperkingen, niet automatisch over compensatierecht."
-        : in_uithoorn
-          ? "Adres ligt in gemeente Uithoorn maar buiten de gepubliceerde LIB-zones. Overlast kan bestaan; raadpleeg BAS/Schiphol voor actuele contouren."
-          : "Adres ligt buiten gemeente Uithoorn.",
+      in_lib_zone: zone_status === "in_zone",
+      zone_status,
+      note:
+        zone_status === "in_zone"
+          ? "Dit adres ligt in een wettelijk LIB-beperkingengebied. Dat zegt iets over bouw- en gebruiksbeperkingen, niet automatisch over compensatierecht."
+          : zone_status === "outside"
+            ? in_uithoorn
+              ? "Adres ligt in gemeente Uithoorn maar buiten de gepubliceerde LIB-zones. Overlast kan bestaan; raadpleeg BAS/Schiphol voor actuele contouren."
+              : "Adres ligt buiten de gepubliceerde LIB-zones."
+            : "De officiële LIB-kaartlaag is nu niet opvraagbaar. Wij doen daarom géén uitspraak of dit adres binnen of buiten een LIB-zone ligt. Raadpleeg het Luchthavenindelingbesluit via de Rijksoverheid of uw gemeente.",
       evidence,
     };
   });
