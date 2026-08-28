@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as LogRouteImport } from './routes/log'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -20,6 +21,11 @@ import { Route as ClaimSuccessRouteImport } from './routes/claim.success'
 import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
 import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
 
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/privacy': typeof PrivacyRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/check': typeof CheckRoute
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/privacy': typeof PrivacyRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRouteWithChildren
   '/log': typeof LogRoute
   '/map': typeof MapRoute
+  '/privacy': typeof PrivacyRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/log'
     | '/map'
+    | '/privacy'
     | '/claim/success'
     | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/check'
     | '/log'
     | '/map'
+    | '/privacy'
     | '/claim/success'
     | '/claim'
     | '/api/public/hooks/ingest-knowledge'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/log'
     | '/map'
+    | '/privacy'
     | '/claim/success'
     | '/claim/'
     | '/api/public/hooks/ingest-knowledge'
@@ -153,12 +165,20 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRouteWithChildren
   LogRoute: typeof LogRoute
   MapRoute: typeof MapRoute
+  PrivacyRoute: typeof PrivacyRoute
   ApiPublicHooksIngestKnowledgeRoute: typeof ApiPublicHooksIngestKnowledgeRoute
   ApiPublicHooksRunEvalsRoute: typeof ApiPublicHooksRunEvalsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/map': {
       id: '/map'
       path: '/map'
@@ -251,6 +271,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRouteWithChildren,
   LogRoute: LogRoute,
   MapRoute: MapRoute,
+  PrivacyRoute: PrivacyRoute,
   ApiPublicHooksIngestKnowledgeRoute: ApiPublicHooksIngestKnowledgeRoute,
   ApiPublicHooksRunEvalsRoute: ApiPublicHooksRunEvalsRoute,
 }
