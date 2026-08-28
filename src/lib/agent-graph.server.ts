@@ -69,7 +69,6 @@ export type Evidence = {
 export type TraceEntry = {
   node: string;
   ms: number;
-  detail?: Record<string, unknown>;
 };
 
 export type GraphResult = {
