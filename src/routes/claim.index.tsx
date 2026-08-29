@@ -8,7 +8,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/claim/")({
   component: Claim,
-  head: () => ({ meta: [{ title: "Claim — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Claim starten — uithoorn.online' },
+      { name: "description", content: 'Stel in drie stappen je dossier samen voor een melding of aanvraag rond Schiphol-geluidsoverlast.' },
+      { property: "og:title", content: 'Claim starten — uithoorn.online' },
+      { property: "og:description", content: 'Stel in drie stappen je dossier samen voor een melding of aanvraag rond Schiphol-geluidsoverlast.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type PackageChoice = "self" | "managed" | "legal";

@@ -8,7 +8,16 @@ import { checkAddressLive, type AddressCheck } from "@/lib/live-data.functions";
 
 export const Route = createFileRoute("/check")({
   component: Check,
-  head: () => ({ meta: [{ title: "Check je adres — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Check je adres — uithoorn.online' },
+      { name: "description", content: 'Controleer live via BAG (Kadaster) en de LIB Schiphol-kaartlagen of jouw adres in een beperkingengebied ligt.' },
+      { property: "og:title", content: 'Check je adres — uithoorn.online' },
+      { property: "og:description", content: 'Controleer live via BAG (Kadaster) en de LIB Schiphol-kaartlagen of jouw adres in een beperkingengebied ligt.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 function Check() {

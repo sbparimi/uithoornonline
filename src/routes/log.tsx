@@ -8,7 +8,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/log")({
   component: LogPage,
-  head: () => ({ meta: [{ title: "Geluidshinder melden — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Geluidshinder melden — uithoorn.online' },
+      { name: "description", content: 'Registreer Schiphol-geluidsoverlast met tijdstempel, ervaren dB-niveau en locatie voor je dossier.' },
+      { property: "og:title", content: 'Geluidshinder melden — uithoorn.online' },
+      { property: "og:description", content: 'Registreer Schiphol-geluidsoverlast met tijdstempel, ervaren dB-niveau en locatie voor je dossier.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type Log = {

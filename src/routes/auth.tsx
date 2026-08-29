@@ -15,7 +15,16 @@ type SafeNextRoute = "/" | "/claim" | "/log";
 export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   component: AuthPage,
-  head: () => ({ meta: [{ title: "Inloggen — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Inloggen — uithoorn.online' },
+      { name: "description", content: 'Log in of maak een account om je meldingen en claimdossier veilig te bewaren.' },
+      { property: "og:title", content: 'Inloggen — uithoorn.online' },
+      { property: "og:description", content: 'Log in of maak een account om je meldingen en claimdossier veilig te bewaren.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 function AuthPage() {

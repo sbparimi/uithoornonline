@@ -24,7 +24,16 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/claim/success")({
   validateSearch: searchSchema,
   component: ClaimSuccess,
-  head: () => ({ meta: [{ title: "Claim ingediend — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Claim ingediend — uithoorn.online' },
+      { name: "description", content: 'Je dossier is opgeslagen. Bekijk de concrete vervolgstappen en officiële instanties.' },
+      { property: "og:title", content: 'Claim ingediend — uithoorn.online' },
+      { property: "og:description", content: 'Je dossier is opgeslagen. Bekijk de concrete vervolgstappen en officiële instanties.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type ClaimRow = {

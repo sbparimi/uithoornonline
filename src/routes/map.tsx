@@ -9,7 +9,16 @@ import { getRecentNoiseLogs, type NoiseFeed } from "@/lib/live-data.functions";
 
 export const Route = createFileRoute("/map")({
   component: MapPage,
-  head: () => ({ meta: [{ title: "Geluidskaart — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Geluidskaart Uithoorn — uithoorn.online' },
+      { name: "description", content: 'Bekijk echte bewonersmeldingen van vliegtuiggeluid rond Uithoorn per 24 uur, week of maand.' },
+      { property: "og:title", content: 'Geluidskaart Uithoorn — uithoorn.online' },
+      { property: "og:description", content: 'Bekijk echte bewonersmeldingen van vliegtuiggeluid rond Uithoorn per 24 uur, week of maand.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 const WINDOWS = [
