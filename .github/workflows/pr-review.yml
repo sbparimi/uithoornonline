@@ -2,19 +2,26 @@ name: Uithoorn Online — PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   review:
     name: Build, lint & launch-safety review
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,48 +32,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
       - name: Lint
         run: npm run lint
 
       - name: Production build
         run: npm run build
 
-      - name: Launch safety review
+      - name: Launch safety and brand review
         shell: bash
         run: |
           set -euo pipefail
-          echo "Reviewing user-facing source for prohibited authority claims..."
+          echo "Reviewing user-facing source for prohibited authority claims and borrowed branding..."
           mapfile -t files < <(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.md' \) -print)
-          forbidden='(gegarandeerd|gegarandeerde|u heeft recht op|u hebt recht op|u krijgt [€0-9]|claim goedgekeurd|offici[eë]le claim ingediend|offici[eë]le aanvraag ingediend|wij bepalen.*recht|wij bepalen.*compensatie)'
+          forbidden='(gegarandeerd|gegarandeerde|u heeft recht op|u hebt recht op|u krijgt [€0-9]|claim goedgekeurd|offici[eë]le claim ingediend|offici[eë]le aanvraag ingediend|wij bepalen.*recht|wij bepalen.*compensatie|PostNL|\bDaan\b)'
           if grep -EinH -E "$forbidden" "${files[@]}"; then
-            echo "Launch-safety review failed: prohibited authority/entitlement language found."
+            echo "Launch-safety review failed: prohibited authority/entitlement language or borrowed branding found."
             exit 1
           fi
-          echo "No prohibited authority/entitlement language found."
+          echo "No prohibited authority/entitlement language or borrowed branding found."
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
       - name: Review summary
         if: always()
         run: |
           {
             echo "## Uithoorn Online automated review"
-            echo "- npm lint: executed"
+            echo "- TypeScript: executed"
+            echo "- ESLint: executed"
             echo "- production build: executed"
-            echo "- launch-safety language scan: executed"
+            echo "- authority/entitlement and brand scan: executed"
+            echo "- dependency audit: executed"
           } >> "$GITHUB_STEP_SUMMARY"
-
-  promote:
-    name: Promote approved PR to main
-    needs: review
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    steps:
-      - name: Merge PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          gh pr merge "$PR_NUMBER" \
-            --repo "$GITHUB_REPOSITORY" \
-            --squash \
-            --delete-branch
