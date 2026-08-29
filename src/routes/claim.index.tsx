@@ -8,7 +8,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/claim/")({
   component: Claim,
-  head: () => ({ meta: [{ title: "Claim — uithoorn.online" }] }),
+  head: () => ({
+    meta: [
+      { title: 'Claim starten — uithoorn.online' },
+      { name: "description", content: 'Stel in drie stappen je dossier samen voor een melding of aanvraag rond Schiphol-geluidsoverlast.' },
+      { property: "og:title", content: 'Claim starten — uithoorn.online' },
+      { property: "og:description", content: 'Stel in drie stappen je dossier samen voor een melding of aanvraag rond Schiphol-geluidsoverlast.' },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type PackageChoice = "self" | "managed" | "legal";
@@ -19,6 +28,10 @@ const PACKAGE_META: Record<PackageChoice, { title: string; price: string; priceL
   legal: { title: "Juridisch traject", price: "€450", priceLabel: "€450" },
 };
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR];
+const POSTCODE_RE = /^\d{4}\s?[A-Z]{2}$/;
+
 const STEP_LABELS = ["Gegevens", "Pakket & betaling", "Bevestiging"] as const;
 
 function Claim() {
@@ -28,15 +41,17 @@ function Claim() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [postcode, setPostcode] = useState("");
-  const [years, setYears] = useState<number[]>([2023, 2024, 2025]);
+  const [years, setYears] = useState<number[]>(YEAR_OPTIONS);
   const [pkg, setPkg] = useState<PackageChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [claimId, setClaimId] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
 
   const toggleYear = (y: number) =>
     setYears((p) => (p.includes(y) ? p.filter((x) => x !== y) : [...p, y].sort()));
 
-  const detailsValid = !!name && !!address && !!postcode && years.length > 0;
+  const postcodeValid = POSTCODE_RE.test(postcode.trim());
+  const detailsValid = name.trim().length > 1 && address.trim().length > 3 && postcodeValid && years.length > 0;
 
   const confirmAndPay = async () => {
     if (!user) {
@@ -48,8 +63,12 @@ function Claim() {
       return;
     }
     if (!detailsValid) {
-      toast.error("Vul je gegevens in (stap 1)");
+      toast.error("Controleer je gegevens (stap 1)");
       setStep(1);
+      return;
+    }
+    if (!agreed) {
+      toast.error("Bevestig eerst de voorwaarden");
       return;
     }
     setSubmitting(true);
@@ -73,7 +92,7 @@ function Claim() {
     }
     setClaimId(data.id);
     setStep(3);
-    toast.success("Claim ingediend");
+    toast.success("Aanvraag opgeslagen");
   };
 
   if (authLoading) {
@@ -155,10 +174,13 @@ function Claim() {
                 placeholder="1421 AB"
                 maxLength={7}
               />
+              {postcode.length > 0 && !postcodeValid && (
+                <p className="text-[11px] text-red">Vul een geldige Nederlandse postcode in, bijv. 1421 AB.</p>
+              )}
               <div>
-                <div className="text-xs font-medium text-navy mt-2">Jaren met overlast</div>
+                <div className="text-xs font-medium text-navy mt-2">Jaren met ervaren overlast</div>
                 <div className="mt-2 space-y-2">
-                  {[2023, 2024, 2025].map((y) => {
+                  {YEAR_OPTIONS.map((y) => {
                     const on = years.includes(y);
                     return (
                       <button
@@ -235,9 +257,26 @@ function Claim() {
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {pkg === "self"
                       ? "Geen kosten. Je bevestigt en gaat direct door."
-                      : "Door te bevestigen sla je je aanvraag op. Betaling wordt verwerkt voordat behandeling start."}
+                      : "Bedrag inclusief btw. Er wordt nu nog niets afgeschreven: je aanvraag wordt opgeslagen en je ontvangt daarna een betaalverzoek. De behandeling start pas na betaling. Je hebt 14 dagen herroepingsrecht."}
                   </p>
                 </div>
+              )}
+
+              {pkg && (
+                <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="mt-0.5 accent-red"
+                  />
+                  <span>
+                    Ik ga akkoord met de{" "}
+                    <Link to="/voorwaarden" className="underline text-navy">algemene voorwaarden</Link> en de{" "}
+                    <Link to="/privacy" className="underline text-navy">privacyverklaring</Link>. Ik begrijp dat
+                    uithoorn.online geen overheidsinstantie is en geen vergoeding of uitkomst kan garanderen.
+                  </span>
+                </label>
               )}
 
               <div className="flex gap-2 mt-2">
@@ -249,14 +288,10 @@ function Claim() {
                 </button>
                 <button
                   onClick={confirmAndPay}
-                  disabled={!pkg || submitting}
+                  disabled={!pkg || submitting || !agreed}
                   className="flex-1 rounded-xl bg-red py-3 text-red-foreground font-medium disabled:opacity-40"
                 >
-                  {submitting
-                    ? "Bezig…"
-                    : pkg === "self"
-                      ? "Bevestigen"
-                      : `Betalen ${pkg ? PACKAGE_META[pkg].priceLabel : ""}`}
+                  {submitting ? "Bezig…" : pkg === "self" ? "Bevestigen" : "Aanvraag indienen"}
                 </button>
               </div>
             </div>
@@ -269,7 +304,7 @@ function Claim() {
                   <CheckCircle2 size={22} className="text-white" />
                 </div>
                 <div>
-                  <h2 className="font-serif text-xl text-navy">Claim bevestigd</h2>
+                  <h2 className="font-serif text-xl text-navy">Aanvraag opgeslagen</h2>
                   <p className="text-xs text-muted-foreground">
                     Referentie {claimId ? claimId.slice(0, 8).toUpperCase() : "—"}
                   </p>
@@ -282,6 +317,12 @@ function Claim() {
                 <Row label="Pakket" value={pkg ? PACKAGE_META[pkg].title : "—"} />
                 <Row label="Servicekosten" value={pkg ? PACKAGE_META[pkg].priceLabel : "—"} />
               </div>
+              {pkg && pkg !== "self" && (
+                <p className="rounded-xl border border-amber-400/50 bg-amber-50 p-3 text-xs text-amber-900">
+                  Er is nog niets betaald. Je ontvangt een betaalverzoek van {PACKAGE_META[pkg].priceLabel} (incl. btw);
+                  de behandeling start pas daarna. Binnen 14 dagen kun je kosteloos annuleren.
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 De vergoeding zelf wordt vastgesteld door officiële instanties (BAS / Schiphol /
                 ministerie van I&amp;W) op basis van geverifieerde meetgegevens.

@@ -30,7 +30,7 @@ export function BottomNav() {
                   {label}
                 </span>
                 {active && (
-                  <span className="absolute -mt-1 mt-7 h-1 w-1 rounded-full bg-red" />
+                  <span className="h-1 w-1 rounded-full bg-red" />
                 )}
               </Link>
             </li>

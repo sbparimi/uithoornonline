@@ -32,6 +32,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link to="/log" onClick={() => setOpen(false)} className="block">Geluidshinder melden</Link>
               <Link to="/map" onClick={() => setOpen(false)} className="block">Geluidskaart</Link>
               <Link to="/claim" onClick={() => setOpen(false)} className="block">Claim starten</Link>
+              <div className="pt-3 border-t border-white/10 flex gap-4 text-white/60 text-xs">
+                <Link to="/privacy" onClick={() => setOpen(false)}>Privacy &amp; AVG</Link>
+                <Link to="/voorwaarden" onClick={() => setOpen(false)}>Voorwaarden</Link>
+              </div>
               <div className="pt-3 border-t border-white/10">
                 {user ? (
                   <button
