@@ -20,12 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               <span className="font-serif text-[20px] tracking-[-0.02em]">uithoorn<span className="text-red">.</span>online</span>
             </Link>
-            <button
-              aria-label={open ? "Menu sluiten" : "Menu openen"}
-              aria-expanded={open}
-              onClick={() => setOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 transition hover:bg-white/10"
-            >
+            <button aria-label={open ? "Menu sluiten" : "Menu openen"} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 transition hover:bg-white/10">
               {open ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
@@ -46,7 +41,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-[11px] text-white/55">
                   <Link to="/privacy" onClick={() => setOpen(false)}>Privacy &amp; AVG</Link>
                   <Link to="/voorwaarden" onClick={() => setOpen(false)}>Voorwaarden</Link>
-                  <Link to="/over-de-service" onClick={() => setOpen(false)}>Over de service</Link>
                   {user ? <button onClick={async () => { await supabase.auth.signOut(); setOpen(false); }}>Uitloggen</button> : <Link to="/auth" onClick={() => setOpen(false)}>Inloggen / Registreren</Link>}
                 </div>
               </div>
