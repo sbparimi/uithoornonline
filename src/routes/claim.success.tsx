@@ -1,34 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { AppShell } from "@/components/AppShell";
-import {
-  CheckCircle2,
-  FileText,
-  Mail,
-  Scale,
-  Sparkles,
-  Download,
-  ArrowRight,
-  Clock,
-  type LucideIcon,
-} from "lucide-react";
+import { CheckCircle2, FileText, Mail, Scale, ArrowRight, Clock, type LucideIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-const searchSchema = z.object({
-  id: z.string().uuid().optional(),
-  pkg: z.enum(["self", "managed", "legal"]).optional(),
-});
-
 export const Route = createFileRoute("/claim/success")({
-  validateSearch: searchSchema,
   component: ClaimSuccess,
   head: () => ({
     meta: [
-      { title: 'Claim ingediend — uithoorn.online' },
+      { title: 'Dossier opgeslagen — uithoorn.online' },
       { name: "description", content: 'Je dossier is opgeslagen. Bekijk de concrete vervolgstappen en officiële instanties.' },
-      { property: "og:title", content: 'Claim ingediend — uithoorn.online' },
+      { property: "og:title", content: 'Dossier opgeslagen — uithoorn.online' },
       { property: "og:description", content: 'Je dossier is opgeslagen. Bekijk de concrete vervolgstappen en officiële instanties.' },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -47,16 +30,14 @@ type ClaimRow = {
   created_at: string;
 };
 
-// Geen hardcoded compensatiebedragen — vergoeding wordt officieel vastgesteld.
-
 const officialLinks = [
   { href: "https://meldingen-bezoekbas.nl/", label: "Open BAS-meldformulier" },
   { href: "https://www.schiphol.nl/nl/schiphol-als-buur/", label: "Schiphol als buur" },
 ];
 
 function ClaimSuccess() {
-  const { id, pkg } = Route.useSearch();
   const { user, loading: authLoading } = useAuth();
+  const { id, pkg } = Route.useSearch();
   const navigate = useNavigate();
   const [claim, setClaim] = useState<ClaimRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,8 +72,8 @@ function ClaimSuccess() {
             <CheckCircle2 size={26} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif">Claim ingediend</h1>
-            <p className="text-sm text-white/70">We hebben je aanvraag ontvangen</p>
+            <h1 className="text-2xl font-serif">Dossier opgeslagen</h1>
+            <p className="text-sm text-white/70">Je gegevens zijn opgeslagen in Uithoorn Online</p>
           </div>
         </div>
         {claim && (
@@ -106,8 +87,8 @@ function ClaimSuccess() {
               <span>{claim.years_selected.join(", ")}</span>
             </div>
             <div className="mt-2 text-[11px] text-white/60">
-              Compensatiebedrag wordt officieel vastgesteld door BAS / Schiphol / ministerie van
-              I&amp;W. De app maakt geen schatting.
+              Dit is een intern dossier. Het betekent niet dat een officiële compensatieaanvraag is ingediend,
+              dat je recht hebt op compensatie of dat een bevoegde instantie een beslissing heeft genomen.
             </div>
           </div>
         )}
@@ -125,7 +106,7 @@ function ClaimSuccess() {
           ) : activePkg === "legal" ? (
             <LegalSteps />
           ) : (
-            <p className="text-sm text-muted-foreground mt-3">Geen claimgegevens gevonden.</p>
+            <p className="text-sm text-muted-foreground mt-3">Geen dossiergegevens gevonden.</p>
           )}
         </div>
 
@@ -138,11 +119,10 @@ function ClaimSuccess() {
 function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }) {
   return (
     <div className="rounded-xl bg-cream border border-border p-5">
-      <h3 className="font-serif text-navy">Direct verder</h3>
+      <h3 className="font-serif text-navy">Officiële vervolgstappen</h3>
       <p className="text-xs text-muted-foreground mt-1">
-        {activePkg === "self"
-          ? "Gebruik de officiële BAS-route om je melding of vraag zelf door te zetten."
-          : "Je dossier is opgeslagen; voeg extra meldingen toe of raadpleeg de officiële informatie terwijl je aanvraag wordt opgevolgd."}
+        Uithoorn Online helpt informatie en bewijs te ordenen. Officiële instanties bepalen rechten,
+        compensatie en formele uitkomsten.
       </p>
       <div className="mt-3 grid gap-2">
         {officialLinks.map((link) => (
@@ -157,17 +137,11 @@ function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }
             <ArrowRight size={16} className="text-navy/60" />
           </a>
         ))}
-        <Link
-          to="/log"
-          className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"
-        >
+        <Link to="/log" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
           <span className="text-sm font-medium text-navy">Overlast loggen</span>
           <ArrowRight size={16} className="text-navy/60" />
         </Link>
-        <Link
-          to="/"
-          className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"
-        >
+        <Link to="/" className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3">
           <span className="text-sm font-medium text-navy">Vraag aan de assistent</span>
           <ArrowRight size={16} className="text-navy/60" />
         </Link>
@@ -176,23 +150,11 @@ function NextActions({ activePkg }: { activePkg?: "self" | "managed" | "legal" }
   );
 }
 
-function Step({
-  n,
-  Icon,
-  title,
-  desc,
-}: {
-  n: number;
-  Icon: LucideIcon;
-  title: string;
-  desc: string;
-}) {
+function Step({ n, Icon, title, desc }: { n: number; Icon: LucideIcon; title: string; desc: string }) {
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
-        <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-sm font-mono">
-          {n}
-        </div>
+        <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-sm font-mono">{n}</div>
       </div>
       <div className="flex-1 pb-1">
         <div className="flex items-center gap-2 text-navy">
@@ -208,72 +170,29 @@ function Step({
 function SelfSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step
-        n={1}
-        Icon={CheckCircle2}
-        title="Dossier opgeslagen"
-        desc="Je claimgegevens en gekozen jaren staan nu in je account."
-      />
-      <Step
-        n={2}
-        Icon={FileText}
-        title="Officiële route openen"
-        desc="Gebruik het BAS-meldformulier hieronder voor een melding of vraag bij het Bewoners Aanspreekpunt Schiphol."
-      />
-      <Step
-        n={3}
-        Icon={Download}
-        title="Bewijs blijven verzamelen"
-        desc="Log nieuwe overlastmomenten in de app zodat je dossier actueel blijft."
-      />
+      <Step n={1} Icon={CheckCircle2} title="Dossier opgeslagen" desc="Je gegevens en gekozen jaren staan in je Uithoorn Online-dossier." />
+      <Step n={2} Icon={FileText} title="Officiële route controleren" desc="Gebruik de officiële BAS-route voor een melding of vraag." />
+      <Step n={3} Icon={Clock} title="Bewijs blijven verzamelen" desc="Log nieuwe overlastmomenten en bewaar relevante documenten." />
     </ol>
   );
 }
+
 function ManagedSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step
-        n={1}
-        Icon={Clock}
-        title="Dossier opgeslagen"
-        desc="Je aanvraag voor behandeling namens jou is opgeslagen met servicekosten van €100."
-      />
-      <Step
-        n={2}
-        Icon={FileText}
-        title="Voorbereiding"
-        desc="Bewaar aanvullende meldingen en documenten zodat de behandeling op basis van jouw dossier kan plaatsvinden."
-      />
-      <Step
-        n={3}
-        Icon={Mail}
-        title="Volgende actie"
-        desc="Gebruik hieronder de officiële BAS-link voor actuele informatie of om zelf aanvullend te melden."
-      />
+      <Step n={1} Icon={Clock} title="Dossier opgeslagen" desc="Je aanvraag voor dossierbegeleiding is opgeslagen." />
+      <Step n={2} Icon={FileText} title="Dossier voorbereiden" desc="Aanvullende meldingen en documenten kunnen worden toegevoegd." />
+      <Step n={3} Icon={Mail} title="Officiële vervolgstap" desc="Een officiële aanvraag is pas ingediend wanneer deze daadwerkelijk bij de bevoegde instantie is ingediend." />
     </ol>
   );
 }
+
 function LegalSteps() {
   return (
     <ol className="mt-4 space-y-4">
-      <Step
-        n={1}
-        Icon={Scale}
-        title="Dossier opgeslagen"
-        desc="Je aanvraag voor een juridisch traject is opgeslagen met servicekosten van €450."
-      />
-      <Step
-        n={2}
-        Icon={Sparkles}
-        title="Dossier aanvullen"
-        desc="Voeg relevante overlastlogs en documenten toe voordat juridische beoordeling plaatsvindt."
-      />
-      <Step
-        n={3}
-        Icon={FileText}
-        title="Officiële bronnen raadplegen"
-        desc="Gebruik de officiële links hieronder voor de actuele informatie waarop vervolgstappen moeten worden gebaseerd."
-      />
+      <Step n={1} Icon={Scale} title="Dossier opgeslagen" desc="Je aanvraag voor de gekozen service is opgeslagen." />
+      <Step n={2} Icon={FileText} title="Dossier aanvullen" desc="Voeg relevante overlastlogs en documenten toe." />
+      <Step n={3} Icon={Scale} title="Bevoegde beoordeling" desc="Een juridisch oordeel of formele compensatiebeslissing komt uitsluitend van de daarvoor bevoegde partij." />
     </ol>
   );
 }
