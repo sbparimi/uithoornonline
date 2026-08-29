@@ -1,68 +1,51 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Plane, ChevronRight } from "lucide-react";
+import { Plane, ChevronRight, ShieldCheck, Clock3, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/log")({
-  component: LogPage,
-  head: () => ({ meta: [{ title: "Geluidshinder melden — uithoorn.online" }, { name: "description", content: "Registreer een bewonersmelding met tijdstempel, optioneel vluchtnummer en locatie." }] }),
-});
+export const Route = createFileRoute("/log")({ component: LogPage, head: () => ({ meta: [
+  { title: "Geluidshinder melden — uithoorn.online" },
+  { name: "description", content: "Registreer een bewonersmelding met tijdstempel, optioneel vluchtnummer en locatie." },
+] }) });
 
 type Log = { id: string; timestamp: string; flight_number: string | null; altitude: number | null; db_level: number | null };
 
 function LogPage() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const [now, setNow] = useState(new Date());
-  const [logs, setLogs] = useState<Log[]>([]);
-  const [last, setLast] = useState<Log | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [db, setDb] = useState(70);
-  const [flight, setFlight] = useState("");
-  const [geoErr, setGeoErr] = useState<string | null>(null);
-
+  const { user, loading } = useAuth(); const navigate = useNavigate();
+  const [now, setNow] = useState(new Date()); const [logs, setLogs] = useState<Log[]>([]); const [last, setLast] = useState<Log | null>(null);
+  const [submitting, setSubmitting] = useState(false); const [db, setDb] = useState(70); const [flight, setFlight] = useState(""); const [geoErr, setGeoErr] = useState<string | null>(null);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!user) return; supabase.from("noise_logs").select("*").order("timestamp", { ascending: false }).limit(20).then(({ data }) => setLogs((data as Log[]) ?? [])); }, [user]);
-
-  const getCoords = () => new Promise<{ lat: number; lng: number } | null>((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { timeout: 4000, maximumAge: 60_000 });
-  });
-
+  const getCoords = () => new Promise<{lat:number;lng:number}|null>(resolve => { if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null); navigator.geolocation.getCurrentPosition(p => resolve({lat:p.coords.latitude,lng:p.coords.longitude}), () => resolve(null), {timeout:4000,maximumAge:60000}); });
   const submit = async () => {
     if (!user) { navigate({ to: "/auth", search: { next: "/log" } as any }); return; }
-    setSubmitting(true); setGeoErr(null);
-    const coords = await getCoords();
-    if (!coords) setGeoErr("Locatie niet beschikbaar — de bewonersmelding wordt zonder coördinaten opgeslagen.");
-    const { data, error } = await supabase.from("noise_logs").insert({ user_id: user.id, flight_number: flight.trim() || null, altitude: null, db_level: db, lat: coords?.lat ?? null, lng: coords?.lng ?? null }).select().single();
-    setSubmitting(false);
-    if (error) { toast.error("Kon melding niet opslaan"); return; }
-    const row = data as Log; setLast(row); setLogs((p) => [row, ...p]); setFlight(""); toast.success("Bewonersmelding geregistreerd met tijdstempel");
-    if (navigator.vibrate) navigator.vibrate(40);
+    setSubmitting(true); setGeoErr(null); const coords = await getCoords();
+    if (!coords) setGeoErr("Locatie niet beschikbaar. De bewonersmelding wordt zonder coördinaten opgeslagen.");
+    const { data, error } = await supabase.from("noise_logs").insert({ user_id:user.id, flight_number:flight.trim()||null, altitude:null, db_level:db, lat:coords?.lat??null, lng:coords?.lng??null }).select().single();
+    setSubmitting(false); if (error) { toast.error("Kon melding niet opslaan"); return; }
+    const row=data as Log; setLast(row); setLogs(p=>[row,...p]); setFlight(""); toast.success("Bewonersmelding geregistreerd"); if(navigator.vibrate) navigator.vibrate(40);
   };
-
   return <AppShell>
-    <section className="bg-navy text-navy-foreground px-5 pt-6 pb-7">
-      <h1 className="text-2xl font-serif">Geluidshinder melden</h1>
-      <p className="mt-1 text-sm text-white/70">Leg vast wat je op dit moment ervaart. De melding krijgt een echte tijdstempel en kan je eigen dossier ondersteunen.</p>
-      <div className="mt-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm"><div className="text-[11px] uppercase tracking-wider text-white/50">Nu</div><div className="font-mono tabular-nums">{now.toLocaleString("nl-NL")}</div></div>
-    </section>
-    <section className="px-5 -mt-5"><div className="rounded-2xl bg-white border border-border p-4 space-y-4">
-      <div>
-        <div className="flex items-baseline justify-between"><label className="text-xs font-medium text-navy">Geschat geluidsniveau</label><span className="font-mono text-navy text-sm">{db} dB</span></div>
-        <input aria-label="Geschat geluidsniveau in decibel" type="range" min={50} max={95} value={db} onChange={(e) => setDb(parseInt(e.target.value, 10))} className="mt-2 w-full accent-red" />
-        <div className="flex justify-between text-[10px] text-muted-foreground mt-1"><span>50</span><span>75</span><span>95</span></div>
-        <p className="mt-2 text-[11px] text-muted-foreground">Dit is een door jou geschatte waarde, geen gekalibreerde of officiële geluidsmeting.</p>
-      </div>
-      <div><label className="text-xs font-medium text-navy">Vluchtnummer (optioneel)</label><input value={flight} onChange={(e) => setFlight(e.target.value.toUpperCase())} placeholder="bv. KL1234 — laat leeg als onbekend" className="mt-2 w-full rounded-xl border border-border bg-cream px-3 py-2 text-sm outline-none" maxLength={12} /><p className="mt-1 text-[11px] text-muted-foreground">Een opgegeven vluchtnummer is jouw melding; deze app stelt daarmee niet vast dat de vlucht de hinder heeft veroorzaakt.</p></div>
-      <button onClick={submit} disabled={submitting || loading} className="w-full rounded-2xl bg-red text-red-foreground py-5 shadow-[0_8px_24px_-8px_rgba(255,60,42,0.6)] active:scale-[0.99] transition disabled:opacity-60"><div className="flex flex-col items-center gap-1.5"><Plane size={22} /><span className="font-serif text-lg">{submitting ? "Bezig…" : "Registreer bewonersmelding"}</span><span className="text-[11px] text-red-foreground/80">{new Date().toLocaleTimeString("nl-NL")}</span></div></button>
-      {geoErr && <p className="text-[11px] text-amber-700">{geoErr}</p>}
+    <section className="bg-navy px-5 pb-8 pt-7 text-navy-foreground sm:px-6 lg:px-8"><div className="mx-auto max-w-3xl">
+      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55"><span className="h-1.5 w-1.5 rounded-full bg-red" /> Bewonersmelding</div>
+      <h1 className="mt-3 text-3xl sm:text-4xl">Geluid melden</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">Leg vast wat je nu ervaart. Je melding krijgt een echte tijdstempel en kan onderdeel worden van je eigen dossier.</p>
+      <div className="mt-5 flex items-center gap-2 text-xs text-white/55"><Clock3 size={14} /> {now.toLocaleString("nl-NL")}</div>
     </div></section>
-    {last && <section className="px-5 mt-4"><div className="rounded-xl bg-white border border-border p-4"><div className="text-[11px] uppercase tracking-wider text-red font-medium">Laatste bewonersmelding</div><div className="mt-1 flex items-baseline justify-between"><div className="font-serif text-navy text-lg">{last.flight_number ?? "Vlucht onbekend"}</div><div className="text-xs text-muted-foreground">{new Date(last.timestamp).toLocaleTimeString("nl-NL")}</div></div><div className="mt-3 grid grid-cols-2 gap-3"><div className="rounded-lg bg-cream p-3"><div className="text-[10px] uppercase text-muted-foreground">Tijdstempel</div><div className="font-mono text-navy text-xs">{new Date(last.timestamp).toLocaleString("nl-NL")}</div></div><div className="rounded-lg bg-cream p-3"><div className="text-[10px] uppercase text-muted-foreground">Geschat geluid</div><div className="font-mono text-navy">{last.db_level} dB</div></div></div></div></section>}
-    <section className="px-5 mt-6"><h2 className="text-sm font-medium text-navy">Jouw meldingen</h2>{!user && !loading && <Link to="/auth" className="mt-3 block rounded-xl border border-border bg-white p-4 text-sm text-muted-foreground">Log in om je meldingen te bewaren →</Link>}{user && logs.length === 0 && <div className="mt-3 rounded-xl border border-dashed border-border bg-white/50 p-6 text-center text-sm text-muted-foreground">Nog geen meldingen.</div>}{logs.length > 0 && <ul className="mt-3 space-y-2">{logs.map((l) => { const d = new Date(l.timestamp); return <li key={l.id} className="flex items-center justify-between rounded-xl bg-white border border-border px-4 py-3"><div><div className="font-serif text-navy">{l.flight_number ?? "Vlucht onbekend"}</div><div className="text-[11px] text-muted-foreground">{d.toLocaleDateString("nl-NL")} · {d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</div></div><div className="text-right"><div className="font-mono text-navy text-sm">{l.db_level ?? "—"} dB</div><div className="text-[11px] text-muted-foreground">bewonersmelding</div></div></li>; })}</ul>}</section>
-    <section className="px-5 mt-8 mb-10"><Link to="/claim" className="flex items-center justify-between rounded-xl bg-navy px-4 py-4 text-white"><div><div className="font-serif text-lg">Dossier voorbereiden</div><div className="text-xs text-white/70">Orden je informatie en vervolgstappen</div></div><ChevronRight size={18} /></Link></section>
+
+    <section className="mx-auto -mt-5 max-w-3xl px-5 pb-5 sm:px-6"><div className="rounded-2xl border border-border bg-white p-5 shadow-[0_18px_50px_rgba(13,31,60,.10)] sm:p-6">
+      <div className="mb-5 flex items-start gap-3 rounded-xl border border-navy/10 bg-cream px-4 py-3"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-navy/65" /><div><div className="text-xs font-semibold text-navy">Bewonersmelding, geen officiële meting</div><div className="mt-0.5 text-[11px] leading-5 text-navy/55">Je legt je eigen waarneming vast. De waarde hieronder is een schatting en geen gekalibreerde geluidsmeting.</div></div></div>
+      <div><div className="flex items-baseline justify-between"><label className="text-xs font-semibold text-navy">Geschat geluidsniveau</label><span className="font-mono text-lg font-semibold text-navy">{db} <span className="text-xs font-normal">dB</span></span></div><input aria-label="Geschat geluidsniveau in decibel" type="range" min={50} max={95} value={db} onChange={e=>setDb(parseInt(e.target.value,10))} className="mt-4 w-full accent-red" /><div className="flex justify-between text-[10px] text-muted-foreground"><span>50</span><span>75</span><span>95</span></div></div>
+      <div className="mt-5"><label className="text-xs font-semibold text-navy">Vluchtnummer <span className="font-normal text-muted-foreground">(optioneel)</span></label><input value={flight} onChange={e=>setFlight(e.target.value.toUpperCase())} placeholder="Bijv. KL1234" className="mt-1.5 w-full rounded-xl border border-border bg-cream px-3 py-3 text-sm outline-none" maxLength={12}/><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Een opgegeven vluchtnummer is jouw melding. De app stelt daarmee niet vast dat deze vlucht de hinder heeft veroorzaakt.</p></div>
+      <button onClick={submit} disabled={submitting||loading} className="mt-5 w-full rounded-xl bg-red px-4 py-4 font-semibold text-red-foreground shadow-[0_8px_24px_-10px_rgba(255,60,42,.7)] disabled:opacity-60"><span className="flex items-center justify-center gap-2"><Plane size={18}/>{submitting?"Bezig…":"Registreer bewonersmelding"}</span><span className="mt-1 block text-[10px] text-red-foreground/75">{now.toLocaleTimeString("nl-NL")}</span></button>
+      {geoErr && <div className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-[11px] leading-5 text-amber-900"><MapPin size={14} className="mt-0.5 shrink-0"/>{geoErr}</div>}
+    </div></section>
+
+    {last && <section className="mx-auto max-w-3xl px-5 pb-5 sm:px-6"><div className="rounded-2xl border border-border bg-white p-5"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red">Laatst geregistreerd</div><div className="mt-1 flex items-baseline justify-between"><h2 className="text-xl text-navy">{last.flight_number??"Vlucht onbekend"}</h2><span className="text-xs text-muted-foreground">{new Date(last.timestamp).toLocaleTimeString("nl-NL")}</span></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-cream p-3"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">Tijdstempel</div><div className="mt-1 font-mono text-xs text-navy">{new Date(last.timestamp).toLocaleString("nl-NL")}</div></div><div className="rounded-xl bg-cream p-3"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">Geschat geluid</div><div className="mt-1 font-mono text-sm text-navy">{last.db_level} dB</div></div></div></div></section>}
+
+    <section className="mx-auto max-w-3xl px-5 pb-5 sm:px-6"><div className="mb-3 flex items-baseline justify-between"><h2 className="text-xl text-navy">Mijn meldingen</h2><span className="text-[10px] uppercase tracking-wider text-muted-foreground">privé</span></div>{!user&&!loading&&<Link to="/auth" className="block rounded-xl border border-border bg-white p-4 text-sm text-navy shadow-sm">Log in om je meldingen te bewaren <ChevronRight size={16} className="inline"/></Link>}{user&&logs.length===0&&<div className="rounded-xl border border-dashed border-border bg-white/60 p-6 text-center text-sm text-muted-foreground">Nog geen bewonersmeldingen.</div>}{logs.length>0&&<ul className="space-y-2">{logs.map(l=>{const d=new Date(l.timestamp);return <li key={l.id} className="flex items-center justify-between rounded-xl border border-border bg-white px-4 py-3"><div><div className="text-base text-navy font-serif">{l.flight_number??"Vlucht onbekend"}</div><div className="text-[10px] text-muted-foreground">{d.toLocaleDateString("nl-NL")} · {d.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}</div></div><div className="text-right"><div className="font-mono text-sm text-navy">{l.db_level??"—"} dB</div><div className="text-[10px] text-muted-foreground">eigen schatting</div></div></li>})}</ul>}</section>
+    <section className="mx-auto max-w-3xl px-5 pb-12 sm:px-6"><Link to="/claim" className="flex items-center justify-between rounded-2xl bg-navy px-5 py-4 text-white shadow-sm"><div><div className="text-lg font-serif">Dossier voorbereiden</div><div className="mt-0.5 text-xs text-white/60">Orden je informatie en vervolgstappen</div></div><ChevronRight size={19}/></Link></section>
   </AppShell>;
 }
