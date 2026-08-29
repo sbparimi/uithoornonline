@@ -1,0 +1,31 @@
+name: Uithoorn Online — Create PR
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create or update pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR when missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh pr view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Pull request already exists for ${GITHUB_REF_NAME}."
+            exit 0
+          fi
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --head "${GITHUB_REF_NAME}" \
+            --base main \
+            --title "Automated review: ${GITHUB_REF_NAME}" \
+            --body "## Automated promotion\n\nThis PR was created automatically for branch **${GITHUB_REF_NAME}**.\n\nThe PR review workflow must pass lint, production build, and launch-safety checks before promotion to main.\n\nNo legal entitlement, compensation decision, or official submission is inferred by this workflow."
