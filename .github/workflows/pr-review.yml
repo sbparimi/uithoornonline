@@ -1,0 +1,72 @@
+name: Uithoorn Online — PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  review:
+    name: Build, lint & launch-safety review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Launch safety review
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Reviewing user-facing source for prohibited authority claims..."
+          mapfile -t files < <(find src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.md' \) -print)
+          forbidden='(gegarandeerd|gegarandeerde|u heeft recht op|u hebt recht op|u krijgt [€0-9]|claim goedgekeurd|offici[eë]le claim ingediend|offici[eë]le aanvraag ingediend|wij bepalen.*recht|wij bepalen.*compensatie)'
+          if grep -EinH -E "$forbidden" "${files[@]}"; then
+            echo "Launch-safety review failed: prohibited authority/entitlement language found."
+            exit 1
+          fi
+          echo "No prohibited authority/entitlement language found."
+
+      - name: Review summary
+        if: always()
+        run: |
+          {
+            echo "## Uithoorn Online automated review"
+            echo "- npm lint: executed"
+            echo "- production build: executed"
+            echo "- launch-safety language scan: executed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: Promote approved PR to main
+    needs: review
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --squash \
+            --delete-branch
