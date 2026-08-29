@@ -31,7 +31,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link to="/check" onClick={() => setOpen(false)} className="block">Check mijn adres</Link>
               <Link to="/log" onClick={() => setOpen(false)} className="block">Geluidshinder melden</Link>
               <Link to="/map" onClick={() => setOpen(false)} className="block">Geluidskaart</Link>
-              <Link to="/claim" onClick={() => setOpen(false)} className="block">Claim starten</Link>
+              <Link to="/claim" onClick={() => setOpen(false)} className="block">Dossier voorbereiden</Link>
+              <div className="pt-3 border-t border-white/10 text-[11px] leading-snug text-white/60">
+                Uithoorn Online is geen overheidsinstantie en bepaalt niet of iemand recht heeft op compensatie.
+              </div>
               <div className="pt-3 border-t border-white/10 flex gap-4 text-white/60 text-xs">
                 <Link to="/privacy" onClick={() => setOpen(false)}>Privacy &amp; AVG</Link>
                 <Link to="/voorwaarden" onClick={() => setOpen(false)}>Voorwaarden</Link>
@@ -49,6 +52,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </header>
+        <div className="border-b border-border bg-white px-5 py-2 text-[10px] leading-snug text-navy/65">
+          <strong>Informatieservice:</strong> Uithoorn Online is geen overheidsinstantie, advocaat of beslissende autoriteit.
+          Officiële instanties bepalen rechten, compensatie en formele uitkomsten.
+        </div>
         <main>{children}</main>
         <BottomNav />
       </div>
