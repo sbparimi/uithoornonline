@@ -223,6 +223,11 @@ function ChatHome() {
           </button>
         </div>
 
+        <div className="bg-cream border-b border-border px-5 py-2 text-[11px] leading-snug text-navy/70">
+          Je praat met een <b>AI-assistent</b>, geen medewerker. Antwoorden komen uitsluitend uit
+          officiële bronnen en zijn geen juridisch advies.
+        </div>
+
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {messages.map((m, i) => {
             const showQR = i === lastAssistantIdx && !loading;
