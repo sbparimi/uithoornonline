@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { AppShell } from "@/components/AppShell";
 import { ExternalLink, Minus, Send, ShieldCheck, Sparkles, X } from "lucide-react";
 import { chatTurn } from "@/lib/chat.functions";
+import { featureFlags } from "@/config/featureFlags";
 
 type QuickReply = { label: string; action: string };
 type Source = { title: string; url: string };
@@ -67,6 +68,7 @@ function ChatHome() {
   const [minimized, setMinimized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const homeV2 = featureFlags.homeV2;
 
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, slots, lang })); localStorage.setItem(LANG_KEY, lang); } catch {} }, [messages, slots, lang]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
@@ -94,10 +96,23 @@ function ChatHome() {
   const reset = () => { setMessages([GREETINGS[lang]]); setSlots({}); setMinimized(false); try { localStorage.removeItem(STORAGE_KEY); } catch {} };
   const lastAssistantIdx = [...messages].map((m) => m.role).lastIndexOf("assistant");
 
+  const shellClass = homeV2
+    ? "min-h-[calc(100dvh-84px)] bg-cream px-2 py-2 sm:px-5 sm:py-5 lg:px-8 lg:py-8"
+    : "min-h-[calc(100dvh-84px)] bg-cream px-3 py-3 sm:px-5 sm:py-5";
+  const panelClass = homeV2
+    ? "relative flex h-[calc(100dvh-100px)] min-h-[640px] w-full max-w-[1100px] flex-col overflow-hidden rounded-[30px] border border-white/70 bg-[#f3f5f8]/90 shadow-[0_28px_90px_rgba(13,31,60,0.18)] backdrop-blur-xl sm:h-[820px] sm:min-h-0 lg:rounded-[34px]"
+    : "relative flex h-[calc(100dvh-110px)] min-h-[620px] w-full max-w-[980px] flex-col overflow-hidden rounded-[18px] border border-navy/10 bg-white shadow-lg sm:min-h-0";
+  const chatSurfaceClass = homeV2
+    ? "min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.95),transparent_34%),radial-gradient(circle_at_90%_20%,rgba(226,232,240,0.7),transparent_35%),#f1f3f5] px-4 py-7 sm:px-8 sm:py-9"
+    : "min-h-0 flex-1 overflow-y-auto bg-[#f5f5f4] px-4 py-6 sm:px-8 sm:py-8";
+  const messageClass = homeV2
+    ? "rounded-[24px] rounded-bl-[7px] border border-white/80 bg-white/90 px-5 py-4.5 text-[17px] leading-[1.65] text-navy shadow-[0_8px_28px_rgba(13,31,60,0.07)] backdrop-blur-md prose prose-base max-w-none prose-p:my-2 prose-a:text-navy prose-a:font-semibold prose-a:underline sm:px-6 sm:py-5 sm:text-[18px]"
+    : "rounded-[18px] border border-navy/8 bg-white px-5 py-4 text-[16px] leading-[1.55] text-navy shadow-sm prose prose-base max-w-none prose-p:my-2 prose-a:text-navy prose-a:underline";
+
   return <AppShell>
-    <main className="min-h-[calc(100dvh-84px)] bg-cream px-2 py-2 sm:px-5 sm:py-5 lg:px-8 lg:py-8">
+    <main className={shellClass}>
       <div className="mx-auto flex min-h-[calc(100dvh-100px)] items-center justify-center">
-        <section className="relative flex h-[calc(100dvh-100px)] min-h-[640px] w-full max-w-[1100px] flex-col overflow-hidden rounded-[30px] border border-white/70 bg-[#f3f5f8]/90 shadow-[0_28px_90px_rgba(13,31,60,0.18)] backdrop-blur-xl sm:h-[820px] sm:min-h-0 lg:rounded-[34px]">
+        <section className={panelClass}>
           <header className="flex shrink-0 items-center justify-between bg-navy px-5 py-4 text-white sm:px-8 sm:py-5">
             <div className="flex min-w-0 items-center gap-4">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-red shadow-[0_0_0_5px_rgba(255,255,255,0.06),0_8px_24px_rgba(255,36,50,0.25)] sm:h-14 sm:w-14"><Sparkles size={23} strokeWidth={2.2} /></div>
@@ -114,13 +129,13 @@ function ChatHome() {
               <div className="mx-auto flex max-w-[920px] items-start gap-3 text-[14px] leading-[1.6] text-navy/65 sm:text-[15px]"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy/[0.06] text-navy shadow-sm"><ShieldCheck size={17} /></div><p><strong className="font-semibold text-navy">Je chat met een AI-assistent.</strong> De assistent gebruikt officiële bronnen waar mogelijk. Uithoorn Online is geen overheidsinstantie, advocaat of beslissende autoriteit en bepaalt geen rechten of compensatie.</p></div>
             </div>
 
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.95),transparent_34%),radial-gradient(circle_at_90%_20%,rgba(226,232,240,0.7),transparent_35%),#f1f3f5] px-4 py-7 sm:px-8 sm:py-9">
+            <div ref={scrollRef} className={chatSurfaceClass}>
               <div className="mx-auto max-w-[920px] space-y-7">
                 {messages.map((m, i) => <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}><div className={m.role === "user" ? "max-w-[82%] sm:max-w-[70%]" : "max-w-[94%] sm:max-w-[80%]"}>
                   {m.role === "assistant" && <div className="mb-2 flex items-center gap-2.5 pl-1"><span className="grid h-9 w-9 place-items-center rounded-full bg-red text-white shadow-[0_5px_14px_rgba(255,36,50,0.2)]"><Sparkles size={16} /></span><span className="text-[14px] font-bold text-navy sm:text-[15px]">Uithoorn-assistent</span></div>}
-                  <div className={m.role === "user" ? "rounded-[22px] rounded-br-[7px] bg-navy px-5 py-4 text-[17px] leading-[1.55] text-white shadow-[0_8px_24px_rgba(13,31,60,0.12)] sm:px-6 sm:py-4.5 sm:text-[18px]" : "rounded-[24px] rounded-bl-[7px] border border-white/80 bg-white/90 px-5 py-4.5 text-[17px] leading-[1.65] text-navy shadow-[0_8px_28px_rgba(13,31,60,0.07)] backdrop-blur-md prose prose-base max-w-none prose-p:my-2 prose-a:text-navy prose-a:font-semibold prose-a:underline sm:px-6 sm:py-5 sm:text-[18px]"}>{m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}</div>
+                  <div className={m.role === "user" ? (homeV2 ? "rounded-[22px] rounded-br-[7px] bg-navy px-5 py-4 text-[17px] leading-[1.55] text-white shadow-[0_8px_24px_rgba(13,31,60,0.12)] sm:px-6 sm:py-4.5 sm:text-[18px]" : "rounded-[18px] rounded-br-[6px] bg-navy px-5 py-4 text-[16px] leading-[1.5] text-white") : messageClass}>{m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}</div>
                   {m.role === "assistant" && m.sources?.length ? <div className="mt-3 pl-1"><div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-navy/40">Bronnen</div>{m.sources.map((s, k) => <a key={k} href={s.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[12px] text-navy/60 underline underline-offset-2"><ExternalLink size={10} /><span className="truncate">{s.title}</span></a>)}</div> : null}
-                  {i === lastAssistantIdx && !loading && <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{(m.quickReplies ?? []).map((q, j) => <button key={j} onClick={() => handleAction(q.action)} className={`group relative min-h-[76px] overflow-hidden rounded-[22px] border border-white/55 bg-gradient-to-br ${quickReplyStyles[j % quickReplyStyles.length]} px-4 py-4 text-left text-white shadow-[0_10px_28px_rgba(30,64,175,0.16)] ring-1 ring-white/25 backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(30,64,175,0.22)] active:translate-y-0 focus:outline-none focus:ring-4 focus:ring-navy/20`}><span className="absolute -right-7 -top-7 h-20 w-20 rounded-full bg-white/15 blur-xl transition group-hover:scale-125" /><span className="relative flex h-full items-center justify-between gap-3"><span className="text-[16px] font-bold leading-[1.25] sm:text-[17px]">{q.label}</span><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/45 bg-white/15 text-xl shadow-inner backdrop-blur-md transition group-hover:bg-white/25">→</span></span></button>)}</div>}
+                  {i === lastAssistantIdx && !loading && <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{(m.quickReplies ?? []).map((q, j) => <button key={j} onClick={() => handleAction(q.action)} className={homeV2 ? `group relative min-h-[76px] overflow-hidden rounded-[22px] border border-white/55 bg-gradient-to-br ${quickReplyStyles[j % quickReplyStyles.length]} px-4 py-4 text-left text-white shadow-[0_10px_28px_rgba(30,64,175,0.16)] ring-1 ring-white/25 backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(30,64,175,0.22)] active:translate-y-0 focus:outline-none focus:ring-4 focus:ring-navy/20` : "min-h-[54px] rounded-[14px] border border-navy/15 bg-white px-4 py-3 text-left text-[15px] font-semibold text-navy shadow-sm transition hover:border-navy/30 focus:outline-none focus:ring-2 focus:ring-navy/20"}><span className={homeV2 ? "absolute -right-7 -top-7 h-20 w-20 rounded-full bg-white/15 blur-xl transition group-hover:scale-125" : "hidden"} /><span className="relative flex h-full items-center justify-between gap-3"><span className={homeV2 ? "text-[16px] font-bold leading-[1.25] sm:text-[17px]" : "text-[15px] font-semibold"}>{q.label}</span><span className={homeV2 ? "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/45 bg-white/15 text-xl shadow-inner backdrop-blur-md transition group-hover:bg-white/25" : "text-lg"}>→</span></span></button>)}</div>}
                 </div></div>)}
                 {loading && <div className="flex justify-start"><div><div className="mb-2 flex items-center gap-2.5 pl-1"><span className="grid h-9 w-9 place-items-center rounded-full bg-red text-white"><Sparkles size={16} /></span><span className="text-[14px] font-bold text-navy sm:text-[15px]">Uithoorn-assistent</span></div><div className="rounded-[24px] rounded-bl-[7px] border border-white/80 bg-white/90 px-5 py-4 text-[15px] text-navy/55 shadow-sm sm:text-[16px]">Officiële bronnen worden geraadpleegd…</div></div></div>}
               </div>
