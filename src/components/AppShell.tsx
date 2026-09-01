@@ -1,12 +1,64 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sparkles, MapPin, Plane, Store } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { featureFlags } from "@/config/featureFlags";
 
+const nav = [
+  ["/", "Start"], ["/check", "Adres"], ["/log", "Melding"], ["/map", "Geluidskaart"], ["/claim", "Dossier"],
+] as const;
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false); const { user } = useAuth();
-  return <div className="min-h-screen w-full bg-cream text-navy antialiased"><div className="relative mx-auto min-h-screen w-full max-w-[1440px] bg-cream shadow-[0_0_70px_rgba(13,31,60,0.07)]"><header className="sticky top-0 z-50 border-b border-white/10 bg-navy text-navy-foreground"><div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8"><Link to="/" className="flex items-center gap-2.5" aria-label="Uithoorn Online home"><span className="grid h-9 w-9 place-items-center rounded-xl border border-white/15 bg-white/10 text-white"><span className="font-serif text-[17px]">U</span></span><span className="font-serif text-[20px] tracking-[-0.02em]">uithoorn<span className="text-red">.</span>online</span></Link><button aria-label={open?"Menu sluiten":"Menu openen"} aria-expanded={open} onClick={()=>setOpen(v=>!v)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 transition hover:bg-white/10">{open?<X size={20}/>:<Menu size={20}/>}</button></div>{open&&<div className="border-t border-white/10 bg-navy"><div className="mx-auto max-w-6xl px-4 pb-5 pt-4 sm:px-6 lg:px-8"><div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/65"><span className="h-1.5 w-1.5 rounded-full bg-red"/><span>Onafhankelijke inwonersservice · geen overheidsinstantie</span></div><div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-5"><Link to="/" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Start</Link><Link to="/check" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Adres controleren</Link><Link to="/log" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Geluid melden</Link><Link to="/map" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Geluidskaart</Link>{featureFlags.localServicesV1&&<><Link to="/services" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Lokale diensten</Link><Link to="/services/provider" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Voor bedrijven</Link></>}<Link to="/claim" onClick={()=>setOpen(false)} className="rounded-lg px-3 py-2 hover:bg-white/5">Dossier voorbereiden</Link></div><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-[11px] text-white/55"><Link to="/privacy" onClick={()=>setOpen(false)}>Privacy &amp; AVG</Link><Link to="/voorwaarden" onClick={()=>setOpen(false)}>Voorwaarden</Link><Link to="/over-de-service" onClick={()=>setOpen(false)}>Over de service</Link>{user?<button onClick={async()=>{await supabase.auth.signOut();setOpen(false);}}>Uitloggen</button>:<Link to="/auth" onClick={()=>setOpen(false)}>Inloggen / Registreren</Link>}</div></div></div>}</header><div className="border-b border-border bg-white px-4 py-2.5 text-[10px] leading-snug text-navy/65 sm:px-6 lg:px-8"><div className="mx-auto flex max-w-6xl items-center gap-2"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red"/><span><strong>Informatieservice:</strong> Uithoorn Online is geen overheidsinstantie, advocaat of beslissende autoriteit. Officiële instanties bepalen rechten, compensatie en formele uitkomsten.</span></div></div><main>{children}</main><BottomNav/></div></div>;
+  const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const close = () => setOpen(false);
+
+  return <div className="app-page w-full text-navy antialiased">
+    <div className="relative mx-auto min-h-[100dvh] w-full max-w-[1600px] overflow-hidden bg-transparent">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-navy/95 text-navy-foreground shadow-[0_8px_30px_rgba(8,22,45,.14)] backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="Uithoorn Online home">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10 shadow-inner"><span className="font-serif text-[17px]">U</span></span>
+            <span className="truncate font-serif text-[20px] tracking-[-0.02em]">uithoorn<span className="text-red">.</span>online</span>
+          </Link>
+
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Hoofdnavigatie">
+            {nav.map(([to, label]) => <Link key={to} to={to} activeProps={{ className: "rounded-xl bg-white/12 px-3 py-2 text-sm font-semibold text-white" }} inactiveProps={{ className: "rounded-xl px-3 py-2 text-sm text-white/70 transition hover:bg-white/8 hover:text-white" }}>{label}</Link>)}
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {featureFlags.localServicesV1 && <Link to="/services" className="hidden items-center gap-2 rounded-xl border border-white/12 bg-white/8 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/14 sm:flex"><Store size={15}/> Diensten</Link>}
+            <Link to="/check" className="hidden items-center gap-2 rounded-xl bg-red px-3.5 py-2.5 text-xs font-bold text-red-foreground shadow-lg shadow-black/10 sm:flex"><MapPin size={15}/> Adres controleren</Link>
+            <button aria-label={open ? "Menu sluiten" : "Menu openen"} aria-expanded={open} onClick={()=>setOpen(v=>!v)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/12 bg-white/5 text-white transition hover:bg-white/12 lg:hidden">{open?<X size={20}/>:<Menu size={20}/>}</button>
+          </div>
+        </div>
+
+        {open && <div className="border-t border-white/10 bg-navy/98 px-4 pb-5 pt-3 backdrop-blur-xl lg:hidden">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/65"><Sparkles size={14} className="text-white/75"/><span>Onafhankelijke inwonersservice · geen overheidsinstantie</span></div>
+            <div className="grid grid-cols-2 gap-2">
+              <Link to="/" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm font-semibold">Start</Link>
+              <Link to="/check" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Adres controleren</Link>
+              <Link to="/log" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Geluid melden</Link>
+              <Link to="/map" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Geluidskaart</Link>
+              {featureFlags.localServicesV1 && <><Link to="/services" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Lokale diensten</Link><Link to="/services/provider" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Voor bedrijven</Link></>}
+              <Link to="/claim" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Dossier voorbereiden</Link>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-white/55">
+              <Link to="/privacy" onClick={close}>Privacy &amp; AVG</Link><Link to="/voorwaarden" onClick={close}>Voorwaarden</Link><Link to="/over-de-service" onClick={close}>Over de service</Link>
+              {user ? <button onClick={async()=>{await supabase.auth.signOut();close();}}>Uitloggen</button> : <Link to="/auth" onClick={close}>Inloggen / Registreren</Link>}
+            </div>
+          </div>
+        </div>}
+      </header>
+
+      <div className="border-b border-border/70 bg-white/80 px-4 py-2.5 text-[10px] leading-snug text-navy/65 backdrop-blur sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center gap-2"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red"/><span><strong>Informatieservice:</strong> Uithoorn Online is geen overheidsinstantie, advocaat of beslissende autoriteit.</span></div>
+      </div>
+      <main>{children}</main>
+      <BottomNav />
+    </div>
+  </div>;
 }
