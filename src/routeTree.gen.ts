@@ -19,6 +19,7 @@ import { Route as ClaimIndexRouteImport } from './routes/claim.index'
 import { Route as ClaimSuccessRouteImport } from './routes/claim.success'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ServicesProviderRouteImport } from './routes/services.provider'
+import { Route as FlightNoiseRouteImport } from './routes/flight-noise'
 import { Route as ApiPublicHooksRunEvalsRouteImport } from './routes/api/public/hooks/run-evals'
 import { Route as ApiPublicHooksIngestKnowledgeRouteImport } from './routes/api/public/hooks/ingest-knowledge'
 
@@ -34,6 +35,7 @@ const ClaimIndexRoute = ClaimIndexRouteImport.update({ id: '/', path: '/', getPa
 const ClaimSuccessRoute = ClaimSuccessRouteImport.update({ id: '/success', path: '/success', getParentRoute: () => ClaimRoute } as any)
 const ServicesRoute = ServicesRouteImport.update({ id: '/services', path: '/services', getParentRoute: () => rootRouteImport } as any)
 const ServicesProviderRoute = ServicesProviderRouteImport.update({ id: '/services/provider', path: '/services/provider', getParentRoute: () => rootRouteImport } as any)
+const FlightNoiseRoute = FlightNoiseRouteImport.update({ id: '/flight-noise', path: '/flight-noise', getParentRoute: () => rootRouteImport } as any)
 const ApiPublicHooksRunEvalsRoute = ApiPublicHooksRunEvalsRouteImport.update({ id: '/api/public/hooks/run-evals', path: '/api/public/hooks/run-evals', getParentRoute: () => rootRouteImport } as any)
 const ApiPublicHooksIngestKnowledgeRoute = ApiPublicHooksIngestKnowledgeRouteImport.update({ id: '/api/public/hooks/ingest-knowledge', path: '/api/public/hooks/ingest-knowledge', getParentRoute: () => rootRouteImport } as any)
 
@@ -48,6 +50,7 @@ export interface FileRoutesByFullPath {
   '/voorwaarden': typeof VoorwaardenRoute
   '/services': typeof ServicesRoute
   '/services/provider': typeof ServicesProviderRoute
+  '/flight-noise': typeof FlightNoiseRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -63,6 +66,7 @@ export interface FileRoutesByTo {
   '/voorwaarden': typeof VoorwaardenRoute
   '/services': typeof ServicesRoute
   '/services/provider': typeof ServicesProviderRoute
+  '/flight-noise': typeof FlightNoiseRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -80,6 +84,7 @@ export interface FileRoutesById {
   '/voorwaarden': typeof VoorwaardenRoute
   '/services': typeof ServicesRoute
   '/services/provider': typeof ServicesProviderRoute
+  '/flight-noise': typeof FlightNoiseRoute
   '/claim/success': typeof ClaimSuccessRoute
   '/claim/': typeof ClaimIndexRoute
   '/api/public/hooks/ingest-knowledge': typeof ApiPublicHooksIngestKnowledgeRoute
@@ -87,7 +92,7 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/check' | '/claim' | '/log' | '/map' | '/privacy' | '/voorwaarden' | '/services' | '/services/provider' | '/claim/success' | '/claim/' | '/api/public/hooks/ingest-knowledge' | '/api/public/hooks/run-evals'
+  fullPaths: '/' | '/auth' | '/check' | '/claim' | '/log' | '/map' | '/privacy' | '/voorwaarden' | '/services' | '/services/provider' | '/flight-noise' | '/claim/success' | '/claim/' | '/api/public/hooks/ingest-knowledge' | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
   to: keyof FileRoutesByTo
   id: keyof FileRoutesById
@@ -105,6 +110,7 @@ declare module '@tanstack/react-router' { interface FileRoutesByPath {
   '/': { id: '/'; path: '/'; fullPath: '/'; preLoaderRoute: typeof IndexRouteImport; parentRoute: typeof rootRouteImport }
   '/services': { id: '/services'; path: '/services'; fullPath: '/services'; preLoaderRoute: typeof ServicesRouteImport; parentRoute: typeof rootRouteImport }
   '/services/provider': { id: '/services/provider'; path: '/services/provider'; fullPath: '/services/provider'; preLoaderRoute: typeof ServicesProviderRouteImport; parentRoute: typeof rootRouteImport }
+  '/flight-noise': { id: '/flight-noise'; path: '/flight-noise'; fullPath: '/flight-noise'; preLoaderRoute: typeof FlightNoiseRouteImport; parentRoute: typeof rootRouteImport }
   '/claim/': { id: '/claim/'; path: '/'; fullPath: '/claim/'; preLoaderRoute: typeof ClaimIndexRouteImport; parentRoute: typeof ClaimRoute }
   '/claim/success': { id: '/claim/success'; path: '/success'; fullPath: '/claim/success'; preLoaderRoute: typeof ClaimSuccessRouteImport; parentRoute: typeof ClaimRoute }
   '/api/public/hooks/run-evals': { id: '/api/public/hooks/run-evals'; path: '/api/public/hooks/run-evals'; fullPath: '/api/public/hooks/run-evals'; preLoaderRoute: typeof ApiPublicHooksRunEvalsRouteImport; parentRoute: typeof rootRouteImport }
@@ -113,7 +119,7 @@ declare module '@tanstack/react-router' { interface FileRoutesByPath {
 interface ClaimRouteChildren { ClaimSuccessRoute: typeof ClaimSuccessRoute; ClaimIndexRoute: typeof ClaimIndexRoute }
 const ClaimRouteChildren: ClaimRouteChildren = { ClaimSuccessRoute, ClaimIndexRoute }
 const ClaimRouteWithChildren = ClaimRoute._addFileChildren(ClaimRouteChildren)
-const rootRouteChildren = { IndexRoute, AuthRoute, CheckRoute, ClaimRoute: ClaimRouteWithChildren, LogRoute, MapRoute, PrivacyRoute, VoorwaardenRoute, ServicesRoute, ServicesProviderRoute, ApiPublicHooksIngestKnowledgeRoute, ApiPublicHooksRunEvalsRoute }
+const rootRouteChildren = { IndexRoute, AuthRoute, CheckRoute, ClaimRoute: ClaimRouteWithChildren, LogRoute, MapRoute, PrivacyRoute, VoorwaardenRoute, ServicesRoute, ServicesProviderRoute, FlightNoiseRoute, ApiPublicHooksIngestKnowledgeRoute, ApiPublicHooksRunEvalsRoute }
 export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)._addFileTypes<FileRouteTypes>()
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'
