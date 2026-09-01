@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Sparkles, MapPin, Plane, Store } from "lucide-react";
+import { Menu, X, Sparkles, MapPin, Store } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link to="/claim" onClick={close} className="rounded-xl bg-white/7 px-3 py-3 text-sm">Dossier voorbereiden</Link>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-white/55">
-              <Link to="/privacy" onClick={close}>Privacy &amp; AVG</Link><Link to="/voorwaarden" onClick={close}>Voorwaarden</Link><Link to="/over-de-service" onClick={close}>Over de service</Link>
+              <Link to="/privacy" onClick={close}>Privacy &amp; AVG</Link><Link to="/voorwaarden" onClick={close}>Voorwaarden</Link>
               {user ? <button onClick={async()=>{await supabase.auth.signOut();close();}}>Uitloggen</button> : <Link to="/auth" onClick={close}>Inloggen / Registreren</Link>}
             </div>
           </div>
