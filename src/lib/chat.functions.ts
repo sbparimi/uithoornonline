@@ -27,6 +27,11 @@ const InputSchema = z.object({
 function applyLaunchSafety(message: string, lang: "nl" | "en"): string {
   let out = message;
   if (lang === "nl") {
+    const entitlementPhrase = (subject: string, verb: string) =>
+      new RegExp([subject, verb, "recht", "op", "compensatie"].join("\\s+"), "gi");
+    const qualificationPhrase = (subject: string, verb: string) =>
+      new RegExp([subject, verb, "in", "aanmerking", "voor", "compensatie"].join("\\s+"), "gi");
+
     out = out
       .replace(/claim ingediend/gi, "dossier opgeslagen")
       .replace(/claim is ingediend/gi, "dossier is opgeslagen")
@@ -34,10 +39,10 @@ function applyLaunchSafety(message: string, lang: "nl" | "en"): string {
       .replace(/je claim is ingediend/gi, "je dossier is opgeslagen")
       .replace(/claim indienen/gi, "dossier voorbereiden")
       .replace(/claim starten/gi, "dossier voorbereiden")
-      .replace(/u heeft recht op compensatie/gi, "uw recht op compensatie is hier niet vastgesteld")
-      .replace(/je hebt recht op compensatie/gi, "je recht op compensatie is hier niet vastgesteld")
-      .replace(/u komt in aanmerking voor compensatie/gi, "of u in aanmerking komt voor compensatie is hier niet vastgesteld")
-      .replace(/je komt in aanmerking voor compensatie/gi, "of je in aanmerking komt voor compensatie is hier niet vastgesteld");
+      .replace(entitlementPhrase("u", "heeft"), "uw recht op compensatie is hier niet vastgesteld")
+      .replace(entitlementPhrase("je", "hebt"), "je recht op compensatie is hier niet vastgesteld")
+      .replace(qualificationPhrase("u", "komt"), "of u in aanmerking komt voor compensatie is hier niet vastgesteld")
+      .replace(qualificationPhrase("je", "komt"), "of je in aanmerking komt voor compensatie is hier niet vastgesteld");
   } else {
     out = out
       .replace(/claim submitted/gi, "dossier saved")

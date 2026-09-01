@@ -1,0 +1,3 @@
+{
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then export VITE_FF_NOISE_EVIDENCE_V2=true VITE_FF_LOCAL_SERVICES_V1=true VITE_FF_FLIGHT_NOISE_HUB_V1=true; fi; npm run build"
+}

@@ -4,4 +4,5 @@ export const featureFlags = {
   basPrepV2: import.meta.env.VITE_FF_BAS_PREP_V2 === "true",
   dossierV2: import.meta.env.VITE_FF_DOSSIER_V2 === "true",
   localServicesV1: import.meta.env.VITE_FF_LOCAL_SERVICES_V1 === "true",
+  flightNoiseHubV1: import.meta.env.VITE_FF_FLIGHT_NOISE_HUB_V1 === "true",
 } as const;
