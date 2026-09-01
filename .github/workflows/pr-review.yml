@@ -41,12 +41,14 @@ jobs:
         env:
           VITE_FF_NOISE_EVIDENCE_V2: "false"
           VITE_FF_LOCAL_SERVICES_V1: "false"
+          VITE_FF_FLIGHT_NOISE_HUB_V1: "false"
         run: npm run build
 
       - name: Production build — feature flags ON
         env:
           VITE_FF_NOISE_EVIDENCE_V2: "true"
           VITE_FF_LOCAL_SERVICES_V1: "true"
+          VITE_FF_FLIGHT_NOISE_HUB_V1: "true"
         run: npm run build
 
       - name: Launch safety and brand review
