@@ -13,37 +13,16 @@ export const Route = createFileRoute("/services")({ component: ServicesPage, hea
 ] }) });
 
 const categories = [
-  ["Schoonmaak", "Schoonmaak thuis of periodiek", "cleaning"],
-  ["Klus & onderhoud", "Kleine reparaties en montage", "handyman"],
-  ["Tuin", "Tuinonderhoud en groen", "garden"],
-  ["Verhuizen", "Verhuizen en transport", "moving"],
-  ["Computerhulp", "Hulp met computer of telefoon", "tech"],
-  ["Hulp aan huis", "Praktische hulp in en rond het huis", "home-help"],
+  ["Schoonmaak", "Schoonmaak thuis of periodiek", "cleaning"], ["Klus & onderhoud", "Kleine reparaties en montage", "handyman"], ["Tuin", "Tuinonderhoud en groen", "garden"], ["Verhuizen", "Verhuizen en transport", "moving"], ["Computerhulp", "Hulp met computer of telefoon", "tech"], ["Hulp aan huis", "Praktische hulp in en rond het huis", "home-help"],
 ] as const;
+const dbClient = supabase as any;
 
 function ServicesPage() {
-  const { user } = useAuth();
-  const [selected, setSelected] = useState<string | null>(null);
-  const [details, setDetails] = useState("");
-  const [postcode, setPostcode] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
+  const { user } = useAuth(); const [selected, setSelected] = useState<string | null>(null); const [details, setDetails] = useState(""); const [postcode, setPostcode] = useState(""); const [submitted, setSubmitted] = useState(false);
   if (!featureFlags.localServicesV1) return <AppShell><div className="mx-auto max-w-3xl px-5 py-16 text-center text-sm text-muted-foreground">Lokale diensten worden voorbereid.</div></AppShell>;
-
-  const submit = async () => {
-    if (!user) { toast.error("Log in om een aanvraag te bewaren"); return; }
-    if (!selected) { toast.error("Kies eerst een dienst"); return; }
-    const { error } = await supabase.from("service_requests").insert({ user_id: user.id, category: selected, details: details.trim() || null, postcode: postcode.trim().toUpperCase() || null, status: "new" });
-    if (error) { toast.error("Aanvraag kon niet worden opgeslagen"); return; }
-    setSubmitted(true);
-  };
-
+  const submit = async () => { if (!user) { toast.error("Log in om een aanvraag te bewaren"); return; } if (!selected) { toast.error("Kies eerst een dienst"); return; } const { error } = await dbClient.from("service_requests").insert({ user_id: user.id, category: selected, details: details.trim() || null, postcode: postcode.trim().toUpperCase() || null, status: "new" }); if (error) { toast.error("Aanvraag kon niet worden opgeslagen"); return; } setSubmitted(true); };
   return <AppShell>
-    <section className="bg-navy px-5 pb-10 pt-8 text-white sm:px-6 lg:px-8"><div className="mx-auto max-w-4xl">
-      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55"><span className="h-1.5 w-1.5 rounded-full bg-red" /> Lokale diensten</div>
-      <h1 className="mt-3 max-w-2xl text-3xl sm:text-4xl">Hulp nodig in Uithoorn?</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">Vertel wat je zoekt. We verzamelen je aanvraag en koppelen je later aan passende lokale dienstverleners.</p>
-    </div></section>
+    <section className="bg-navy px-5 pb-10 pt-8 text-white sm:px-6 lg:px-8"><div className="mx-auto max-w-4xl"><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55"><span className="h-1.5 w-1.5 rounded-full bg-red" /> Lokale diensten</div><h1 className="mt-3 max-w-2xl text-3xl sm:text-4xl">Hulp nodig in Uithoorn?</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">Vertel wat je zoekt. We verzamelen je aanvraag en koppelen je later aan passende lokale dienstverleners.</p></div></section>
     <main className="mx-auto max-w-4xl px-5 py-7 pb-16 sm:px-6 lg:px-8">
       {submitted ? <div className="rounded-2xl border border-border bg-white p-7 text-center shadow-sm"><CheckCircle2 className="mx-auto text-red" size={30}/><h2 className="mt-3 font-serif text-2xl text-navy">Aanvraag ontvangen</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Je aanvraag is privé opgeslagen. Dit is nog geen bevestigde afspraak of garantie over een dienstverlener.</p><button onClick={()=>{setSubmitted(false);setSelected(null);setDetails("");setPostcode("");}} className="mt-5 rounded-xl bg-navy px-5 py-3 text-sm font-semibold text-white">Nieuwe aanvraag</button></div> : <>
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-navy/10 bg-cream px-4 py-3"><Search size={18} className="text-navy/65"/><div><div className="text-xs font-semibold text-navy">Wat heb je nodig?</div><div className="text-[11px] text-navy/55">Kies een categorie. Later kunnen we je aanvraag met passende lokale aanbieders matchen.</div></div></div>
