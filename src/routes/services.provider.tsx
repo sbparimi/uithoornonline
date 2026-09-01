@@ -13,65 +13,36 @@ export const Route = createFileRoute("/services/provider")({ component: Provider
 ] }) });
 
 const categories = [
-  ["Schoonmaak", "cleaning"],
-  ["Klus & onderhoud", "handyman"],
-  ["Tuin", "garden"],
-  ["Verhuizen", "moving"],
-  ["Computerhulp", "tech"],
-  ["Hulp aan huis", "home-help"],
+  ["Schoonmaak", "cleaning"], ["Klus & onderhoud", "handyman"], ["Tuin", "garden"], ["Verhuizen", "moving"], ["Computerhulp", "tech"], ["Hulp aan huis", "home-help"],
 ] as const;
 
-type Provider = {
-  id: string;
-  business_name: string;
-  description: string | null;
-  categories: string[];
-  service_area: string;
-  postcode: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  whatsapp: string | null;
-  status: "pending" | "active" | "suspended";
-};
+type Provider = { id: string; business_name: string; description: string | null; categories: string[]; service_area: string; postcode: string | null; phone: string | null; email: string | null; website: string | null; whatsapp: string | null; status: "pending" | "active" | "suspended" };
+const dbClient = supabase as any;
 
 function ProviderPage() {
   const { user } = useAuth();
   const [provider, setProvider] = useState<Provider | null>(null);
-  const [businessName, setBusinessName] = useState("");
-  const [description, setDescription] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
-  const [serviceArea, setServiceArea] = useState("Uithoorn");
-  const [postcode, setPostcode] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [website, setWebsite] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [businessName, setBusinessName] = useState(""); const [description, setDescription] = useState(""); const [selected, setSelected] = useState<string[]>([]);
+  const [serviceArea, setServiceArea] = useState("Uithoorn"); const [postcode, setPostcode] = useState(""); const [phone, setPhone] = useState(""); const [email, setEmail] = useState(""); const [website, setWebsite] = useState(""); const [whatsapp, setWhatsapp] = useState(""); const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user || !featureFlags.localServicesV1) return;
-    supabase.from("service_providers").select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    dbClient.from("service_providers").select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").eq("user_id", user.id).maybeSingle().then(({ data }: { data: Provider | null }) => {
       if (!data) return;
-      const row = data as Provider;
-      setProvider(row); setBusinessName(row.business_name); setDescription(row.description ?? ""); setSelected(row.categories ?? []); setServiceArea(row.service_area); setPostcode(row.postcode ?? ""); setPhone(row.phone ?? ""); setEmail(row.email ?? ""); setWebsite(row.website ?? ""); setWhatsapp(row.whatsapp ?? "");
+      setProvider(data); setBusinessName(data.business_name); setDescription(data.description ?? ""); setSelected(data.categories ?? []); setServiceArea(data.service_area); setPostcode(data.postcode ?? ""); setPhone(data.phone ?? ""); setEmail(data.email ?? ""); setWebsite(data.website ?? ""); setWhatsapp(data.whatsapp ?? "");
     });
   }, [user]);
 
   if (!featureFlags.localServicesV1) return <AppShell><div className="mx-auto max-w-3xl px-5 py-16 text-center text-sm text-muted-foreground">Lokale diensten worden voorbereid.</div></AppShell>;
-
   const toggle = (key: string) => setSelected((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
-
   const save = async () => {
     if (!user) { toast.error("Log in om je bedrijf aan te melden"); return; }
     if (!businessName.trim()) { toast.error("Vul de bedrijfsnaam in"); return; }
     if (!selected.length) { toast.error("Kies minimaal één dienst"); return; }
     setSaving(true);
     const payload = { user_id: user.id, business_name: businessName.trim(), description: description.trim() || null, categories: selected, service_area: serviceArea.trim() || "Uithoorn", postcode: postcode.trim().toUpperCase() || null, phone: phone.trim() || null, email: email.trim() || null, website: website.trim() || null, whatsapp: whatsapp.trim() || null };
-    const { data, error } = provider ? await supabase.from("service_providers").update(payload).eq("id", provider.id).select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").single() : await supabase.from("service_providers").insert(payload).select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").single();
-    setSaving(false);
-    if (error) { toast.error("Bedrijfsgegevens konden niet worden opgeslagen"); return; }
-    setProvider(data as Provider);
+    const { data, error } = provider ? await dbClient.from("service_providers").update(payload).eq("id", provider.id).select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").single() : await dbClient.from("service_providers").insert(payload).select("id,business_name,description,categories,service_area,postcode,phone,email,website,whatsapp,status").single();
+    setSaving(false); if (error) { toast.error("Bedrijfsgegevens konden niet worden opgeslagen"); return; } setProvider(data as Provider);
   };
 
   if (!user) return <AppShell><main className="mx-auto max-w-3xl px-5 py-14 sm:px-6"><div className="rounded-2xl border border-border bg-white p-7 text-center shadow-sm"><Store className="mx-auto text-navy" size={30}/><h1 className="mt-3 font-serif text-2xl text-navy">Aanmelden als lokale dienstverlener</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">Log in of registreer eerst een account. Je bedrijfsprofiel wordt niet openbaar gemaakt voordat een afzonderlijke verificatiestap is ingericht.</p><a href="/auth" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red px-5 py-3 text-sm font-semibold text-red-foreground">Inloggen / Registreren <ArrowRight size={17}/></a></div></main></AppShell>;

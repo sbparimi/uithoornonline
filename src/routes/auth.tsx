@@ -3,7 +3,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 
 const searchSchema = z.object({
@@ -66,16 +65,16 @@ function AuthPage() {
 
   const google = async () => {
     setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}${safeNext}`,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}${safeNext}`,
+      },
     });
-    if (res.error) {
+    if (error) {
       toast.error("Google sign-in mislukt");
       setBusy(false);
-      return;
     }
-    if (res.redirected) return;
-    navigate({ to: safeNext });
   };
 
   return (

@@ -13,13 +13,14 @@ export const Route = createFileRoute("/log")({ component: LogPage, head: () => (
 ] }) });
 
 type Log = { id: string; timestamp: string; observed_at: string | null; flight_number: string | null; altitude: number | null; db_level: number | null; duration_seconds: number | null; observation_text: string | null; lat: number | null; lng: number | null; location_source: "browser" | "resident" | "none" | null };
+const dbClient = supabase as any;
 
 function LogPage() {
   const { user, loading } = useAuth(); const navigate = useNavigate();
   const [now, setNow] = useState(new Date()); const [logs, setLogs] = useState<Log[]>([]); const [last, setLast] = useState<Log | null>(null);
   const [submitting, setSubmitting] = useState(false); const [db, setDb] = useState(70); const [flight, setFlight] = useState(""); const [description, setDescription] = useState(""); const [duration, setDuration] = useState(""); const [geoErr, setGeoErr] = useState<string | null>(null);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { if (!user) return; supabase.from("noise_logs").select("*").order("timestamp", { ascending: false }).limit(20).then(({ data }) => setLogs((data as Log[]) ?? [])); }, [user]);
+  useEffect(() => { if (!user) return; dbClient.from("noise_logs").select("*").order("timestamp", { ascending: false }).limit(20).then(({ data }: { data: Log[] | null }) => setLogs(data ?? [])); }, [user]);
   const getCoords = () => new Promise<{lat:number;lng:number}|null>(resolve => { if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null); navigator.geolocation.getCurrentPosition(p => resolve({lat:p.coords.latitude,lng:p.coords.longitude}), () => resolve(null), {timeout:4000,maximumAge:60000}); });
   const submit = async () => {
     if (!user) { navigate({ to: "/auth", search: { next: "/log" } as any }); return; }
@@ -28,7 +29,7 @@ function LogPage() {
     const durationSeconds = duration.trim() ? Number.parseInt(duration, 10) * 60 : null;
     const observedAt = new Date().toISOString();
     const payload = featureFlags.noiseEvidenceV2 ? { user_id:user.id, flight_number:flight.trim()||null, altitude:null, db_level:db, lat:coords?.lat??null, lng:coords?.lng??null, observed_at:observedAt, duration_seconds:Number.isFinite(durationSeconds)?durationSeconds:null, observation_text:description.trim()||null, location_source:coords?"browser":"none" } : { user_id:user.id, flight_number:flight.trim()||null, altitude:null, db_level:db, lat:coords?.lat??null, lng:coords?.lng??null };
-    const { data, error } = await supabase.from("noise_logs").insert(payload).select().single();
+    const { data, error } = await dbClient.from("noise_logs").insert(payload).select().single();
     setSubmitting(false); if (error) { toast.error("Kon melding niet opslaan"); return; }
     const row=data as Log; setLast(row); setLogs(p=>[row,...p]); setFlight(""); setDescription(""); setDuration(""); toast.success("Bewonersmelding geregistreerd"); if(navigator.vibrate) navigator.vibrate(40);
   };

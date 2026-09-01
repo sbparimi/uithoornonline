@@ -87,7 +87,7 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/config'
+  fullPaths: '/' | '/auth' | '/check' | '/claim' | '/log' | '/map' | '/privacy' | '/voorwaarden' | '/services' | '/services/provider' | '/claim/success' | '/claim/' | '/api/public/hooks/ingest-knowledge' | '/api/public/hooks/run-evals'
   fileRoutesByTo: FileRoutesByTo
   to: keyof FileRoutesByTo
   id: keyof FileRoutesById
