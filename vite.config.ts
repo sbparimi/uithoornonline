@@ -9,10 +9,10 @@ export default defineConfig({
   plugins: [
     tsconfigPaths(),
     tailwindcss(),
-    react(),
     tanstackStart({
       server: { entry: "server" },
     }),
+    react(),
     cloudflare(),
   ],
 });
