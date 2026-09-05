@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './uo.css';
+import './uopages.css';
 
 export const metadata: Metadata = {
   title: 'Uithoorn.online — Vind iets lokaal.',
