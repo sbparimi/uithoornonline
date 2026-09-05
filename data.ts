@@ -23,10 +23,10 @@ export const workshops = [
 ] as const;
 
 export const foodSpots = [
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Andhra-style biryani', meta: 'Uithoorn · vers bereid', tag: 'Signature' },
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'South Indian' },
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Vers bereid · home kitchen', meta: 'Uithoorn · lokaal', tag: 'Home kitchen' },
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Bestel direct via spiceindia.nl', meta: 'Uithoorn · pickup', tag: 'Order direct' }
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Andhra-style biryani · dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'SpiceIndia' },
+  { name: 'Jouw bedrijf hier', type: 'Indian food · Uithoorn', highlight: 'Bereik lokale klanten via Uithoorn.online', meta: 'Plaats jouw bedrijf', tag: 'List your business' },
+  { name: 'Jouw bedrijf hier', type: 'Indian food · Uithoorn', highlight: 'Zet jouw restaurant of food business lokaal in de spotlight', meta: 'Plaats jouw bedrijf', tag: 'List your business' },
+  { name: 'Jouw bedrijf hier', type: 'Indian food · Uithoorn', highlight: 'Word zichtbaar voor mensen die lokaal Indiaas eten zoeken', meta: 'Plaats jouw bedrijf', tag: 'List your business' }
 ] as const;
 
 export const services = [
