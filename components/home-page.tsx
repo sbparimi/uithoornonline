@@ -1,0 +1,32 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { ArrowRight, BriefcaseBusiness, CalendarDays, ChevronRight, MapPin, Menu, Search, ShieldCheck, Store, Tag, Wrench, X } from 'lucide-react';
+import { businesses, categories, events } from '../data';
+
+const icons = [Wrench, Store, Tag, Wrench, BriefcaseBusiness, CalendarDays, Tag, MapPin];
+
+export function HomePage() {
+  const [query, setQuery] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [category, setCategory] = useState('Alles');
+  const filtered = useMemo(() => businesses.filter((item) => `${item.name} ${item.type} ${item.desc}`.toLowerCase().includes(query.toLowerCase()) && (category === 'Alles' || item.type === category)), [query, category]);
+
+  return <main>
+    <header className="nav-wrap"><nav className="nav shell"><a className="brand" href="#top"><span className="brand-mark">U</span><span>uithoorn<span>.online</span></span></a><div className="desktop-nav"><a href="#discover">Ontdek</a><a href="#services">Diensten</a><a href="#events">Agenda</a><a href="#business">Voor bedrijven</a></div><button className="menu-btn" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">{mobileOpen ? <X/> : <Menu/>}</button><a className="nav-cta desktop-only" href="#business">Plaats je bedrijf</a></nav>{mobileOpen && <div className="mobile-nav shell"><a href="#discover">Ontdek</a><a href="#services">Diensten</a><a href="#events">Agenda</a><a href="#business">Voor bedrijven</a></div>}</header>
+
+    <section className="hero" id="top"><div className="shell hero-grid"><div><div className="eyebrow"><span className="pulse"/> Uithoorn & De Kwakel</div><h1>Alles lokaal.<br/><em>Op één plek.</em></h1><p className="hero-copy">Vind bedrijven, diensten, banen, evenementen en aanbiedingen bij jou in de buurt.</p><div className="search"><Search/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Wat zoek je? Bijvoorbeeld schilder, lunch, baan…"/><button>Zoeken</button></div><div className="quick"><span>Populair:</span><button onClick={() => setQuery('klus')}>klusjes</button><button onClick={() => setQuery('eten')}>eten</button><button onClick={() => setQuery('werk')}>werk</button></div></div><div className="hero-card"><div className="card-top"><span>Vandaag in Uithoorn</span><span className="live">LIVE</span></div><div className="mini-stat"><strong>8</strong><span>categorieën<br/>om te ontdekken</span></div><div className="mini-stat"><strong>∞</strong><span>lokale mogelijkheden<br/>in ontwikkeling</span></div><div className="hero-note"><ShieldCheck/> <span>Gebouwd rond lokale relevantie en vertrouwen.</span></div></div></div></section>
+
+    <section className="section" id="discover"><div className="shell"><div className="section-head"><div><span className="kicker">Ontdek lokaal</span><h2>Waar ben je naar op zoek?</h2></div><span className="section-meta">Uithoorn · De Kwakel</span></div><div className="category-grid">{categories.map(([name,desc], i) => { const Icon=icons[i]; return <button className={`category ${category===name?'selected':''}`} key={name} onClick={() => setCategory(category===name?'Alles':name)}><span className="icon-box"><Icon/></span><span><strong>{name}</strong><small>{desc}</small></span><ChevronRight/></button>})}</div></div></section>
+
+    <section className="section muted" id="services"><div className="shell"><div className="section-head"><div><span className="kicker">Lokaal gevonden</span><h2>Ontdek bedrijven & diensten</h2></div><button className="text-link" onClick={() => {setCategory('Alles');setQuery('')}}>Alles bekijken <ArrowRight/></button></div><div className="cards">{filtered.map((item) => <article className="business-card" key={item.name}><div className="business-image"><span>{item.tag}</span><div className="abstract-mark">{item.name.charAt(0)}</div></div><div className="business-body"><div className="type">{item.type}</div><h3>{item.name}</h3><p>{item.desc}</p><button>Bekijk lokaal profiel <ArrowRight/></button></div></article>)}</div>{filtered.length===0 && <div className="empty">Geen resultaten. Probeer een andere zoekterm.</div>}</div></section>
+
+    <section className="split section"><div className="shell split-grid"><div><span className="kicker">Hulp nodig?</span><h2>Vraag het lokaal.</h2><p>Plaats een verzoek en laat lokale ondernemers of buurtgenoten reageren. Van een loodgieter tot een oppas, van een taalles tot een cateringvraag.</p><a className="primary" href="#business">Plaats een verzoek <ArrowRight/></a></div><div className="request-card"><div className="request-icon">?</div><strong>Ik zoek iemand voor…</strong><div className="request-line">Bijvoorbeeld: tuinonderhoud, belastinghulp, fietsreparatie</div><button>Start een lokale aanvraag</button></div></div></section>
+
+    <section className="section" id="events"><div className="shell"><div className="section-head"><div><span className="kicker">Agenda</span><h2>Dit gebeurt dichtbij</h2></div><a className="text-link" href="#events">Volledige agenda <ArrowRight/></a></div><div className="event-list">{events.map(([name,when],i)=><article className="event" key={name}><div className="date"><strong>{String(5+i).padStart(2,'0')}</strong><span>SEP</span></div><div><h3>{name}</h3><p>{when}</p></div><ChevronRight/></article>)}</div></div></section>
+
+    <section className="business-banner" id="business"><div className="shell banner-inner"><div><span className="kicker">Voor lokale ondernemers</span><h2>Word zichtbaar waar je klanten zoeken.</h2><p>Een modern lokaal profiel, aanvragen en promoties — gebouwd voor Uithoorn.</p></div><a className="light-btn" href="mailto:hello@uithoorn.online">Claim je bedrijf <ArrowRight/></a></div></section>
+
+    <footer><div className="shell footer-grid"><div><a className="brand footer-brand" href="#top"><span className="brand-mark">U</span><span>uithoorn<span>.online</span></span></a><p>De digitale plek voor lokaal Uithoorn.</p></div><div><strong>Ontdek</strong><a href="#services">Bedrijven</a><a href="#events">Evenementen</a><a href="#services">Diensten</a></div><div><strong>Voor bedrijven</strong><a href="#business">Claim profiel</a><a href="#business">Adverteren</a><a href="#business">Lokale aanvragen</a></div><div><strong>Informatie</strong><a href="#top">Over Uithoorn.online</a><a href="#top">Privacy</a><a href="#top">Contact</a></div></div><div className="shell copyright">© 2026 Uithoorn.online · Uithoorn & De Kwakel</div></footer>
+  </main>;
+}
