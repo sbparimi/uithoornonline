@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowRight, MapPin, Menu, Search, Sparkles, Wrench, X } from 'lucide-react';
-import { businesses, services, workshops } from '../data';
+import { businesses, workshops } from '../data';
 
 const nav = [['Diensten', 'services'], ['Workshops', 'workshops'], ['Indian food', 'food']] as const;
 const serviceHighlights = [
@@ -27,9 +27,9 @@ export function HomePage() {
       <div className="uo-header-inner">
         <a href="#top" className="uo-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark">u</span><span>ithoorn<span>.online</span></span></a>
         <nav className="uo-nav" aria-label="Hoofdnavigatie"><button onClick={() => scrollToSection('explore')}>Ontdek</button>{nav.map(([label, id]) => <button key={id} onClick={() => scrollToSection(id)}>{label}</button>)}</nav>
-        <div className="uo-header-actions"><span className="uo-location"><MapPin /> Uithoorn & De Kwakel</span><a href="/businesses">Aanbieders</a><a className="uo-header-cta" href="/request">Plaats je bedrijf</a><button className="uo-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu" aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button></div>
+        <div className="uo-header-actions"><span className="uo-location"><MapPin /> Uithoorn & De Kwakel</span><a className="uo-header-cta" href="/request">Plaats je bedrijf</a><button className="uo-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu" aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button></div>
       </div>
-      {mobileOpen && <nav className="uo-mobile-nav" aria-label="Mobiele navigatie"><button onClick={() => { scrollToSection('explore'); setMobileOpen(false); }}>Ontdek</button>{nav.map(([label, id]) => <button key={id} onClick={() => { scrollToSection(id); setMobileOpen(false); }}>{label}</button>)}<a href="/businesses">Aanbieders</a><a href="/request">Plaats je bedrijf</a></nav>}
+      {mobileOpen && <nav className="uo-mobile-nav" aria-label="Mobiele navigatie"><button onClick={() => { scrollToSection('explore'); setMobileOpen(false); }}>Ontdek</button>{nav.map(([label, id]) => <button key={id} onClick={() => { scrollToSection(id); setMobileOpen(false); }}>{label}</button>)}<a href="/businesses">Lokale aanbieders</a><a href="/request">Plaats je bedrijf</a></nav>}
     </header>
 
     <section className="uo-hero" id="explore">
