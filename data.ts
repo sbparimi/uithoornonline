@@ -1,7 +1,7 @@
 export const categories = [
   ['Diensten', 'Praktische hulp van lokale professionals'],
   ['Workshops', 'Creatief, leerzaam en lokaal'],
-  ['Indian food', 'Indiaas eten in en rond Uithoorn'],
+  ['Indian food', 'SpiceIndia · South Indian food in Uithoorn'],
   ['Wonen & klus', 'Huis, tuin, onderhoud en reparatie'],
   ['Beauty & wellness', 'Lokale salons en persoonlijke verzorging'],
   ['Creatief', 'Kunst, keramiek, fotografie en maken']
@@ -12,10 +12,7 @@ export const businesses = [
   { name: 'Klusbedrijf BouwLeer', type: 'Handyman', desc: 'Lokale hulp voor klussen en onderhoud in Uithoorn.', tag: 'Diensten' },
   { name: 'Scheers V.O.F.', type: 'Schoonmaak · glazenwasser', desc: 'Schoonmaak en glazenwasserij vanuit Uithoorn.', tag: 'Diensten' },
   { name: 'J&W installatietechniek', type: 'Elektricien · installatie', desc: 'Elektrische installaties en technische hulp in Uithoorn.', tag: 'Diensten' },
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', desc: 'Andhra-style biryani, dosa, idli, vada en vers bereid Indiaas eten.', tag: 'Indian food' },
-  { name: 'Indian Junction', type: 'Indian restaurant', desc: 'Indiaas restaurant aan Cort van der Lindenplein in Uithoorn.', tag: 'Indian food' },
-  { name: 'Raaga7', type: 'Indian restaurant', desc: 'Indiaas restaurant aan Marktplein in Uithoorn.', tag: 'Indian food' },
-  { name: 'Indian Quick Bites', type: 'Indian food', desc: 'Indiase snacks en quick bites in Uithoorn.', tag: 'Indian food' }
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', desc: 'Andhra-style biryani, dosa, idli, vada en vers bereid Indiaas eten in Uithoorn.', tag: 'Indian food' }
 ] as const;
 
 export const workshops = [
@@ -26,10 +23,7 @@ export const workshops = [
 ] as const;
 
 export const foodSpots = [
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Biryani · dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'Hotspot' },
-  { name: 'Indian Junction', type: 'Indian restaurant', highlight: 'Curries · biryani · Indian street food', meta: 'Cort van der Lindenplein 5', tag: 'Restaurant' },
-  { name: 'Raaga7', type: 'Indian restaurant', highlight: 'Indiaas eten · restaurant', meta: 'Marktplein 21', tag: 'Restaurant' },
-  { name: 'Indian Quick Bites', type: 'Indian food', highlight: 'Snacks · quick bites', meta: 'Cort van der Lindenplein 5', tag: 'Quick bites' }
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Andhra-style biryani · dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'SpiceIndia' }
 ] as const;
 
 export const services = [
