@@ -1,144 +1,54 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, CircleUserRound, MapPin, Menu, Search, Store, Wrench, X } from 'lucide-react';
-import { businesses, foodSpots, services, workshops } from '../data';
+import { ArrowRight, MapPin, Menu, Search, Sparkles, Wrench, X } from 'lucide-react';
+import { businesses, services, workshops } from '../data';
 
-const navCategories = ['Ontdek', 'Diensten', 'Workshops', 'Indian food'];
-const subCategories = ['Klus & onderhoud', 'Beauty & wellness', 'Creatief'];
-
-const serviceCards = [
-  { className: 'market', title: ['Klus', '& onderhoud'], subtitle: 'schilderen · timmeren · handyman' },
-  { className: 'walk', title: ['Schoonmaak', '& hulp'], subtitle: 'thuis · ramen · onderhoud' },
-  { className: 'coffee', title: ['Elektricien', 'Uithoorn'], subtitle: 'installatie · techniek · reparatie' },
+const nav = [['Diensten', 'services'], ['Workshops', 'workshops'], ['Indian food', 'food']] as const;
+const serviceHighlights = [
+  { title: 'Klus & onderhoud', text: 'Schilderen, timmeren, handyman en kleine reparaties.', mark: '01' },
+  { title: 'Schoonmaak & hulp', text: 'Huishoudelijke hulp, ramen en specialistische reiniging.', mark: '02' },
+  { title: 'Techniek & installatie', text: 'Elektrische installatie en praktische technische hulp.', mark: '03' },
 ];
 
-const workshopCards = [
-  { className: 'secondlife', title: ['Keramiek', '& klei'], subtitle: 'maken · leren · meenemen' },
-  { className: 'flowers', title: ['Kunst', '& creatief'], subtitle: 'schilderen · tekenen · fotografie' },
-  { className: 'football', title: ['Edelsmeden', '& maken'], subtitle: 'sieraden · vakmanschap · cursus' },
-];
-
-const sectionForCategory: Record<string, string> = {
-  Ontdek: 'explore',
-  Diensten: 'services',
-  Workshops: 'workshops',
-  'Indian food': 'food',
-  'Klus & onderhoud': 'businesses',
-  'Beauty & wellness': 'businesses',
-  Creatief: 'workshops',
-};
+function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
 export function HomePage() {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('Ontdek');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const q = query.trim().toLowerCase();
+  const businessResults = useMemo(() => businesses.filter((item) => `${item.name} ${item.type} ${item.desc}`.toLowerCase().includes(q)), [q]);
+  const workshopResults = useMemo(() => workshops.filter((item) => `${item.title} ${item.provider} ${item.meta} ${item.description}`.toLowerCase().includes(q)), [q]);
+  const foodMatch = q && ['indian', 'food', 'dosa', 'idli', 'vada', 'biryani', 'spiceindia'].some((term) => q.includes(term));
+  const total = q ? businessResults.length + workshopResults.length + (foodMatch ? 1 : 0) : 0;
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredBusinesses = useMemo(() => businesses.filter((item) => `${item.name} ${item.type} ${item.desc}`.toLowerCase().includes(normalizedQuery)), [normalizedQuery]);
-  const filteredFood = useMemo(() => foodSpots.filter((item) => item.tag !== 'List your business here' && `${item.name} ${item.type} ${item.highlight}`.toLowerCase().includes(normalizedQuery)), [normalizedQuery]);
-  const filteredWorkshops = useMemo(() => workshops.filter((item) => `${item.title} ${item.provider} ${item.meta} ${item.description}`.toLowerCase().includes(normalizedQuery)), [normalizedQuery]);
-
-  const resultCount = filteredBusinesses.length + filteredFood.length + filteredWorkshops.length;
-  const hasSearch = normalizedQuery.length > 0;
-
-  const goTo = (name: string) => {
-    setCategory(name);
-    setMobileOpen(false);
-    document.getElementById(sectionForCategory[name] ?? 'explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  return <main className="wk-app" id="top">
-    <aside className="side-rail">
-      <a className="wk-logo" href="#top" aria-label="Uithoorn.online home"><span className="logo-u">u</span><span>ithoorn<span className="logo-dot">.online</span></span><small>ontdek · lokaal · dichtbij</small></a>
-      <nav className="side-nav" aria-label="Hoofdnavigatie">
-        <button type="button" className={category === 'Ontdek' ? 'active' : ''} onClick={() => goTo('Ontdek')}><span className="nav-circle">◉</span>Ontdek</button>
-        <button type="button" className={category === 'Diensten' ? 'active' : ''} onClick={() => goTo('Diensten')}><Wrench /> Diensten</button>
-        <button type="button" className={category === 'Workshops' ? 'active' : ''} onClick={() => goTo('Workshops')}><Store /> Workshops</button>
-        <button type="button" className={category === 'Indian food' ? 'active' : ''} onClick={() => goTo('Indian food')}><span className="nav-circle">◈</span>Indian food</button>
-        <a href="/businesses"><CircleUserRound /> Lokale aanbieders</a>
-      </nav>
-      <div className="side-bottom"><a className="create-btn" href="#for-business"><span>＋</span> Voeg bedrijf toe</a><a className="more-link" href="#footer"><Menu /> Meer</a></div>
-    </aside>
-
-    <div className="wk-content">
-      <header className="topbar">
-        <div className="mobile-brand"><a className="wk-logo" href="#top"><span className="logo-u">u</span><span>ithoorn<span className="logo-dot">.online</span></span></a></div>
-        <nav className="category-nav" aria-label="Categorieën">{navCategories.map((item) => <button type="button" key={item} className={category === item ? 'active' : ''} onClick={() => goTo(item)}>{item}</button>)}</nav>
-        <div className="top-actions"><span className="location"><MapPin /> Uithoorn</span><a href="/businesses" className="signin">Aanbieders</a><a href="#for-business" className="signup">Voeg bedrijf toe</a><button type="button" className="mobile-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Menu sluiten' : 'Menu openen'} aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button></div>
-      </header>
-      {mobileOpen && <nav className="mobile-nav" aria-label="Mobiele navigatie">{[...navCategories, ...subCategories].map((item) => <button type="button" key={item} onClick={() => goTo(item)}>{item}</button>)}<a href="/businesses">Lokale aanbieders</a></nav>}
-
-      <div className="workspace">
-        <section className="feed" id="explore">
-          <div className="hero-search" role="search">
-            <Search aria-hidden="true" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Wat zoek je in Uithoorn? Bijvoorbeeld klus, keramiek of biryani" aria-label="Zoek lokaal in Uithoorn" />
-            {hasSearch && <button type="button" className="clear-search" onClick={() => setQuery('')} aria-label="Zoekopdracht wissen">Wissen</button>}
-          </div>
-
-          <div className="feed-heading hero-heading"><div><div className="hero-kicker"><MapPin /> Uithoorn & De Kwakel</div><h1>lokaal gevonden <span>in Uithoorn.</span></h1><p>Vind hulp, leer iets nieuws of ontdek waar je Indiaas kunt eten.</p></div><a href="/businesses">Alle aanbieders <ArrowRight /></a></div>
-
-          <div className="quick-actions" aria-label="Snel naar een categorie">
-            <button type="button" onClick={() => goTo('Diensten')}><Wrench /> Hulp & diensten</button>
-            <button type="button" onClick={() => goTo('Workshops')}><Store /> Workshops</button>
-            <button type="button" onClick={() => goTo('Indian food')}><span>✦</span> Indian food</button>
-          </div>
-
-          {hasSearch ? <>
-            <section className="search-summary" aria-live="polite"><div><strong>{resultCount}</strong> lokale resultaten voor <b>“{query}”</b></div><button type="button" onClick={() => setQuery('')}>Toon alles</button></section>
-            {resultCount === 0 ? <section className="empty-search"><Search /><h2>Niets gevonden</h2><p>Probeer bijvoorbeeld <button type="button" onClick={() => setQuery('klus')}>klus</button>, <button type="button" onClick={() => setQuery('keramiek')}>keramiek</button> of <button type="button" onClick={() => setQuery('biryani')}>biryani</button>.</p></section> : <section className="search-results" aria-label="Zoekresultaten">
-              {filteredBusinesses.length > 0 && <div className="result-group"><div className="result-heading"><span>Lokale aanbieders</span><b>{filteredBusinesses.length}</b></div><div className="result-grid">{filteredBusinesses.map((item) => <article className="business-tile" key={`business-${item.name}`}><div className="tile-art"><span>{item.tag}</span><b>{item.name.slice(0, 1)}</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.desc}</p><a className="tile-link" href="/businesses">Bekijk aanbieder <ArrowRight /></a></div></article>)}</div></div>}
-              {filteredWorkshops.length > 0 && <div className="result-group"><div className="result-heading"><span>Workshops & cursussen</span><b>{filteredWorkshops.length}</b></div><div className="result-list">{filteredWorkshops.map((item) => <article className="result-row" key={`workshop-${item.title}`}><div><small>{item.provider}</small><h3>{item.title}</h3><p>{item.description}</p></div><span>{item.meta}</span></article>)}</div></div>}
-              {filteredFood.length > 0 && <div className="result-group"><div className="result-heading"><span>Indian food</span><b>{filteredFood.length}</b></div><div className="result-grid">{filteredFood.map((item) => <article className="business-tile food-tile" key={`food-${item.name}`}><div className="tile-art food-art"><span>{item.tag}</span><b>✦</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.highlight}</p><em><MapPin /> {item.meta}</em><a className="tile-link" href="https://www.spiceindia.nl/">Bekijk SpiceIndia <ArrowRight /></a></div></article>)}</div></div>}
-            </section>}
-          </> : <>
-            <section id="services" className="focus-section">
-              <div className="feed-heading compact"><div><span className="mini-kicker">Diensten</span><h2>Hulp nodig? Vind iemand dichtbij.</h2></div><a href="/businesses">Alle aanbieders <ArrowRight /></a></div>
-              <div className="highlight-grid service-grid">{serviceCards.map((card, index) => { const service = services[index]; return <article className={`highlight-card ${card.className}`} key={card.className}>
-                <div className="visual"><div className="visual-copy"><strong>{card.title.map((line) => <span key={line}>{line}</span>)}</strong><small>{card.subtitle}</small></div><div className="event-pill"><span>⌖</span>Uithoorn<br /><span>→</span>Lokale aanbieders</div></div>
-                <div className="card-meta"><span className="organizer"><i /> Lokaal aanbod</span><h2>{service.title}</h2><p>{service.description}</p><a className="card-link" href="/businesses">Bekijk aanbieders <ArrowRight /></a></div>
-              </article>; })}</div>
-            </section>
-
-            <section id="workshops" className="focus-section">
-              <div className="feed-heading compact"><div><span className="mini-kicker">Workshops & cursussen</span><h2>Leer iets nieuws. Maak iets zelf.</h2></div><a href="#workshops-list">Bekijk alles <ArrowRight /></a></div>
-              <div id="workshops-list" className="highlight-grid workshop-grid">{workshopCards.map((card, index) => { const workshop = workshops[index]; return <article className={`highlight-card ${card.className}`} key={card.className}>
-                <div className="visual"><div className="visual-copy"><strong>{card.title.map((line) => <span key={line}>{line}</span>)}</strong><small>{card.subtitle}</small></div><div className="event-pill"><span>◫</span>{workshop.meta}</div></div>
-                <div className="card-meta"><span className="organizer"><i /> {workshop.provider}</span><h2>{workshop.title}</h2><p>{workshop.description}</p><a className="card-link" href="#workshops-list">Bekijk workshop <ArrowRight /></a></div>
-              </article>; })}</div>
-            </section>
-
-            <section id="food" className="food-section">
-              <div className="feed-heading compact"><div><span className="mini-kicker">Indian food hotspots</span><h2>Indiaas eten, lokaal ontdekt.</h2></div><a href="https://www.spiceindia.nl/">SpiceIndia bekijken <ArrowRight /></a></div>
-              <div id="food-list" className="food-row">
-                <article className="business-tile food-tile spice-feature">
-                  <div className="tile-art food-art"><span>SpiceIndia</span><b>✦</b></div>
-                  <div><small>South Indian · takeaway</small><h3>SpiceIndia</h3><p>Andhra-style biryani · dosa · idli · vada</p><em><MapPin /> Uithoorn · vers bereid</em><a className="tile-link" href="https://www.spiceindia.nl/">Bestel bij SpiceIndia <ArrowRight /></a></div>
-                </article>
-                {[1, 2, 3].map((slot) => <article className="business-tile food-tile business-slot" key={`food-business-slot-${slot}`}>
-                  <div className="tile-art food-art slot-art"><span>Voor lokale ondernemers</span><b>＋</b></div>
-                  <div><small>Indian food · Uithoorn</small><h3>List your business here</h3><p>Bereik lokale klanten die Indiaas eten zoeken.</p><em><MapPin /> Uithoorn.online</em><a className="tile-link" href="/request">List your business here <ArrowRight /></a></div>
-                </article>)}
-              </div>
-            </section>
-
-            <section id="businesses" className="business-preview"><div className="feed-heading compact"><div><span className="mini-kicker">Lokale aanbieders</span><h2>Van klus tot techniek.</h2></div><a href="/businesses">Volledige gids <ArrowRight /></a></div><div className="business-row">{businesses.slice(0, 4).map((item) => <article className="business-tile" key={item.name}><div className="tile-art"><span>{item.tag}</span><b>{item.name.slice(0, 1)}</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.desc}</p><a className="tile-link" href="/businesses">Bekijk aanbieder <ArrowRight /></a></div></article>)}</div></section>
-          </>}
-
-          <section id="for-business" className="community-strip"><div><span className="mini-kicker">Voor lokale ondernemers</span><h2>Sta waar je<br /><em>gevonden wordt.</em></h2><p>Wil je als lokale aanbieder zichtbaar zijn op Uithoorn.online? Laat je gegevens achter en vertel wat je aanbiedt.</p><a className="rail-cta" href="/request">Interesse tonen</a></div><div className="community-illustration"><span>UITHOORN</span><div className="bridge" /></div></section>
-        </section>
-
-        <aside className="right-rail">
-          <section className="people-card"><span className="mini-kicker">Snel vinden</span><h2>Wat zoek je<br />vandaag?</h2><p>Kies direct wat je nodig hebt. Je kunt ook bovenaan zoeken.</p><button type="button" className="rail-cta" onClick={() => goTo('Diensten')}>Diensten vinden</button><button type="button" className="rail-secondary" onClick={() => goTo('Workshops')}>Workshops bekijken</button><button type="button" className="rail-secondary" onClick={() => goTo('Indian food')}>Indian food ontdekken</button></section>
-          <section className="popular"><small>POPULAIR IN UITHOORN</small>{[['Diensten','Klus, schoonmaak & techniek','service'],['Workshops','Keramiek, kunst & creatief','service'],['Indian food','SpiceIndia · South Indian food','food'],['Beauty','Haar, beauty & wellness','service'],['Tuin & buiten','Hulp rondom het huis','service'],['Creatief','Maak, leer & ontdek','service']].map(([name, desc, type]) => <button type="button" onClick={() => goTo(name === 'Beauty' ? 'Beauty & wellness' : name)} key={name} className="popular-item"><span className={`popular-icon ${type}`}>{type === 'food' ? '✦' : name === 'Workshops' || name === 'Creatief' ? '◇' : name === 'Beauty' ? '○' : name === 'Tuin & buiten' ? '❋' : '✣'}</span><span><b>{name}</b><small>{desc}</small></span></button>)}</section>
-          <section className="rail-local"><div className="leaf">✦</div><h3>Uithoorn,<br />om de hoek.</h3><p>Lokale mensen, vakmensen, workshops en smaken — zonder verder te zoeken.</p></section>
-        </aside>
+  return <main className="uo-site" id="top">
+    <header className="uo-header">
+      <div className="uo-header-inner">
+        <a href="#top" className="uo-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark">u</span><span>ithoorn<span>.online</span></span></a>
+        <nav className="uo-nav" aria-label="Hoofdnavigatie"><button onClick={() => scrollToSection('explore')}>Ontdek</button>{nav.map(([label, id]) => <button key={id} onClick={() => scrollToSection(id)}>{label}</button>)}</nav>
+        <div className="uo-header-actions"><span className="uo-location"><MapPin /> Uithoorn & De Kwakel</span><a href="/businesses">Aanbieders</a><a className="uo-header-cta" href="/request">Plaats je bedrijf</a><button className="uo-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu" aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button></div>
       </div>
-    </div>
-    <footer id="footer" className="wk-footer"><span>Uithoorn.online</span><span>Diensten · Workshops · Indian food</span><span>Uithoorn · De Kwakel</span></footer>
-    <style>{`
-      .side-nav button{border:0;background:none;text-align:left;font:inherit;cursor:pointer;width:100%}.hero-search{height:50px;border:1px solid #e6e7e4;border-radius:999px;display:flex;align-items:center;gap:10px;padding:0 15px;max-width:760px;margin:14px auto 0;box-shadow:0 5px 18px rgba(0,0,0,.035)}.hero-search svg{width:17px;color:#777}.hero-search input{border:0;outline:0;flex:1;min-width:0;font-size:12px;color:#222}.hero-search input::placeholder{color:#999}.clear-search{border:0;background:#f4f4f1;border-radius:99px;padding:6px 10px;font-size:9px;cursor:pointer}.hero-heading{margin-top:22px}.hero-kicker{display:flex;align-items:center;gap:5px;font-size:8px;color:#6d8b6d;font-weight:800;letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px}.hero-kicker svg{width:11px}.quick-actions{display:flex;gap:8px;margin:0 0 25px}.quick-actions button{border:1px solid #e8e9e6;background:#fff;border-radius:999px;padding:8px 12px;font-size:9px;font-weight:750;cursor:pointer;display:flex;align-items:center;gap:6px}.quick-actions button:hover,.rail-secondary:hover{background:#f7f7f4}.search-summary{display:flex;align-items:center;justify-content:space-between;border:1px solid #e8e9e5;border-radius:12px;padding:11px 13px;margin:0 0 22px;background:#fbfbf9;font-size:10px}.search-summary strong{font-size:14px}.search-summary button,.empty-search button{border:0;background:none;text-decoration:underline;cursor:pointer;font-size:9px}.search-results{display:grid;gap:30px}.result-group{display:grid;gap:12px}.result-heading{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800}.result-heading b{display:grid;place-items:center;min-width:20px;height:20px;border-radius:99px;background:#f0f1ed;font-size:8px}.result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.result-list{display:grid;gap:8px}.result-row{border:1px solid #ededeb;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff}.result-row small{font-size:7px;color:#8f938f;text-transform:uppercase}.result-row h3{font-size:11px;margin:3px 0}.result-row p{font-size:8px;color:#929593;margin:0}.result-row>span{font-size:8px;color:#777;white-space:nowrap}.empty-search{border:1px dashed #dcded9;border-radius:15px;padding:25px;text-align:center;margin-bottom:28px}.empty-search svg{width:20px;color:#999}.empty-search h2{font-size:15px;margin:8px 0 5px}.empty-search p{font-size:10px;color:#888;margin:0}.focus-section{margin-top:42px}.focus-section:first-of-type{margin-top:0}.workshop-grid{margin-bottom:4px}.food-section{margin-top:45px}.food-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.food-tile{min-width:0}.food-art{background:linear-gradient(140deg,#ffe4b9,#f6c17c)!important}.food-tile>div:last-child{padding:10px}.food-tile em{display:flex;align-items:center;gap:4px;margin-top:7px;font-style:normal;font-size:7px;color:#8b8f8b}.food-tile em svg{width:9px}.card-link,.tile-link{display:flex;align-items:center;gap:4px;width:max-content;margin-top:8px;font-size:8px;font-weight:800}.card-link svg,.tile-link svg{width:10px}.business-preview{padding-top:45px}.community-strip .rail-cta{width:max-content;padding:10px 16px;margin-top:12px}.popular-icon.service{background:#dff3df;color:#4c9a57}.popular-icon.food{background:#fff0c8;color:#d79512}.rail-secondary{width:100%;border:1px solid #ededeb;background:#fff;border-radius:99px;padding:9px;font-size:9px;font-weight:700;margin-top:7px;cursor:pointer}.people-card .mini-kicker{display:block;margin-bottom:8px}.popular-item{border:0;background:none;width:100%;cursor:pointer;text-align:left;padding:0}.popular-item:hover b{text-decoration:underline}.business-slot .slot-art{background:linear-gradient(140deg,#eaf4e6,#d6e9d0)!important}.business-slot .slot-art b{font-size:34px;font-weight:400}.business-slot .tile-link{color:#168d42}.spice-feature{outline:1px solid rgba(22,141,66,.12)}@media(max-width:1100px){.food-row{grid-template-columns:repeat(2,minmax(0,1fr))}.result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.hero-search{margin-top:10px}.hero-heading{margin-top:22px}.quick-actions{overflow:auto;padding-bottom:2px;margin-bottom:20px}.quick-actions button{white-space:nowrap}.food-row,.result-grid{grid-template-columns:1fr}.focus-section{margin-top:34px}.food-section{margin-top:35px}.search-summary{align-items:flex-start;gap:12px}.clear-search{padding:6px 8px}.result-row{display:block}.result-row>span{display:block;margin-top:8px}}
-    `}</style>
+      {mobileOpen && <nav className="uo-mobile-nav" aria-label="Mobiele navigatie"><button onClick={() => { scrollToSection('explore'); setMobileOpen(false); }}>Ontdek</button>{nav.map(([label, id]) => <button key={id} onClick={() => { scrollToSection(id); setMobileOpen(false); }}>{label}</button>)}<a href="/businesses">Aanbieders</a><a href="/request">Plaats je bedrijf</a></nav>}
+    </header>
+
+    <section className="uo-hero" id="explore">
+      <div className="uo-hero-copy"><div className="uo-eyebrow"><MapPin /> Uithoorn & De Kwakel</div><h1>Vind iets<br /><em>lokaal.</em></h1><p>Lokale diensten, workshops en Indiaas eten. Zonder omwegen.</p></div>
+      <div className="uo-search-wrap"><div className="uo-search" role="search"><Search aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Wat zoek je? Bijvoorbeeld klus, keramiek of biryani" aria-label="Zoek lokaal in Uithoorn" />{q && <button onClick={() => setQuery('')} aria-label="Zoekopdracht wissen"><X /></button>}</div><div className="uo-search-hints"><span>Populair</span><button onClick={() => setQuery('klus')}>klus</button><button onClick={() => setQuery('keramiek')}>keramiek</button><button onClick={() => setQuery('biryani')}>biryani</button></div></div>
+    </section>
+
+    {q ? <section className="uo-results" aria-live="polite"><div className="uo-section-head"><div><span className="uo-kicker">Zoekresultaten</span><h2>{total} lokale resultaten</h2></div><button onClick={() => setQuery('')} className="uo-text-button">Toon alles <ArrowRight /></button></div>{total === 0 ? <div className="uo-empty"><Search /><h3>Niets gevonden</h3><p>Probeer een dienst, workshop of “biryani”.</p></div> : <div className="uo-result-groups">
+      {businessResults.length > 0 && <div><div className="uo-result-label">Lokale aanbieders <b>{businessResults.length}</b></div><div className="uo-card-grid">{businessResults.map((item) => <article className="uo-card" key={item.name}><div className="uo-card-symbol">{item.name.slice(0, 1)}</div><div className="uo-card-body"><span>{item.type}</span><h3>{item.name}</h3><p>{item.desc}</p><a href="/businesses">Bekijk aanbieder <ArrowRight /></a></div></article>)}</div></div>}
+      {workshopResults.length > 0 && <div><div className="uo-result-label">Workshops & cursussen <b>{workshopResults.length}</b></div><div className="uo-list">{workshopResults.map((item) => <article key={item.title}><div><span>{item.provider}</span><h3>{item.title}</h3><p>{item.description}</p></div><strong>{item.meta}</strong></article>)}</div></div>}
+      {foodMatch && <div><div className="uo-result-label">Indian food <b>1</b></div><article className="uo-food-feature"><div><span>SPICEINDIA</span><h3>South Indian food in Uithoorn</h3><p>Andhra-style biryani · dosa · idli · vada</p></div><a href="https://www.spiceindia.nl/">Bekijk menu <ArrowRight /></a></article></div>}
+    </div>}</section> : <>
+      <section className="uo-section" id="services"><div className="uo-section-head"><div><span className="uo-kicker">01 · Diensten</span><h2>Hulp nodig? Vind iemand dichtbij.</h2></div><a href="/services">Alle diensten <ArrowRight /></a></div><div className="uo-service-grid">{serviceHighlights.map((item) => <article key={item.mark}><span className="uo-number">{item.mark}</span><Wrench /><h3>{item.title}</h3><p>{item.text}</p><a href="/businesses">Vind een aanbieder <ArrowRight /></a></article>)}</div></section>
+      <section className="uo-section" id="workshops"><div className="uo-section-head"><div><span className="uo-kicker">02 · Workshops</span><h2>Leer iets nieuws. Maak iets zelf.</h2></div><a href="/workshops">Alle workshops <ArrowRight /></a></div><div className="uo-workshop-grid">{workshops.slice(0, 3).map((item, index) => <article key={item.title}><div className={`uo-workshop-art art-${index + 1}`}><span>{String(index + 1).padStart(2, '0')}</span><Sparkles /></div><div className="uo-card-body"><span>{item.provider}</span><h3>{item.title}</h3><p>{item.description}</p><small><MapPin /> {item.meta}</small><a href="/workshops">Bekijk workshop <ArrowRight /></a></div></article>)}</div></section>
+      <section className="uo-section" id="food"><div className="uo-section-head"><div><span className="uo-kicker">03 · Indian food</span><h2>Indiaas eten, lokaal ontdekt.</h2></div><a href="https://www.spiceindia.nl/">SpiceIndia <ArrowRight /></a></div><article className="uo-food-feature uo-spice"><div><span>SPICEINDIA · UITHOORN</span><h3>South Indian food,<br /><em>vers bereid.</em></h3><p>Andhra-style biryani · dosa · idli · vada</p><small><MapPin /> Uithoorn · takeaway</small></div><a href="https://www.spiceindia.nl/">Bekijk menu <ArrowRight /></a></article><div className="uo-business-invite"><div><span className="uo-kicker">Voor lokale food businesses</span><h3>Ook zichtbaar worden bij lokale klanten?</h3><p>Uithoorn.online is open voor lokale Indian food businesses.</p></div><a href="/request">List your business here <ArrowRight /></a></div></section>
+      <section className="uo-section uo-providers" id="providers"><div className="uo-section-head"><div><span className="uo-kicker">Lokale aanbieders</span><h2>Van klus tot techniek.</h2></div><a href="/businesses">Volledige gids <ArrowRight /></a></div><div className="uo-provider-list">{businesses.filter((item) => item.name !== 'SpiceIndia').slice(0, 4).map((item) => <a href="/businesses" key={item.name}><span>{item.name.slice(0, 1)}</span><div><strong>{item.name}</strong><small>{item.type}</small></div><ArrowRight /></a>)}</div></section>
+    </>}
+
+    <section className="uo-business-cta"><div><span className="uo-kicker">Voor lokale ondernemers</span><h2>Sta waar je<br /><em>gevonden wordt.</em></h2><p>Bereik mensen in Uithoorn en De Kwakel die lokaal zoeken.</p></div><a href="/request">Plaats je bedrijf <ArrowRight /></a></section>
+    <footer className="uo-footer"><a href="#top" className="uo-brand"><span className="uo-brand-mark">u</span><span>ithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
   </main>;
 }
