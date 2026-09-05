@@ -64,7 +64,7 @@ export function HomePage() {
 
           <section id="workshops" className="focus-section">
             <div className="feed-heading compact"><div><span className="mini-kicker">Workshops & cursussen</span><h2>Leer iets nieuws. Maak iets zelf.</h2></div><a href="#workshops-list">Bekijk workshops <ArrowRight /></a></div>
-            <div className="highlight-grid workshop-grid">
+            <div id="workshops-list" className="highlight-grid workshop-grid">
               {workshopCards.map((card, index) => { const workshop = workshops[index]; return <article className={`highlight-card ${card.className}`} key={card.className}>
                 <div className="visual"><div className="visual-copy"><strong>{card.title.map((line) => <span key={line}>{line}</span>)}</strong><small>{card.subtitle}</small></div><div className="event-pill"><span>◫</span>{workshop.meta}</div></div>
                 <div className="card-meta"><span className="organizer"><i /> {workshop.provider}</span><h2>{workshop.title}</h2><p>{workshop.description}</p></div>
@@ -74,7 +74,7 @@ export function HomePage() {
 
           <section id="food" className="food-section">
             <div className="feed-heading compact"><div><span className="mini-kicker">Indian food hotspots</span><h2>Indiaas eten, lokaal ontdekt.</h2></div><a href="#food-list">Alle hotspots <ArrowRight /></a></div>
-            <div id="food-list" className="food-row">{filteredFood.map((item) => <article className="food-tile" key={item.name}><div className="food-art"><span>{item.tag}</span><b>✦</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.highlight}</p><em><MapPin /> {item.meta}</em></div></article>)}</div>
+            <div id="food-list" className="food-row">{filteredFood.map((item) => <article className="business-tile food-tile" key={item.name}><div className="tile-art food-art"><span>{item.tag}</span><b>✦</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.highlight}</p><em><MapPin /> {item.meta}</em></div></article>)}</div>
           </section>
 
           <section id="businesses" className="business-preview"><div className="feed-heading compact"><div><span className="mini-kicker">Lokale aanbieders</span><h2>Van klus tot beauty.</h2></div><a href="#for-business">Word zichtbaar <ArrowRight /></a></div><div className="business-row">{filteredBusinesses.slice(0, 4).map((item) => <article className="business-tile" key={item.name}><div className="tile-art"><span>{item.tag}</span><b>{item.name.slice(0, 1)}</b></div><div><small>{item.type}</small><h3>{item.name}</h3><p>{item.desc}</p></div></article>)}</div></section>
@@ -85,11 +85,12 @@ export function HomePage() {
         <aside className="right-rail">
           <div className="rail-search"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Zoek in Uithoorn…" /></div>
           <section className="people-card"><h2>wat zoek je<br />vandaag?</h2><p>Vind een lokale dienst, ontdek een workshop of kies waar je Indiaas wilt eten.</p><a href="#services" className="rail-cta">Diensten vinden</a><a href="#food" className="rail-signin">Indian food ontdekken</a></section>
-          <section className="popular"><small>POPULAIR IN UITHOORN</small>{[['Diensten','Klus, schoonmaak & techniek','service'],['Workshops','Keramiek, kunst & creatief','workshop'],['Indian food','Biryani, dosa & curries','food'],['Beauty','Haar, beauty & wellness','beauty'],['Tuin & buiten','Hulp rondom het huis','garden'],['Creatief','Maak, leer & ontdek','creative']].map(([name, desc, type]) => <a href={type === 'food' ? '#food' : type === 'workshop' || type === 'creative' ? '#workshops' : '#services'} key={name} className="popular-item"><span className={`popular-icon ${type}`}>{type === 'food' ? '✦' : type === 'workshop' ? '◇' : type === 'service' ? '✣' : type === 'beauty' ? '○' : type === 'garden' ? '❋' : '△'}</span><span><b>{name}</b><small>{desc}</small></span></a>)}</section>
+          <section className="popular"><small>POPULAIR IN UITHOORN</small>{[['Diensten','Klus, schoonmaak & techniek','service'],['Workshops','Keramiek, kunst & creatief','service'],['Indian food','Biryani, dosa & curries','food'],['Beauty','Haar, beauty & wellness','service'],['Tuin & buiten','Hulp rondom het huis','service'],['Creatief','Maak, leer & ontdek','service']].map(([name, desc, type]) => <a href={type === 'food' ? '#food' : name === 'Workshops' || name === 'Creatief' ? '#workshops' : '#services'} key={name} className="popular-item"><span className={`popular-icon ${type}`}>{type === 'food' ? '✦' : name === 'Workshops' || name === 'Creatief' ? '◇' : name === 'Beauty' ? '○' : name === 'Tuin & buiten' ? '❋' : '✣'}</span><span><b>{name}</b><small>{desc}</small></span></a>)}</section>
           <section className="rail-local"><div className="leaf">✦</div><h3>Uithoorn,<br />om de hoek.</h3><p>Ontdek lokale mensen, vakmensen en smaken zonder verder te zoeken.</p></section>
         </aside>
       </div>
     </div>
     <footer id="footer" className="wk-footer"><span>Uithoorn.online</span><span>Diensten · Workshops · Indian food</span><span>Uithoorn · De Kwakel</span></footer>
+    <style>{`\n      .focus-section{margin-top:42px}.focus-section:first-of-type{margin-top:0}.workshop-grid{margin-bottom:4px}.food-section{margin-top:45px}.food-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.food-tile{min-width:0}.food-art{background:linear-gradient(140deg,#ffe4b9,#f6c17c)!important}.food-tile>div:last-child{padding:10px}.food-tile em{display:flex;align-items:center;gap:4px;margin-top:7px;font-style:normal;font-size:7px;color:#8b8f8b}.food-tile em svg{width:9px}.business-preview{padding-top:45px}.community-strip .rail-cta{width:max-content;padding:10px 16px;margin-top:12px}.popular-icon.service{background:#dff3df;color:#4c9a57}.popular-icon.food{background:#fff0c8;color:#d79512}@media(max-width:1100px){.food-row{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.food-row{grid-template-columns:1fr}.focus-section{margin-top:34px}.food-section{margin-top:35px}}\n    `}</style>
   </main>;
 }
