@@ -12,7 +12,7 @@ export const businesses = [
   { name: 'Klusbedrijf BouwLeer', type: 'Handyman', desc: 'Lokale hulp voor klussen en onderhoud in Uithoorn.', tag: 'Diensten' },
   { name: 'Scheers V.O.F.', type: 'Schoonmaak · glazenwasser', desc: 'Schoonmaak en glazenwasserij vanuit Uithoorn.', tag: 'Diensten' },
   { name: 'J&W installatietechniek', type: 'Elektricien · installatie', desc: 'Elektrische installaties en technische hulp in Uithoorn.', tag: 'Diensten' },
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', desc: 'Andhra-style biryani, dosa, idli, vada en vers bereid Indiaas eten in Uithoorn.', tag: 'Indian food' }
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', desc: 'Andhra-style biryani, dosa, idli, vada en vers bereid Indiaas eten in Uithoorn.', tag: 'SpiceIndia' }
 ] as const;
 
 export const workshops = [
@@ -23,7 +23,10 @@ export const workshops = [
 ] as const;
 
 export const foodSpots = [
-  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Andhra-style biryani · dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'SpiceIndia' }
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Andhra-style biryani', meta: 'Uithoorn · vers bereid', tag: 'Signature' },
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Dosa · idli · vada', meta: 'Uithoorn · vers bereid', tag: 'South Indian' },
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Vers bereid · home kitchen', meta: 'Uithoorn · lokaal', tag: 'Home kitchen' },
+  { name: 'SpiceIndia', type: 'South Indian · takeaway', highlight: 'Bestel direct via spiceindia.nl', meta: 'Uithoorn · pickup', tag: 'Order direct' }
 ] as const;
 
 export const services = [
