@@ -9,7 +9,9 @@ const KEY = 'uithoorn-locale';
 const allTranslations = { ...translations, ...extraTranslations, ...pageTranslations };
 const allKeys = Object.keys(allTranslations).sort((a,b)=>b.length-a.length);
 const originals = new WeakMap<Text, string>();
+const lastRendered = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<HTMLElement, Record<string,string>>();
+const lastRenderedAttributes = new WeakMap<HTMLElement, Record<string,string>>();
 function tx(value: string, locale: Locale) {
   if (locale === 'nl') return value;
   let result = value;
@@ -23,21 +25,28 @@ function translateDom(locale: Locale) {
   while ((node = walker.nextNode())) nodes.push(node as Text);
   nodes.forEach(text => {
     if (!text.parentElement || ['SCRIPT','STYLE'].includes(text.parentElement.tagName)) return;
-    const original = originals.get(text) ?? text.nodeValue ?? '';
+    const current = text.nodeValue ?? '';
+    const previousOutput = lastRendered.get(text);
+    const original = !originals.has(text) || (previousOutput !== undefined && current !== previousOutput) ? current : (originals.get(text) ?? current);
     originals.set(text, original);
     const translated = tx(original, locale);
-    if (text.nodeValue !== translated) text.nodeValue = translated;
+    if (current !== translated) text.nodeValue = translated;
+    lastRendered.set(text, translated);
   });
   document.querySelectorAll<HTMLElement>('[placeholder],[aria-label],[title]').forEach(el => {
     const attrs = originalAttributes.get(el) ?? {};
+    const rendered = lastRenderedAttributes.get(el) ?? {};
     ['placeholder','aria-label','title'].forEach(attr => {
-      const value = el.getAttribute(attr);
-      if (!value) return;
-      const original = attrs[attr] ?? value;
+      const current = el.getAttribute(attr);
+      if (!current) return;
+      const original = attrs[attr] === undefined || (rendered[attr] !== undefined && current !== rendered[attr]) ? current : attrs[attr];
       attrs[attr] = original;
-      el.setAttribute(attr, tx(original, locale));
+      const translated = tx(original, locale);
+      if (current !== translated) el.setAttribute(attr, translated);
+      rendered[attr] = translated;
     });
     originalAttributes.set(el, attrs);
+    lastRenderedAttributes.set(el, rendered);
   });
 }
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
