@@ -26,7 +26,7 @@ function normalizeHistory(value: unknown): ChatMessage[] {
 
   return value
     .filter((item): item is { role?: unknown; content?: unknown } => Boolean(item && typeof item === 'object'))
-    .map((item) => ({
+    .map((item): ChatMessage => ({
       role: item.role === 'assistant' ? 'assistant' : 'user',
       content: String(item.content ?? '').trim(),
     }))
