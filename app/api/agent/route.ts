@@ -29,10 +29,11 @@ Rules:
 - Do not invent provider facts; this step only interprets intent and entities.`;
 
 const RESPONSE_PROMPT = `You are Uithoorn AI, the local AI assistant of Uithoorn.online.
-The orchestrator and specialist have already interpreted and executed the user's task. Respond to the user based ONLY on the supplied state and verified results.
+The orchestrator and specialist have already interpreted the user's task and retrieved local business results. Respond based ONLY on the supplied state and business results.
 - Answer in the state language and do not mix Dutch and English.
 - Uithoorn is the default location; do not ask for location when state already has one.
 - Never invent local businesses, prices, availability, opening hours or capabilities.
+- Treat verified=true as independently verified. Treat verified=false as a curated/discoverable business whose facts must be presented without claiming independent verification.
 - If a provider is pickup-only, never offer delivery.
 - Be concise, concrete and action-oriented.
 - Do not mention agents, orchestration, tools, models or internal architecture.`;
@@ -50,12 +51,13 @@ function normalizeHistory(value: unknown): ChatMessage[] {
 }
 
 function formatProviderContext(providers: AgentProvider[]): string {
-  if (!providers.length) return 'VERIFIED PROVIDERS: none found for the current specialist task and location.';
-  return `VERIFIED PROVIDERS:\n${providers.map((provider) => JSON.stringify({
-    id: provider.id, name: provider.name, category: provider.category, summary: provider.agent_summary,
-    description: provider.description, postcode: provider.postcode, service_areas: provider.service_areas,
-    capabilities: provider.capabilities, availability: provider.availability, pricing: provider.pricing,
-    phone: provider.phone, website: provider.website, source_url: provider.source_url, verified_at: provider.verified_at,
+  if (!providers.length) return 'LOCAL BUSINESS RESULTS: none found for the current specialist task and location.';
+  return `LOCAL BUSINESS RESULTS:\n${providers.map((provider) => JSON.stringify({
+    id: provider.id, name: provider.name, category: provider.category, verified: provider.verified,
+    summary: provider.agent_summary, description: provider.description, postcode: provider.postcode,
+    service_areas: provider.service_areas, capabilities: provider.capabilities, availability: provider.availability,
+    pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url,
+    verified_at: provider.verified_at,
   })).join('\n')}`;
 }
 
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
     const reply = String(finalResult?.choices?.[0]?.message?.content || '').trim();
     if (!reply) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
 
-    return NextResponse.json({ reply, state, providers: providers.map(({ id, name, category, description, postcode, phone, website }) => ({ id, name, category, description, postcode, phone, website })) });
+    return NextResponse.json({ reply, state, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified }) => ({ id, name, category, description, postcode, phone, website, verified })) });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
     return NextResponse.json({ error: 'agent_unavailable', reply: 'Ik kan je aanvraag op dit moment niet verwerken. Probeer het over een moment opnieuw.' }, { status: 503 });
