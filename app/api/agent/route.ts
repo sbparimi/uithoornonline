@@ -4,6 +4,7 @@ import { kimiChat } from '../../../lib/kimi';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
 import { buildProviderQuery, DEFAULT_AGENT_STATE, deriveAgentState, stateContext, type AgentState } from '../../../lib/agent/state';
+import { specialistContext } from '../../../lib/agent/specialists';
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
     const messages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'system', content: stateContext(state) },
+      { role: 'system', content: `SPECIALIST WORKFLOW:\n${specialistContext(state)}` },
       { role: 'system', content: formatProviderContext(providers) },
       ...history,
       { role: 'user', content: message },
