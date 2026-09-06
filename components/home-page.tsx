@@ -28,7 +28,11 @@ export function HomePage() {
     <main className="uo-site" id="top">
       <header className="uo-header">
         <div className="uo-header-inner">
-          <a href="#top" className="uo-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark">u</span><span>ithoorn<span>.online</span></span></a>
+          <a href="#top" className="uo-brand" aria-label="Uithoorn.online home">
+            <span className="uo-brand-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></span>
+            <span className="uo-brand-wordmark">uithoorn<span>.online</span></span>
+            <small className="uo-brand-tagline">Lokaal in Uithoorn</small>
+          </a>
           <nav className="uo-nav" aria-label="Hoofdnavigatie">
             <button onClick={() => scrollToSection('explore')}>Ontdek</button>
             {nav.map(([label, id]) => <button key={id} onClick={() => scrollToSection(id)}>{label}</button>)}
@@ -75,12 +79,17 @@ export function HomePage() {
           <div className="uo-service-grid">{serviceHighlights.map((item) => <article key={item.mark}><span className="uo-number">{item.mark}</span><Wrench /><h3>{item.title}</h3><p>{item.text}</p><a href="/businesses">Vind een aanbieder <ArrowRight /></a></article>)}</div>
         </section>
 
-        <section className="uo-proof-section">
+        <section className="uo-proof-section" aria-labelledby="local-proof-title">
           <div className="uo-proof-inner">
-            <div><span className="uo-kicker">LOKAAL, IN ÉÉN OVERZICHT</span><h2>Van zoeken naar<br /><em>vinden.</em></h2></div>
+            <div><span className="uo-kicker">LOKAAL, IN ÉÉN OVERZICHT</span><h2 id="local-proof-title">Van zoeken naar<br /><em>vinden.</em></h2></div>
             <div className="uo-proof-copy"><p>Geen eindeloze zoekresultaten. Geen onduidelijke platforms. Alleen lokale categorieën, aanbieders en activiteiten die relevant zijn voor Uithoorn en De Kwakel.</p><a href="/businesses">Bekijk lokale aanbieders <ArrowRight /></a></div>
           </div>
-          <div className="uo-metrics"><div><strong>01</strong><span>Lokale diensten</span></div><div><strong>02</strong><span>Workshops & cursussen</span></div><div><strong>03</strong><span>Indian food</span></div><div><strong>1</strong><span>Lokale bestemming</span></div></div>
+          <div className="uo-proof-pillars">
+            <article><strong>01</strong><h3>Lokale diensten</h3><p>Vind betrouwbare hulp dichtbij huis.</p></article>
+            <article><strong>02</strong><h3>Workshops & cursussen</h3><p>Leer en maak iets nieuws in je eigen omgeving.</p></article>
+            <article><strong>03</strong><h3>Indian food</h3><p>Ontdek lokaal bereid Indiaas eten.</p></article>
+            <article><strong>04</strong><h3>Lokale ondernemers</h3><p>Vind en ondersteun ondernemers uit Uithoorn en De Kwakel.</p></article>
+          </div>
         </section>
 
         <section className="uo-section" id="workshops"><div className="uo-section-head"><div><span className="uo-kicker">02 · WORKSHOPS</span><h2>Leer iets nieuws.<br /><em>Maak iets zelf.</em></h2></div><a href="/workshops">Alle workshops <ArrowRight /></a></div><div className="uo-workshop-grid">{workshops.slice(0, 3).map((item, index) => <article key={item.title}><div className={`uo-workshop-art art-${index + 1}`}><span>{String(index + 1).padStart(2, '0')}</span><Sparkles /></div><div className="uo-card-body"><span>{item.provider}</span><h3>{item.title}</h3><p>{item.description}</p><small><MapPin /> {item.meta}</small><a href="/workshops">Bekijk workshop <ArrowRight /></a></div></article>)}</div></section>
@@ -93,7 +102,7 @@ export function HomePage() {
       </>}
 
       <section className="uo-business-cta"><div><span className="uo-kicker">VOOR LOKALE ONDERNEMERS</span><h2>Sta waar je<br /><em>gevonden wordt.</em></h2><p>Bereik mensen in Uithoorn en De Kwakel die lokaal zoeken.</p></div><a href="/signup">Word aanbieder <ArrowRight /></a></section>
-      <footer className="uo-footer"><a href="#top" className="uo-brand"><span className="uo-brand-mark">u</span><span>ithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
+      <footer className="uo-footer"><a href="#top" className="uo-brand"><span className="uo-brand-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></span><span className="uo-brand-wordmark">uithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
     </main>
   );
 }
