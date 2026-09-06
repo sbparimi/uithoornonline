@@ -1,55 +1,69 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase/server';
+import { kimiChat } from '../../../lib/kimi';
 
-const specialists = [
-  { key: 'cleaning', name: 'Cleaner Agent', label: 'Schoonmaak specialist', terms: ['schoon', 'poets', 'clean', 'huishoud'] },
-  { key: 'garden', name: 'Garden Agent', label: 'Tuin specialist', terms: ['tuin', 'gras', 'heg', 'bestrating', 'plant'] },
-  { key: 'transport', name: 'Transport Agent', label: 'Transport specialist', terms: ['verhuis', 'transport', 'bezorg', 'vervoer', 'meubel'] },
-  { key: 'home', name: 'Home Agent', label: 'Wonen & klus specialist', terms: ['loodgieter', 'elektr', 'schilder', 'klus', 'repar', 'renovat', 'dak', 'install'] },
-  { key: 'food', name: 'Food Agent', label: 'Food specialist', terms: ['eten', 'food', 'catering', 'biryani', 'dosa', 'restaurant', 'maaltijd'] },
-] as const;
+type ChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
 
-function resolveSpecialist(message: string) {
-  const value = message.toLowerCase();
-  return specialists.find((specialist) => specialist.terms.some((term) => value.includes(term))) ?? null;
+const SYSTEM_PROMPT = `Je bent Uithoorn.online, een lokale AI-assistent voor inwoners van Uithoorn en De Kwakel.
+
+Je doel is om de gebruiker zo snel mogelijk te helpen een lokale taak geregeld te krijgen. Voer een natuurlijke, korte meerstapsconversatie. Begrijp de bedoeling van de gebruiker, vraag alleen om informatie die noodzakelijk is voor de volgende stap en neem bekende informatie uit het gesprek mee.
+
+Belangrijke regels:
+- Spreek natuurlijk Nederlands, tenzij de gebruiker Engels gebruikt; antwoord dan in het Engels.
+- Leg nooit interne architectuur uit en noem geen orchestrator, specialist agents, tools, routing, modellen of technische implementatiedetails.
+- Doe niet alsof een lokale aanbieder, prijs, beschikbaarheid, openingstijd of andere actuele bedrijfsinformatie bekend is als die informatie niet uit een betrouwbare bron is opgehaald.
+- Verzinnen van lokale bedrijven of actuele feiten is verboden.
+- Als je nog geen betrouwbare lokale gegevens hebt, zeg dat je de aanvraag eerst verder moet specificeren.
+- Focus op het regelen van de taak, niet op het uitleggen van Uithoorn.online.
+- Houd antwoorden compact en actiegericht.
+- Als locatie ontbreekt voor een lokale taak, vraag naar plaats of postcode.
+- Vraag niet opnieuw naar informatie die de gebruiker al heeft gegeven.`;
+
+function normalizeHistory(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is { role?: unknown; content?: unknown } => Boolean(item && typeof item === 'object'))
+    .map((item) => ({
+      role: item.role === 'assistant' ? 'assistant' : 'user',
+      content: String(item.content ?? '').trim(),
+    }))
+    .filter((item) => item.content.length > 0)
+    .slice(-12);
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const message = String(body.message || '').trim();
-    if (!message || message.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
 
-    const specialist = resolveSpecialist(message);
-    if (!specialist) {
-      return NextResponse.json({
-        intent: null,
-        specialist: null,
-        providers: [],
-        reply: 'Ik wil dit voor je regelen. Vertel kort wat er moet gebeuren en in welke plaats of postcode.',
-      });
+    if (!message || message.length > 4000) {
+      return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const { data: providers, error } = await supabase
-      .from('businesses')
-      .select('id,name,category,description,postcode,phone,website,verified')
-      .eq('active', true)
-      .eq('verified', true)
-      .ilike('category', `%${specialist.key === 'cleaning' ? 'clean' : specialist.key}%`)
-      .limit(5);
+    const history = normalizeHistory(body.messages);
+    const messages: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: message },
+    ];
 
-    if (error) return NextResponse.json({ error: 'business_lookup_failed' }, { status: 500 });
+    const result = await kimiChat(messages);
+    const reply = String(result?.choices?.[0]?.message?.content || '').trim();
 
-    return NextResponse.json({
-      intent: specialist.key,
-      specialist: { name: specialist.name, label: specialist.label },
-      providers: providers ?? [],
-      reply: providers?.length
-        ? `${specialist.name} is actief. Ik heb ${providers.length} geverifieerde lokale aanbieder${providers.length === 1 ? '' : 's'} gevonden. Ik heb nog je locatie en gewenste moment nodig om de aanvraag gericht verder te brengen.`
-        : `${specialist.name} is actief. Ik heb op dit moment nog geen geverifieerde aanbieder in deze categorie gevonden. Ik kan eerst je locatie en gewenste moment vastleggen.`,
-    });
-  } catch {
-    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+    if (!reply) {
+      console.error('KIMI_EMPTY_RESPONSE');
+      return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
+    }
+
+    return NextResponse.json({ reply });
+  } catch (error) {
+    console.error('KIMI_AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
+    return NextResponse.json(
+      { error: 'agent_unavailable', reply: 'Ik kan je aanvraag op dit moment niet verwerken. Probeer het over een moment opnieuw.' },
+      { status: 503 },
+    );
   }
 }
