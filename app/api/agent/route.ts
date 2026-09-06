@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { kimiChat } from '../../../lib/kimi';
+import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 
 type ChatMessage = {
   role: 'system' | 'user' | 'assistant';
@@ -13,9 +14,10 @@ Je doel is om de gebruiker zo snel mogelijk te helpen een lokale taak geregeld t
 Belangrijke regels:
 - Spreek natuurlijk Nederlands, tenzij de gebruiker Engels gebruikt; antwoord dan in het Engels.
 - Leg nooit interne architectuur uit en noem geen orchestrator, specialist agents, tools, routing, modellen of technische implementatiedetails.
-- Doe niet alsof een lokale aanbieder, prijs, beschikbaarheid, openingstijd of andere actuele bedrijfsinformatie bekend is als die informatie niet uit een betrouwbare bron is opgehaald.
+- Gebruik lokale bedrijfsinformatie alleen uit de meegeleverde geverifieerde providergegevens.
+- Als geverifieerde providergegevens zijn meegeleverd, mag je die feiten gebruiken en relevante opties tonen.
 - Verzinnen van lokale bedrijven of actuele feiten is verboden.
-- Als je nog geen betrouwbare lokale gegevens hebt, zeg dat je de aanvraag eerst verder moet specificeren.
+- Als er geen passende geverifieerde provider is gevonden, zeg dat duidelijk en vraag alleen om noodzakelijke aanvullende informatie.
 - Focus op het regelen van de taak, niet op het uitleggen van Uithoorn.online.
 - Houd antwoorden compact en actiegericht.
 - Als locatie ontbreekt voor een lokale taak, vraag naar plaats of postcode.
@@ -34,6 +36,32 @@ function normalizeHistory(value: unknown): ChatMessage[] {
     .slice(-12);
 }
 
+function extractPostcode(text: string): string {
+  return text.match(/\b\d{4}\s?[A-Z]{2}\b/i)?.[0]?.replace(/\s+/g, '').toUpperCase() || '';
+}
+
+function formatProviderContext(providers: AgentProvider[]): string {
+  if (!providers.length) return 'GEVERIFIEERDE PROVIDERS: geen passende provider gevonden.';
+
+  return `GEVERIFIEERDE PROVIDERS (gebruik uitsluitend deze actuele gegevens):\n${providers
+    .map((provider) => JSON.stringify({
+      name: provider.name,
+      category: provider.category,
+      summary: provider.agent_summary,
+      description: provider.description,
+      postcode: provider.postcode,
+      service_areas: provider.service_areas,
+      capabilities: provider.capabilities,
+      availability: provider.availability,
+      pricing: provider.pricing,
+      phone: provider.phone,
+      website: provider.website,
+      source_url: provider.source_url,
+      verified_at: provider.verified_at,
+    }))
+    .join('\n')}`;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -44,8 +72,21 @@ export async function POST(request: Request) {
     }
 
     const history = normalizeHistory(body.messages);
+    const userContext = [...history.filter((item) => item.role === 'user'), { role: 'user' as const, content: message }]
+      .map((item) => item.content)
+      .join('\n');
+    const postcode = extractPostcode(userContext);
+
+    let providers: AgentProvider[] = [];
+    try {
+      providers = await searchVerifiedProviders(userContext, postcode, 5);
+    } catch (error) {
+      console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error');
+    }
+
     const messages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: formatProviderContext(providers) },
       ...history,
       { role: 'user', content: message },
     ];
