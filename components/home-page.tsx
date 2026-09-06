@@ -1,45 +1,52 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, MapPin, Menu, Search, Sparkles, Wrench, X } from 'lucide-react';
-import { workshops } from '../data';
+import { useState } from 'react';
+import { ArrowRight, Bot, CheckCircle2, MapPin, Menu, Sparkles, X } from 'lucide-react';
+import AgentChat from './agent-chat';
 
-const nav = [['Diensten', 'services'], ['Activiteiten', 'workshops'], ['Eten & drinken', 'food']] as const;
-const taskDomains = [
-  { title: 'Thuis & renovatie', text: 'Van kleine reparaties tot schilderwerk, verbouwing en installatie.', mark: '01' },
-  { title: 'Tuin & buiten', text: 'Van tuinonderhoud tot complete tuinrenovatie, bestrating en schuttingen.', mark: '02' },
-  { title: 'Schoonmaak', text: 'Van reguliere schoonmaak tot dieptereiniging en oplevering.', mark: '03' },
-  { title: 'Transport & logistiek', text: 'Van verhuizing en meubeltransport tot lokale bezorging en afvoer.', mark: '04' },
+const specialists = [
+  ['01', 'Cleaner Agent', 'Schoonmaak & huishouden'],
+  ['02', 'Garden Agent', 'Tuin & buiten'],
+  ['03', 'Transport Agent', 'Verhuizen & logistiek'],
+  ['04', 'Home Agent', 'Klussen & renovatie'],
 ];
 
-function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-
 export function HomePage() {
-  const [query, setQuery] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const q = query.trim().toLowerCase();
-  const workshopResults = useMemo(() => workshops.filter((item) => `${item.title} ${item.provider} ${item.meta} ${item.description}`.toLowerCase().includes(q)), [q]);
-  const foodMatch = q && ['indian', 'indiaas', 'food', 'eten', 'dosa', 'idli', 'vada', 'biryani', 'spiceindia'].some((term) => q.includes(term));
-  const total = q ? workshopResults.length + (foodMatch ? 1 : 0) : 0;
 
-  return (
-    <main className="uo-site" id="top">
-      <header className="uo-header"><div className="uo-header-inner"><a href="#top" className="uo-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></span><span className="uo-brand-wordmark">uithoorn<span>.online</span></span><small className="uo-brand-tagline">Lokaal in Uithoorn</small></a><nav className="uo-nav" aria-label="Hoofdnavigatie"><button onClick={() => scrollToSection('task')}>Wat heb je nodig?</button>{nav.map(([label, id]) => <button key={id} onClick={() => scrollToSection(id)}>{label}</button>)}</nav><div className="uo-header-actions"><span className="uo-location"><MapPin /> Uithoorn & De Kwakel</span><a className="uo-header-cta" href="/signup">Voor ondernemers</a><button className="uo-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu" aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button></div></div>{mobileOpen && <nav className="uo-mobile-nav" aria-label="Mobiele navigatie"><button onClick={() => { scrollToSection('task'); setMobileOpen(false); }}>Wat heb je nodig?</button>{nav.map(([label, id]) => <button key={id} onClick={() => { scrollToSection(id); setMobileOpen(false); }}>{label}</button>)}<a href="/businesses">Lokale aanbieders</a><a href="/signup">Voor ondernemers</a></nav>}</header>
+  return <main className="uo-agent-site" id="top">
+    <header className="uo-agent-header">
+      <a href="#top" className="uo-agent-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>uithoorn<span>.online</span></span></a>
+      <nav className="uo-agent-nav" aria-label="Hoofdnavigatie"><a href="#how">Hoe het werkt</a><a href="#agents">Specialist agents</a><a href="#local">Lokaal</a></nav>
+      <div className="uo-agent-header-actions"><span><MapPin /> Uithoorn & De Kwakel</span><a href="/signup">Voor ondernemers</a><button className="uo-agent-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">{mobileOpen ? <X /> : <Menu />}</button></div>
+      {mobileOpen && <nav className="uo-agent-mobile-nav"><a href="#how" onClick={() => setMobileOpen(false)}>Hoe het werkt</a><a href="#agents" onClick={() => setMobileOpen(false)}>Specialist agents</a><a href="#local" onClick={() => setMobileOpen(false)}>Lokaal</a><a href="/signup">Voor ondernemers</a></nav>}
+    </header>
 
-      <section className="uo-hero" id="task"><div className="uo-hero-copy"><div className="uo-eyebrow"><MapPin /> Uithoorn & De Kwakel</div><h1>Wat moet er<br /><em>lokaal geregeld worden?</em></h1><p>Beschrijf wat je nodig hebt. Uithoorn.online helpt je de juiste lokale aanbieder te vinden, beschikbaarheid en budget te matchen en de volgende stap te regelen.</p><div className="uo-hero-links"><a href="#task-request">Start een lokale aanvraag <ArrowRight /></a><a href="/businesses">Bekijk aanbieders <ArrowRight /></a></div></div><div className="uo-search-wrap" id="task-request"><div className="uo-search-label">BESCHRIJF JE TAAK</div><div className="uo-search" role="search"><Search aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Bijvoorbeeld: ik heb vandaag een loodgieter nodig" aria-label="Beschrijf wat je lokaal nodig hebt" />{q && <button onClick={() => setQuery('')} aria-label="Aanvraag wissen"><X /></button>}</div><div className="uo-search-hints"><span>Voorbeelden</span><button onClick={() => setQuery('Ik heb vandaag een loodgieter nodig')}>loodgieter vandaag</button><button onClick={() => setQuery('Ik wil mijn tuin laten renoveren')}>tuinrenovatie</button><button onClick={() => setQuery('Ik zoek transport voor een bank')}>meubeltransport</button></div><div className="uo-search-note"><span>Lokale task matching</span><strong>Uithoorn + De Kwakel</strong></div></div></section>
+    <section className="uo-agent-hero">
+      <div className="uo-agent-hero-copy">
+        <div className="uo-agent-eyebrow"><span className="uo-live-dot" /> AI AGENT FOR LOCAL TASKS</div>
+        <h1>Vertel wat je nodig hebt.<br /><em>Wij regelen de rest.</em></h1>
+        <p>Uithoorn.online is een AI-agent voor lokale taken. Eén gesprek begrijpt je intentie, schakelt de juiste specialist in en brengt je vraag van verzoek naar uitvoering.</p>
+        <button className="uo-agent-primary" onClick={() => setChatOpen(true)}>Start de chat <ArrowRight /></button>
+        <div className="uo-agent-trust"><CheckCircle2 /> Geen formulieren. Geen zoeken door tientallen aanbieders. Eén gesprek.</div>
+      </div>
+      <button className="uo-agent-launch-card" onClick={() => setChatOpen(true)} aria-label="Start de Uithoorn Agent chat">
+        <div className="uo-agent-launch-top"><div className="uo-agent-large-avatar"><Bot /></div><span>Uithoorn Agent <small>● online</small></span></div>
+        <h2>Heb je een lokale taak?</h2>
+        <p>Vertel wat er moet gebeuren. De Orchestrator begrijpt je intentie en schakelt automatisch de juiste specialist agent in.</p>
+        <span className="uo-agent-launch-button">Start de chat <ArrowRight /></span>
+      </button>
+    </section>
 
-      <section className="uo-platform-strip" aria-label="Lokale taken"><div><span>01</span><strong>Thuis</strong><small>Renovatie & reparatie</small></div><div><span>02</span><strong>Tuin</strong><small>Onderhoud & renovatie</small></div><div><span>03</span><strong>Schoon</strong><small>Reiniging & oplevering</small></div><div><span>04</span><strong>Transport</strong><small>Verhuizen & logistiek</small></div></section>
+    <section className="uo-agent-how" id="how"><div className="uo-agent-section-label">EÉN GESPREK · MEERDERE AGENTS</div><h2>Van intentie naar uitvoering<br /><em>zonder omwegen.</em></h2><div className="uo-agent-flow"><article><strong>01</strong><Bot /><h3>Vertel</h3><p>Je beschrijft je behoefte in je eigen woorden. De agent vraagt alleen wat nodig is.</p></article><div className="uo-agent-flow-arrow"><ArrowRight /></div><article><strong>02</strong><Sparkles /><h3>Orchestrate</h3><p>De Orchestrator herkent de intentie en kiest de specialist die de taak kan uitvoeren.</p></article><div className="uo-agent-flow-arrow"><ArrowRight /></div><article><strong>03</strong><CheckCircle2 /><h3>Regel</h3><p>De specialist agent voert de taak uit, verzamelt resultaat en geeft het terug aan jou.</p></article></div></section>
 
-      {q ? <section className="uo-results" aria-live="polite"><div className="uo-section-head"><div><span className="uo-kicker">Lokale zoekresultaten</span><h2>{total} resultaten voor <em>“{query}”</em></h2></div><button onClick={() => setQuery('')} className="uo-text-button">Wis aanvraag <ArrowRight /></button></div>{total === 0 ? <div className="uo-empty"><Search /><h3>Deze taak is nog niet gematcht</h3><p>Beschrijf je taak zo concreet mogelijk. Voor een echte aanvraag kun je ook de geverifieerde lokale aanbieders bekijken.</p><a href="/businesses">Bekijk geverifieerde aanbieders <ArrowRight /></a></div> : <div className="uo-result-groups">{workshopResults.length > 0 && <div><div className="uo-result-label">Activiteiten & workshops <b>{workshopResults.length}</b></div><div className="uo-list">{workshopResults.map((item) => <article key={item.title}><div><span>{item.provider}</span><h3>{item.title}</h3><p>{item.description}</p></div><strong>{item.meta}</strong></article>)}</div></div>}{foodMatch && <div><div className="uo-result-label">Food & drink <b>1</b></div><article className="uo-food-feature uo-spice"><div><span>SPICEINDIA</span><h3>South Indian food in Uithoorn</h3><p>Andhra-style biryani · dosa · idli · vada</p></div><a href="https://www.spiceindia.nl/">Bekijk menu <ArrowRight /></a></article></div>}</div>}</section> : <>
-        <section className="uo-section uo-intro-section"><div className="uo-section-head"><div><span className="uo-kicker">LOKALE TAKEN, NIET ALLEEN LIJSTJES</span><h2>Van lokale vraag<br /><em>naar geregeld.</em></h2></div><p className="uo-section-lead">Uithoorn.online is gebouwd om inwoners te helpen een lokale taak daadwerkelijk verder te brengen — van eerste aanvraag tot een passende aanbieder en bevestigde volgende stap.</p></div><div className="uo-service-grid">{taskDomains.map((item) => <article key={item.mark}><span className="uo-number">{item.mark}</span><Wrench /><h3>{item.title}</h3><p>{item.text}</p><a href="/businesses">Bekijk lokale aanbieders <ArrowRight /></a></article>)}</div></section>
-        <section className="uo-proof-section" aria-labelledby="local-proof-title"><div className="uo-proof-inner"><div><span className="uo-kicker">DE UITHOORN.ONLINE ROUTE</span><h2 id="local-proof-title">Niet alleen vinden.<br /><em>Regelen.</em></h2></div><div className="uo-proof-copy"><p>De waarde zit in het sluiten van de taak: begrijpen wat je nodig hebt, passende providers vinden, beschikbaarheid en budget meenemen en de aanvraag naar een bevestigde volgende stap brengen.</p><a href="#task">Start een lokale aanvraag <ArrowRight /></a></div></div><div className="uo-proof-pillars"><article><strong>01</strong><h3>Vertel</h3><p>Beschrijf wat er gedaan moet worden.</p></article><article><strong>02</strong><h3>Match</h3><p>Match op vakgebied, locatie, beschikbaarheid en budget.</p></article><article><strong>03</strong><h3>Kies</h3><p>Vergelijk passende opties en kies de aanbieder.</p></article><article><strong>04</strong><h3>Regel</h3><p>Ga naar bevestiging, boeking en opvolging van de taak.</p></article></div></section>
-        <section className="uo-section" id="workshops"><div className="uo-section-head"><div><span className="uo-kicker">DOE LOKAAL</span><h2>Ook voor activiteiten.<br /><em>Ontdek & boek.</em></h2></div><a href="/workshops">Alle activiteiten <ArrowRight /></a></div><div className="uo-workshop-grid">{workshops.slice(0, 3).map((item, index) => <article key={item.title}><div className={`uo-workshop-art art-${index + 1}`}><span>{String(index + 1).padStart(2, '0')}</span><Sparkles /></div><div className="uo-card-body"><span>{item.provider}</span><h3>{item.title}</h3><p>{item.description}</p><small><MapPin /> {item.meta}</small><a href="/workshops">Bekijk activiteit <ArrowRight /></a></div></article>)}</div></section>
-        <section className="uo-feature-section"><div className="uo-feature-copy"><span className="uo-kicker">LOKAAL ETEN</span><h2>Ook eten geregeld.<br /><em>Direct naar de bron.</em></h2><p>Ontdek lokale food businesses en ga direct door naar menu, website of contact.</p><a href="/food">Ontdek food & drink <ArrowRight /></a></div><div className="uo-feature-visual"><span>FOOD & DRINK</span><strong>Local food<br />in Uithoorn</strong><small>Uithoorn · De Kwakel</small></div></section>
-        <section className="uo-section uo-providers" id="providers"><div className="uo-section-head"><div><span className="uo-kicker">VERIFIED LOCAL PROVIDERS</span><h2>Lokale aanbieders die taken kunnen uitvoeren.</h2></div><a href="/businesses">Alle aanbieders <ArrowRight /></a></div><div className="uo-provider-list uo-provider-list-empty"><div><strong>Geverifieerde lokale aanbieders</strong><small>De openbare gids toont alleen actieve aanbieders die door Uithoorn.online zijn geverifieerd.</small></div><a href="/businesses">Bekijk gids <ArrowRight /></a></div></section>
-        <section className="uo-editorial"><div className="uo-editorial-head"><span className="uo-kicker">WAAROM UITHOORN.ONLINE</span><h2>Gebouwd om lokale taken te sluiten.</h2></div><div className="uo-editorial-grid"><article><span>01</span><h3>Lokale match</h3><p>We richten de vraag op Uithoorn en De Kwakel en zoeken binnen relevante lokale capaciteit.</p></article><article><span>02</span><h3>Beschikbaarheid telt</h3><p>Niet alleen wie de dienst aanbiedt, maar wie de taak kan uitvoeren wanneer de klant die nodig heeft.</p></article><article><span>03</span><h3>Van vraag naar resultaat</h3><p>Het doel is een bevestigde volgende stap en uiteindelijk een afgeronde taak, niet alleen een klik op een telefoonnummer.</p></article></div></section>
-      </>}
-      <section className="uo-business-cta"><div><span className="uo-kicker">VOOR LOKALE ONDERNEMERS</span><h2>Ontvang echte lokale<br /><em>taakaanvragen.</em></h2><p>Laat zien welke taken je uitvoert, waar je werkt, wat je capaciteit is en wanneer je beschikbaar bent.</p></div><a href="/signup">Word lokale provider <ArrowRight /></a></section>
-      <footer className="uo-footer"><a href="#top" className="uo-brand"><span className="uo-brand-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></span><span className="uo-brand-wordmark">uithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
-    </main>
-  );
+    <section className="uo-agent-specialists" id="agents"><div><div className="uo-agent-section-label">SPECIALIST AGENTS</div><h2>Niet één chatbot.<br /><em>Een team van agents.</em></h2><p>De Uithoorn Agent blijft jouw enige gesprekspartner. Op de achtergrond worden specialist agents geactiveerd op basis van wat jij nodig hebt.</p></div><div className="uo-agent-specialist-grid">{specialists.map(([num, name, description]) => <article key={name}><span>{num}</span><Bot /><div><h3>{name}</h3><p>{description}</p></div><ArrowRight /></article>)}</div></section>
+
+    <section className="uo-agent-local" id="local"><div className="uo-agent-local-copy"><div className="uo-agent-section-label">BUILT FOR UITHOORN</div><h2>Lokale uitvoering.<br /><em>Niet alleen lokale informatie.</em></h2><p>De waarde van Uithoorn.online zit niet in een lijst met telefoonnummers. De agent helpt een inwoner een concrete taak daadwerkelijk verder te brengen — met lokale aanbieders, relevante informatie en opvolging in hetzelfde gesprek.</p><button className="uo-agent-secondary" onClick={() => setChatOpen(true)}>Probeer een lokale taak <ArrowRight /></button></div><div className="uo-agent-orchestration"><div className="uo-orch-center"><Bot /><span>Orchestrator</span></div><div className="uo-orch-line line-1" /><div className="uo-orch-line line-2" /><div className="uo-orch-line line-3" /><div className="uo-orch-node node-1"><strong>Cleaner</strong><small>Task execution</small></div><div className="uo-orch-node node-2"><strong>Garden</strong><small>Task execution</small></div><div className="uo-orch-node node-3"><strong>Transport</strong><small>Task execution</small></div></div></section>
+
+    <section className="uo-agent-business"><div><div className="uo-agent-section-label">FOR LOCAL PROVIDERS</div><h2>Word de specialist die<br /><em>lokale taken uitvoert.</em></h2><p>Ontvang relevante opdrachten die passen bij jouw diensten, werkgebied en capaciteit.</p></div><a href="/signup">Word lokale provider <ArrowRight /></a></section>
+    <footer className="uo-agent-footer"><a href="#top" className="uo-agent-brand"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>uithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
+    {chatOpen && <AgentChat onClose={() => setChatOpen(false)} />}
+  </main>;
 }
