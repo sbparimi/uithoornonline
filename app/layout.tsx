@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './uo.css';
+import './speakin-theme.css';
 import './uopages.css';
 
 export const metadata: Metadata = {
