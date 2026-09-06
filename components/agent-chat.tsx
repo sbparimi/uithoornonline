@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react';
 import { Bot, Loader2, Minus, Send, X } from 'lucide-react';
 
 type Message = { id: number; role: 'assistant' | 'user'; text: string };
-type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean };
+type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null };
 type AgentResponse = { providers: Provider[]; reply: string };
 
 export default function AgentChat({ onClose }: { onClose: () => void }) {
@@ -20,7 +20,8 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
     const text = input.trim();
     if (!text || typing) return;
 
-    setMessages((current) => [...current, { id: Date.now(), role: 'user', text }]);
+    const nextMessages = [...messages, { id: Date.now(), role: 'user' as const, text }];
+    setMessages(nextMessages);
     setInput('');
     setTyping(true);
 
@@ -28,19 +29,17 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       const response = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          messages: nextMessages.map((item) => ({ role: item.role, content: item.text })),
+        }),
       });
       const data: AgentResponse = await response.json();
       if (!response.ok) throw new Error('agent_request_failed');
 
-      const providerText = data.providers?.length
-        ? `Ik heb ${data.providers.length} passende lokale aanbieder${data.providers.length === 1 ? '' : 's'} gevonden:\n\n${data.providers.map((provider) => `• ${provider.name}${provider.postcode ? ` — ${provider.postcode}` : ''}`).join('\n')}`
-        : '';
-
       setMessages((current) => [
         ...current,
         { id: Date.now() + 1, role: 'assistant', text: data.reply },
-        ...(providerText ? [{ id: Date.now() + 2, role: 'assistant' as const, text: providerText }] : []),
       ]);
     } catch {
       setMessages((current) => [...current, {
