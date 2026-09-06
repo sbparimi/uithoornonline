@@ -1,14 +1,17 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { orderedTranslationKeys, translations } from '../lib/i18n';
+import { extraTranslations } from '../lib/i18n-extra';
 
 type Locale = 'nl' | 'en';
 const KEY = 'uithoorn-locale';
+const allTranslations = { ...translations, ...extraTranslations };
+const allKeys = Object.keys(allTranslations).sort((a,b)=>b.length-a.length);
 const originals = new WeakMap<Text, string>();
 function tx(value: string, locale: Locale) {
   if (locale === 'nl') return value;
   let result = value;
-  for (const key of orderedTranslationKeys) if (result.includes(key)) result = result.split(key).join(translations[key]);
+  for (const key of allKeys) if (result.includes(key)) result = result.split(key).join(allTranslations[key]);
   return result.replace(/(\d+) resultaten\b/g, '$1 results').replace(/(\d+) resultaat\b/g, '$1 result');
 }
 function translateDom(locale: Locale) {
