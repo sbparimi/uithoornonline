@@ -35,6 +35,7 @@ export type AgentProvider = {
   verified_at: string | null;
   agent_summary: string;
   agent_metadata: Record<string, unknown>;
+  verified: boolean;
 };
 
 export async function searchVerifiedProviders(query: string, postcode = '', limit = 5): Promise<AgentProvider[]> {
