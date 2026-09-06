@@ -38,7 +38,7 @@ export type AgentProvider = {
 };
 
 export async function searchVerifiedProviders(query: string, postcode = '', limit = 5): Promise<AgentProvider[]> {
-  const { data, error } = await getAgentClient().schema('agent_private').rpc('search_verified_providers', {
+  const { data, error } = await getAgentClient().rpc('search_verified_providers', {
     p_query: query.slice(0, 500),
     p_postcode: postcode.slice(0, 20),
     p_limit: Math.min(Math.max(limit, 1), 20),
