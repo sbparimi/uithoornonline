@@ -4,6 +4,7 @@ import './uo.css';
 import './speakin-theme.css';
 import './uopages.css';
 import './locale.css';
+import './brand-proof-fixes.css';
 import { LocaleProvider } from '../components/locale-provider';
 
 export const metadata: Metadata = {
