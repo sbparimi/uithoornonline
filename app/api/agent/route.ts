@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { kimiChat } from '../../../lib/kimi';
+import { discoverGooglePlaces } from '../../../lib/agent/discovery';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
 import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentState } from '../../../lib/agent/state';
@@ -17,8 +18,10 @@ RULES:
 - Do not ask another question when specialist status is ready.
 - Never invent local businesses, prices, availability, opening hours, capabilities, ratings or review counts.
 - Use only supplied provider results and specialist execution data.
+- Providers with verified=true are first-party Uithoorn.online verified providers. Providers with verified=false may be curated or live-discovered and must not be described as verified.
+- If a live-discovered provider is present, describe it as found via Google Maps/Google Places, not as verified by Uithoorn.online.
 - If providers are present, explain the useful result and let the provider cards carry contact details.
-- If no providers are present, clearly say that no matching provider was found in the current local inventory; do not fabricate an alternative.
+- If no providers are present, clearly say that no matching provider was found in the current local inventory and no live discovery result is available.
 - If a provider has a rating, display the supplied rating, review count and source exactly.
 - Be concise, concrete and action-oriented.
 - Do not mention LLMs, prompts, tools, orchestration or internal architecture.`;
@@ -36,7 +39,7 @@ function normalizeHistory(value: unknown, currentMessage: string): ChatMessage[]
 }
 
 function formatProviderContext(providers: AgentProvider[]): string {
-  if (!providers.length) return 'LOCAL BUSINESS RESULTS: none found in the current Uithoorn.online inventory.';
+  if (!providers.length) return 'LOCAL BUSINESS RESULTS: none found.';
   return `LOCAL BUSINESS RESULTS:\n${providers.map((provider) => JSON.stringify({
     id: provider.id, name: provider.name, category: provider.category, verified: provider.verified,
     summary: provider.agent_summary, description: provider.description, postcode: provider.postcode,
@@ -44,7 +47,7 @@ function formatProviderContext(providers: AgentProvider[]): string {
     pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url,
     verified_at: provider.verified_at, rating_score: provider.rating_score, rating_max: provider.rating_max,
     rating_review_count: provider.rating_review_count, rating_source: provider.rating_source,
-    rating_retrieved_at: provider.rating_retrieved_at,
+    rating_retrieved_at: provider.rating_retrieved_at, agent_metadata: provider.agent_metadata,
   })).join('\n')}`;
 }
 
@@ -57,6 +60,34 @@ async function renderReadyResponse(message: string, history: ChatMessage[], stat
     { role: 'user', content: message },
   ]);
   return String(result?.choices?.[0]?.message?.content || '').trim();
+}
+
+function mergeProviders(local: AgentProvider[], discovered: AgentProvider[]): AgentProvider[] {
+  const result = [...local];
+  const seen = new Set(local.map((provider) => provider.name.toLowerCase().trim()));
+  for (const provider of discovered) {
+    const key = provider.name.toLowerCase().trim();
+    if (!seen.has(key)) { result.push(provider); seen.add(key); }
+    if (result.length >= 5) break;
+  }
+  return result;
+}
+
+async function searchProviders(state: AgentState, query: string): Promise<AgentProvider[]> {
+  let local: AgentProvider[] = [];
+  try { local = await searchVerifiedProviders(query, state.location.municipality, 5); }
+  catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+
+  // Events require an event-specific source; Google Places is deliberately not used as an event source.
+  if (state.specialist === 'events' || local.length >= 5) return local;
+
+  try {
+    const discovered = await discoverGooglePlaces(query, state.location.municipality, 5 - local.length);
+    return mergeProviders(local, discovered);
+  } catch (error) {
+    console.error('AGENT_DISCOVERY_ERROR', error instanceof Error ? error.message : 'unknown_error');
+    return local;
+  }
 }
 
 export async function POST(request: Request) {
@@ -77,11 +108,9 @@ export async function POST(request: Request) {
     try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; }
     catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
 
-    // Layer 1: LLM orchestrator understands the user's meaning and routes the task.
     const decision = await orchestrate(message, history, previousState);
     let state = applyOrchestratorDecision(decision, previousState);
 
-    // Safety remains deterministic and independent from generated text.
     state.safety = emergencyFromMessage(message);
     if (state.safety.emergency) {
       const reply = 'Dit klinkt als een noodsituatie. Bel direct 112 voor politie, brandweer of ambulance.';
@@ -91,17 +120,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ reply, state, safety: state.safety, actions: [{ label: 'Bel 112', value: 'Bel 112', kind: 'emergency' }], providers: [] });
     }
 
-    // Layer 2: selected specialist executes its graph and performs slot filling.
     const specialistResult = await executeSpecialist(message, history, state);
     state = applySpecialistResult(state, specialistResult);
 
     let providers: AgentProvider[] = [];
     if (specialistResult.shouldSearch && state.task.status === 'ready') {
       const providerQuery = buildProviderQuery(state);
-      if (providerQuery) {
-        try { providers = await searchVerifiedProviders(providerQuery, state.location.municipality, 5); }
-        catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
-      }
+      if (providerQuery) providers = await searchProviders(state, providerQuery);
       state.task = { ...state.task, status: 'completed' };
       if (providers.length === 1) state.activeProviderId = providers[0].id;
     }
@@ -120,7 +145,7 @@ export async function POST(request: Request) {
       state,
       safety: state.safety,
       actions,
-      providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source })),
+      providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, agent_metadata }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, external_source: agent_metadata?.discovery_source || null })),
     });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
