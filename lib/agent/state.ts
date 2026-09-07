@@ -3,9 +3,11 @@ export type AgentLanguage = 'nl' | 'en';
 export type SemanticIntent = 'find_food' | 'order_food' | 'find_service' | 'find_business' | 'find_event' | 'general_local';
 export type AgentSlot = 'service' | 'cuisine' | 'category' | 'fulfilment' | 'date' | 'people' | 'location';
 export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
+export type AgentContact = { name: string; email: string; phone: string; address: string };
 
 export type AgentState = {
   language: AgentLanguage;
+  contact: AgentContact | null;
   location: { municipality: 'Uithoorn' | 'De Kwakel'; postcode: string | null; source: 'default' | 'user' | 'postcode' };
   intent: { primary: SemanticIntent; confidence: number };
   entities: { category: string | null; cuisine: string | null; service: string | null; fulfilment: 'pickup' | 'delivery' | 'dine_in' | null; dish: string | null; people: number | null; date: string | null };
@@ -18,6 +20,7 @@ export type AgentState = {
 
 export const DEFAULT_AGENT_STATE: AgentState = {
   language: 'nl',
+  contact: null,
   location: { municipality: 'Uithoorn', postcode: null, source: 'default' },
   intent: { primary: 'general_local', confidence: 0 },
   entities: { category: null, cuisine: null, service: null, fulfilment: null, dish: null, people: null, date: null },
@@ -73,6 +76,7 @@ export function applyOrchestratorDecision(decision: {
   const merged: AgentState = {
     ...DEFAULT_AGENT_STATE,
     ...previous,
+    contact: previous.contact || null,
     language: decision.language || previous.language,
     location: mergeLocation(previous.location, decision.location),
     intent: decision.intent?.primary ? { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) } : previous.intent,
