@@ -6,16 +6,20 @@ export type AgentContact = { name: string; email: string; phone: string; address
 export type ContactCaptureStatus = 'unknown' | 'offered' | 'accepted' | 'declined';
 
 export type AgentPlan = { goal: string; steps: string[]; nextAction: string; searchQuery: string | null };
+export type HarnessFailureType = 'model_output_invalid' | 'tool_failed' | 'verification_failed' | 'policy_denied' | 'missing_context' | 'max_iterations';
+export type HarnessObservation = { id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
+export type HarnessFailure = { type: HarnessFailureType; message: string; iteration: number; recoverable: boolean };
+export type HarnessDecision = { iteration: number; nextAction: string; goal: string; rationale?: string };
 
 export type AgentHarnessState = {
   runId: string;
   iteration: number;
   status: 'idle' | 'running' | 'completed' | 'failed';
   nextAction: string;
-  contract: unknown | null;
-  observations: Array<{ id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean }>;
-  failures: Array<{ type: string; message: string; iteration: number; recoverable: boolean }>;
-  decisions: Array<{ iteration: number; nextAction: string; goal: string }>;
+  contract: import('./harness/task-contract').TaskContract | null;
+  observations: HarnessObservation[];
+  failures: HarnessFailure[];
+  decisions: HarnessDecision[];
 };
 
 export type AgentState = {
