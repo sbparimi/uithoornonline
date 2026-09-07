@@ -1,12 +1,13 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
-import { Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
+import { ArrowRight, Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
 
 type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null; source_url?: string | null; external_source?: string | null };
 type Action = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
 type Message = { id: number; role: 'assistant' | 'user'; text: string; actions?: Action[]; providers?: Provider[] };
-type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null } };
+type Contact = { name: string; email: string; phone: string; address: string };
+type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null }; contact_required?: boolean };
 
 const DEFAULT_ACTIONS: Action[] = [
   { label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' },
@@ -70,10 +71,28 @@ function ProviderCards({ providers }: { providers: Provider[] }) {
   </div>;
 }
 
+function ContactGate({ contact, setContact, error, onSubmit }: { contact: Contact; setContact: (value: Contact) => void; error: string; onSubmit: (event: FormEvent) => void }) {
+  return <div className="agent-contact-gate">
+    <div className="agent-contact-icon"><img src="/icon.svg" alt="" /></div>
+    <h2>Vertel eerst wie je bent</h2>
+    <p>Voordat ik je aanvraag verwerk, heb ik je naam, contactgegevens en adres nodig. Zo kunnen we je aanvraag aan de juiste lokale hulp koppelen.</p>
+    <form className="agent-contact-form" onSubmit={onSubmit}>
+      <label>Naam<input value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} autoComplete="name" placeholder="Voor- en achternaam" required /></label>
+      <label>E-mail<input type="email" value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} autoComplete="email" placeholder="naam@voorbeeld.nl" required /></label>
+      <label>Telefoonnummer<input type="tel" value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} autoComplete="tel" placeholder="06 12345678" required /></label>
+      <label>Adres + huisnummer<input value={contact.address} onChange={(e) => setContact({ ...contact, address: e.target.value })} autoComplete="street-address" placeholder="Straatnaam 12" required /></label>
+      {error && <div className="agent-contact-error" role="alert">{error}</div>}
+      <button className="agent-contact-submit" type="submit">Verder naar de chat <ArrowRight size={16} /></button>
+    </form>
+    <small className="agent-contact-note">Deze gegevens zijn nodig om je aanvraag aan jou te koppelen en lokale uitvoering mogelijk te maken.</small>
+  </div>;
+}
+
 export default function AgentChat({ onClose }: { onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, role: 'assistant', text: 'Goedendag!\n\nWat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', actions: DEFAULT_ACTIONS },
-  ]);
+  const [contact, setContact] = useState<Contact>({ name: '', email: '', phone: '', address: '' });
+  const [contactCollected, setContactCollected] = useState(false);
+  const [contactError, setContactError] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [providerNames, setProviderNames] = useState<string[]>([]);
@@ -82,15 +101,31 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
 
   useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, typing]);
 
+  function collectContact(e: FormEvent) {
+    e.preventDefault();
+    const phoneDigits = contact.phone.replace(/\D/g, '');
+    if (contact.name.trim().length < 2) return setContactError('Vul je naam in.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) return setContactError('Vul een geldig e-mailadres in.');
+    if (phoneDigits.length < 8) return setContactError('Vul een geldig telefoonnummer in.');
+    if (!/\d/.test(contact.address) || contact.address.trim().length < 5) return setContactError('Vul je adres inclusief huisnummer in.');
+    setContactError('');
+    setContact({ ...contact, name: contact.name.trim(), email: contact.email.trim().toLowerCase(), phone: contact.phone.trim(), address: contact.address.trim() });
+    setContactCollected(true);
+    setMessages([{ id: Date.now(), role: 'assistant', text: 'Goedendag!\n\nWat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', actions: DEFAULT_ACTIONS }]);
+  }
+
   async function sendText(text: string) {
     const value = text.trim();
-    if (!value || typing) return;
+    if (!value || typing || !contactCollected) return;
     const nextMessages = [...messages, { id: Date.now(), role: 'user' as const, text: value }];
     setMessages(nextMessages); setInput(''); setTyping(true);
     try {
-      const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, messages: messages.map((item) => ({ role: item.role, content: item.text })) }) });
+      const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, contact, messages: messages.map((item) => ({ role: item.role, content: item.text })) }) });
       const data: AgentResponse = await response.json();
-      if (!response.ok) throw new Error('agent_request_failed');
+      if (!response.ok) {
+        if (data.contact_required) { setContactCollected(false); setContactError('Vul je contactgegevens eerst opnieuw in.'); }
+        throw new Error('agent_request_failed');
+      }
       setProviderNames((current) => Array.from(new Set([...current, ...data.providers.map((provider) => provider.name)])));
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, actions: data.actions, providers: data.providers }]);
     } catch {
@@ -103,15 +138,17 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
   return <div className="agent-chat-overlay" role="dialog" aria-modal="true" aria-label="Uithoorn AI">
     <section className="agent-chat-window">
       <header className="agent-chat-header"><div className="agent-chat-title"><div className="agent-avatar"><img src="/icon.svg" alt="" /></div><div><strong>Uithoorn AI</strong><span>Online</span></div></div><div className="agent-chat-actions"><button aria-label="Minimaliseren" title="Minimaliseren"><Minus /></button><button aria-label="Sluiten" title="Sluiten" onClick={onClose}><X /></button></div></header>
-      <div className="agent-chat-intro">Lokale hulp, informatie en diensten — vanuit één gesprek.</div>
-      <div className="agent-chat-messages" ref={messagesRef} aria-live="polite">
-        {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
-          <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
-          <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void sendText(action.value)} disabled={typing}>{action.label}</button>)}</div>}</div>
-        </div>)}
-        {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
-      </div>
-      <div className="agent-composer-wrap"><form className="agent-chat-composer" onSubmit={send}><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Typ je bericht…" aria-label="Bericht" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e); } }} /><button type="submit" disabled={!input.trim() || typing} aria-label="Verstuur"><Send /></button></form><div style={{ fontSize: 8, color: '#9a9d98', textAlign: 'center', marginTop: 7 }}>Enter om te versturen · Shift + Enter voor een nieuwe regel</div></div>
+      {!contactCollected ? <div className="agent-contact-scroll"><ContactGate contact={contact} setContact={setContact} error={contactError} onSubmit={collectContact} /></div> : <>
+        <div className="agent-chat-intro">Lokale hulp, informatie en diensten — vanuit één gesprek.</div>
+        <div className="agent-chat-messages" ref={messagesRef} aria-live="polite">
+          {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
+            <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
+            <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void sendText(action.value)} disabled={typing}>{action.label}</button>)}</div>}</div>
+          </div>)}
+          {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
+        </div>
+        <div className="agent-composer-wrap"><form className="agent-chat-composer" onSubmit={send}><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Typ je bericht…" aria-label="Bericht" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e); } }} /><button type="submit" disabled={!input.trim() || typing} aria-label="Verstuur"><Send /></button></form><div style={{ fontSize: 8, color: '#9a9d98', textAlign: 'center', marginTop: 7 }}>Enter om te versturen · Shift + Enter voor een nieuwe regel</div></div>
+      </>}
     </section>
   </div>;
 }
