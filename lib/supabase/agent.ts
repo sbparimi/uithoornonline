@@ -36,6 +36,11 @@ export type AgentProvider = {
   agent_summary: string;
   agent_metadata: Record<string, unknown>;
   verified: boolean;
+  rating_score: number | null;
+  rating_max: number | null;
+  rating_review_count: number | null;
+  rating_source: string | null;
+  rating_retrieved_at: string | null;
 };
 
 export async function searchVerifiedProviders(query: string, postcode = '', limit = 5): Promise<AgentProvider[]> {
