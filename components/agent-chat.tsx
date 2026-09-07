@@ -17,12 +17,7 @@ const DEFAULT_ACTIONS: Action[] = [
   { label: 'Wat is er te doen?', value: 'Wat is er te doen?', kind: 'quick_reply' },
 ];
 
-const INITIAL_MESSAGE: Message = {
-  id: 1,
-  role: 'assistant',
-  text: 'Goedendag!\n\nWaar kan ik je mee helpen? Vertel gewoon wat je lokaal nodig hebt.',
-  actions: DEFAULT_ACTIONS,
-};
+const INITIAL_MESSAGE: Message = { id: 1, role: 'assistant', text: 'Goedendag!\n\nWaar kan ik je mee helpen? Vertel gewoon wat je lokaal nodig hebt.', actions: DEFAULT_ACTIONS };
 
 function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function formatInline(text: string, providerNames: string[] = []): ReactNode[] {
@@ -56,7 +51,7 @@ function ProviderCards({ providers, language }: { providers: Provider[]; languag
     {providers.map((provider) => <article className="chat-provider-card" key={provider.id}>
       <div className="chat-provider-card-top"><div><strong className="chat-provider-name">{provider.name}</strong><span className="chat-provider-category">{provider.category}</span></div>{provider.verified && <span className="chat-provider-verified">{en ? 'Verified' : 'Geverifieerd'}</span>}</div>
       {provider.external_source && <div className="chat-provider-category">{en ? `Live found via ${provider.external_source}` : `Live gevonden via ${provider.external_source}`}</div>}
-      {provider.rating_score != null && <div className="chat-provider-rating"><Star size={13} fill="currentColor" /><strong>{provider.rating_score.toFixed(1)}/{(provider.rating_max ?? 5).toFixed(0)}</strong><span>· {provider.rating_review_count ?? 0} {en ? 'reviews' : 'reviews'}</span><em>({provider.rating_source ?? 'source'})</em></div>}
+      {provider.rating_score != null && <div className="chat-provider-rating"><Star size={13} fill="currentColor" /><strong>{provider.rating_score.toFixed(1)}/{(provider.rating_max ?? 5).toFixed(0)}</strong><span>· {provider.rating_review_count ?? 0} reviews</span><em>({provider.rating_source ?? 'source'})</em></div>}
       {provider.description && <p>{provider.description}</p>}
       <div className="chat-provider-actions">{provider.phone && <a href={`tel:${provider.phone.replace(/[^+\d]/g, '')}`}><Phone size={13} />{en ? 'Call' : 'Bel'}</a>}{provider.website && <a href={provider.website} target="_blank" rel="noreferrer">Website</a>}{provider.external_source && provider.source_url && <a href={provider.source_url} target="_blank" rel="noreferrer">Google Maps</a>}</div>
     </article>)}
@@ -105,7 +100,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
   }
 
   async function requestAgent(message: string, options: { contactDecision?: 'no'; contact?: Contact; addUserMessage?: boolean } = {}) {
-    const value = message.trim(); if (!value || typing || contactSubmitting) return;
+    const value = message.trim(); if (!value || typing) return;
     if (options.addUserMessage !== false) setMessages((current) => [...current, { id: Date.now(), role: 'user', text: value }]);
     setInput(''); setTyping(true);
     try {
@@ -115,14 +110,10 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       const language = data.state?.language || contactLanguage;
       setContactLanguage(language);
       setProviderNames((current) => Array.from(new Set([...current, ...data.providers.map((provider) => provider.name)])));
-      if (data.contact_offer) {
-        setPendingRequest(data.pending_request || value);
-        setContactFormVisible(false);
-      }
+      if (data.contact_offer) { setPendingRequest(data.pending_request || value); setContactFormVisible(false); }
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, actions: data.actions, providers: data.providers }]);
-    } catch (error) {
-      const failed = error instanceof Error && error.message === 'lead_save_failed';
-      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: failed ? (contactLanguage === 'en' ? 'I could not securely save those details. Please try again.' : 'Ik kon die gegevens niet veilig opslaan. Probeer het nog eens.') : (contactLanguage === 'en' ? 'I could not complete that request right now. Please try again.' : 'Ik kan die aanvraag op dit moment niet afronden. Probeer het nog eens.'), actions: DEFAULT_ACTIONS }]);
+    } catch {
+      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: contactLanguage === 'en' ? 'I could not complete that request right now. Please try again.' : 'Ik kan die aanvraag op dit moment niet afronden. Probeer het nog eens.', actions: DEFAULT_ACTIONS }]);
     } finally { setTyping(false); }
   }
 
@@ -133,8 +124,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
     }
     if (action.kind === 'contact_no') {
       setMessages((current) => [...current, { id: Date.now(), role: 'user', text: contactLanguage === 'en' ? 'No' : 'Nee' }]);
-      await requestAgent(pendingRequest, { contactDecision: 'no', addUserMessage: false });
-      return;
+      await requestAgent(pendingRequest, { contactDecision: 'no', addUserMessage: false }); return;
     }
     await requestAgent(action.value);
   }
