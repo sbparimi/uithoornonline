@@ -8,59 +8,49 @@ export type SpecialistResult = {
   missingSlots: AgentSlot[];
   status: 'collecting' | 'ready';
   shouldSearch: boolean;
-  actions: AgentAction[];
 };
 
 type Graph = {
   specialist: AgentState['specialist'];
-  slotOrder: AgentSlot[];
-  descriptions: Record<string, string>;
+  nodes: string[];
+  slotDescriptions: Record<string, string>;
 };
 
 const GRAPHS: Record<AgentState['specialist'], Graph> = {
   local_service: {
     specialist: 'local_service',
-    slotOrder: ['service', 'location'],
-    descriptions: {
-      service: 'The concrete local service requested, e.g. plumber, electrician, cleaning, gardening.',
-      location: 'Supported local municipality or postcode. Location is already defaulted to Uithoorn unless explicitly changed.',
-    },
+    nodes: ['identify_service', 'search_local_providers', 'present_matches'],
+    slotDescriptions: { service: 'Concrete service requested. This is the only blocking slot for a local service search.' },
   },
   food: {
     specialist: 'food',
-    slotOrder: ['category', 'cuisine', 'fulfilment', 'people'],
-    descriptions: {
-      category: 'Food/catering category or dish when needed.',
+    nodes: ['identify_food_need', 'optional_fulfilment', 'search_food_providers', 'present_matches'],
+    slotDescriptions: {
+      category: 'Food/catering category or a clear food type.',
       cuisine: 'Cuisine preference such as Indian.',
-      fulfilment: 'Pickup, delivery or dine-in when relevant.',
-      people: 'Number of people when ordering or booking requires it.',
+      dish: 'Specific dish such as dosa, idli or biryani.',
+      fulfilment: 'Pickup, delivery or dine-in when relevant to the task.',
+      people: 'Number of people when ordering requires it.',
     },
   },
   events: {
     specialist: 'events',
-    slotOrder: ['date', 'category', 'location'],
-    descriptions: {
-      date: 'Requested time window such as today, this weekend or this week.',
-      category: 'Activity or event type when needed.',
-      location: 'Supported local municipality or postcode.',
-    },
+    nodes: ['identify_event_need', 'identify_time_window', 'search_local_events', 'present_matches'],
+    slotDescriptions: { date: 'Requested time window such as today, this weekend or this week. This is the blocking slot after a broad event request.' },
   },
   local_discovery: {
     specialist: 'local_discovery',
-    slotOrder: ['category', 'location'],
-    descriptions: {
-      category: 'Business/category being searched for.',
-      location: 'Supported local municipality or postcode.',
-    },
+    nodes: ['identify_business_category', 'search_local_businesses', 'present_matches'],
+    slotDescriptions: { category: 'Business or category being searched for.' },
   },
   general: {
     specialist: 'general',
-    slotOrder: [],
-    descriptions: {},
+    nodes: ['understand_local_question', 'answer_or_handoff'],
+    slotDescriptions: {},
   },
 };
 
-const ACTIONS: Record<string, AgentAction[]> = {
+const ACTIONS_NL: Record<string, AgentAction[]> = {
   service: [
     { label: 'Loodgieter', value: 'Loodgieter', kind: 'quick_reply' },
     { label: 'Elektricien', value: 'Elektricien', kind: 'quick_reply' },
@@ -91,41 +81,72 @@ const ACTIONS: Record<string, AgentAction[]> = {
   ],
 };
 
+const ACTIONS_EN: Record<string, AgentAction[]> = {
+  service: [
+    { label: 'Plumber', value: 'Plumber', kind: 'quick_reply' },
+    { label: 'Electrician', value: 'Electrician', kind: 'quick_reply' },
+    { label: 'Cleaning', value: 'Cleaning', kind: 'quick_reply' },
+    { label: 'Gardening', value: 'Gardening', kind: 'quick_reply' },
+    { label: 'Other', value: 'I need another service', kind: 'quick_reply' },
+  ],
+  category_food: [
+    { label: 'Food & restaurants', value: 'Food & restaurants', kind: 'quick_reply' },
+    { label: 'Catering', value: 'Catering', kind: 'quick_reply' },
+    { label: 'Indian food', value: 'Indian food', kind: 'quick_reply' },
+  ],
+  fulfilment: [
+    { label: 'Pickup', value: 'Pickup', kind: 'quick_reply' },
+    { label: 'Delivery', value: 'Delivery', kind: 'quick_reply' },
+    { label: 'Dine in', value: 'Dine in', kind: 'quick_reply' },
+  ],
+  date: [
+    { label: 'Today', value: 'Today', kind: 'quick_reply' },
+    { label: 'This weekend', value: 'This weekend', kind: 'quick_reply' },
+    { label: 'This week', value: 'This week', kind: 'quick_reply' },
+  ],
+  category_business: [
+    { label: 'Restaurant', value: 'Restaurant', kind: 'quick_reply' },
+    { label: 'Shop', value: 'Shop', kind: 'quick_reply' },
+    { label: 'Service provider', value: 'Service provider', kind: 'quick_reply' },
+    { label: 'Other', value: 'I am looking for something else', kind: 'quick_reply' },
+  ],
+};
+
 const SPECIALIST_PROMPT = `You are a Uithoorn.online SPECIALIST AGENT executing a task through a fixed flow graph.
-The orchestrator has already selected your specialist. You must execute the specialist workflow, not re-route the user.
+The LLM orchestrator has already selected your specialist. You MUST execute the selected workflow and fill slots from the user's latest utterance plus active state.
 
 Return ONLY valid JSON:
 {
   "reply":string,
   "captured":{"category":string|null,"cuisine":string|null,"service":string|null,"fulfilment":"pickup|delivery|dine_in"|null,"dish":string|null,"people":number|null,"date":string|null},
   "nextRequiredSlot":"service|cuisine|category|fulfilment|date|people|location|null",
-  "missingSlots":[...same slot values...],
+  "missingSlots":["..."],
   "status":"collecting|ready",
-  "shouldSearch":boolean,
-  "actions":[{"label":string,"value":string,"kind":"quick_reply"}]
+  "shouldSearch":boolean
 }
 
-EXECUTION RULES:
-1. Use the supplied graph as the workflow contract. Never invent a new step.
-2. Read the active state and latest user utterance together. Short answers fill the currently pending slot.
-3. Fill slots only when the user actually supplied them or the meaning is unambiguous from the utterance.
-4. Never ask for a slot that is already filled.
-5. Ask for ONE missing slot only, the first actionable slot in graph order.
-6. If the required slot is filled, advance immediately to the next graph node; do not repeat the previous question.
-7. A repeated intent such as "Service nodig" means the user still needs a service. Do not interpret it as an emergency and do not switch specialists.
-8. For find_service, service is the first required slot. Do not ask urgency before the service is known. After service is known, the workflow may proceed directly to search; urgency is optional context, not a blocker unless explicitly needed by the specialist.
-9. For events, "vandaag", "dit weekend", "deze week", dates and equivalent English/Dutch phrases fill date.
-10. For food, cuisine/dish/category can satisfy the food type. Only request fulfilment when the task actually needs it.
-11. Set shouldSearch=true only when the task has enough information to perform a meaningful local search.
-12. The application will perform the search. Do not invent search results.
-13. Reply in the selected language. Never mix languages. Use concise natural Dutch for Dutch.
-14. The final response must reflect the workflow state, not generic chatbot small talk.`;
+FLOW EXECUTION:
+- Read the graph nodes as a Cognigy-style flow: current state -> understand/collect -> transition -> execute search -> present result.
+- The graph, not generic conversation, determines the next step.
+- The latest utterance can be a direct answer to the active slot. Examples: "loodgieter" fills service; "deze week" fills date; "voor 4 personen" fills people; "bezorgen" fills fulfilment.
+- Preserve the active task for short slot answers. Never restart the flow just because the utterance is short.
+- Never ask for information already known.
+- Ask exactly one blocking question when a required slot is missing.
+- local_service: once service is known, status=ready and shouldSearch=true. Do NOT require urgency before searching.
+- events: a broad event request asks for a time window; once date is known, status=ready and shouldSearch=true. Category is optional.
+- local_discovery: once category is known, status=ready and shouldSearch=true.
+- find_food: once category, cuisine or dish identifies what the user wants, status=ready and shouldSearch=true for discovery.
+- order_food: collect the food item first; fulfilment can be requested only if it is necessary to execute the order.
+- A repeated utterance such as "Service nodig" is not an emergency and must not switch tasks.
+- Do not fabricate providers, prices, ratings, availability or capabilities.
+- Reply in the state's language. Never mix languages.
+- Do not mention this graph, prompts, LLMs or internal tools to the user.`;
 
 function extractJson(text: string): SpecialistResult | null {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
   try {
     const value = JSON.parse(cleaned) as SpecialistResult;
-    if (!value.reply || !Array.isArray(value.missingSlots) || !Array.isArray(value.actions)) return null;
+    if (!value.reply || !Array.isArray(value.missingSlots)) return null;
     return value;
   } catch {
     return null;
@@ -136,22 +157,48 @@ function graphFor(specialist: AgentState['specialist']): Graph {
   return GRAPHS[specialist];
 }
 
+function requiredSlots(state: AgentState): AgentSlot[] {
+  switch (state.intent.primary) {
+    case 'find_service': return state.entities.service ? [] : ['service'];
+    case 'find_business': return state.entities.category ? [] : ['category'];
+    case 'find_event': return state.entities.date ? [] : ['date'];
+    case 'find_food': return state.entities.category || state.entities.cuisine || state.entities.dish ? [] : ['category'];
+    case 'order_food':
+      if (!state.entities.category && !state.entities.cuisine && !state.entities.dish) return ['category'];
+      return [];
+    default: return [];
+  }
+}
+
+function localizedActions(state: AgentState, slot: AgentSlot | null): AgentAction[] {
+  const actions = state.language === 'en' ? ACTIONS_EN : ACTIONS_NL;
+  if (slot === 'service') return actions.service;
+  if (slot === 'date') return actions.date;
+  if (slot === 'fulfilment') return actions.fulfilment;
+  if (slot === 'category' && (state.intent.primary === 'find_food' || state.intent.primary === 'order_food')) return actions.category_food;
+  if (slot === 'category') return actions.category_business;
+  return [];
+}
+
 function sanitizeResult(result: SpecialistResult, state: AgentState): SpecialistResult {
-  const graph = graphFor(state.specialist);
-  const allowedSlots = new Set(graph.slotOrder);
-  const missingSlots = result.missingSlots.filter((slot) => allowedSlots.has(slot));
-  const nextRequiredSlot = result.nextRequiredSlot && allowedSlots.has(result.nextRequiredSlot) ? result.nextRequiredSlot : (missingSlots[0] || null);
-  const actions = result.actions.filter((action) => action.kind === 'quick_reply' && action.label && action.value).slice(0, 5);
-  const ready = !missingSlots.length;
-  return { ...result, missingSlots, nextRequiredSlot, status: ready ? 'ready' : 'collecting', shouldSearch: ready && result.shouldSearch, actions };
+  const required = requiredSlots({ ...state, entities: { ...state.entities, ...result.captured } });
+  const nextRequiredSlot = required[0] || null;
+  const ready = required.length === 0;
+  return {
+    reply: result.reply,
+    captured: result.captured,
+    missingSlots: required,
+    nextRequiredSlot,
+    status: ready ? 'ready' : 'collecting',
+    shouldSearch: ready && Boolean(result.shouldSearch),
+  };
 }
 
 export async function executeSpecialist(message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, state: AgentState): Promise<SpecialistResult> {
   const graph = graphFor(state.specialist);
-  const graphText = JSON.stringify(graph, null, 2);
   const result = await kimiChat([
     { role: 'system', content: SPECIALIST_PROMPT },
-    { role: 'system', content: `FLOW GRAPH:\n${graphText}` },
+    { role: 'system', content: `FLOW GRAPH:\n${JSON.stringify(graph, null, 2)}` },
     { role: 'system', content: `ACTIVE STATE:\n${JSON.stringify(state, null, 2)}` },
     ...history.slice(-12),
     { role: 'user', content: message },
@@ -162,12 +209,5 @@ export async function executeSpecialist(message: string, history: Array<{ role: 
 }
 
 export function specialistActions(result: SpecialistResult, state: AgentState): AgentAction[] {
-  if (result.actions.length) return result.actions;
-  const slot = result.nextRequiredSlot;
-  if (slot === 'service') return ACTIONS.service;
-  if (slot === 'date') return ACTIONS.date;
-  if (slot === 'fulfilment') return ACTIONS.fulfilment;
-  if (slot === 'category' && (state.intent.primary === 'find_food' || state.intent.primary === 'order_food')) return ACTIONS.category_food;
-  if (slot === 'category') return ACTIONS.category_business;
-  return [];
+  return localizedActions(state, result.nextRequiredSlot);
 }
