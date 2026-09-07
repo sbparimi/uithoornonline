@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Bot, Loader2, Minus, Phone, Send, X } from 'lucide-react';
 
 type Message = { id: number; role: 'assistant' | 'user'; text: string; quickReplies?: string[] };
@@ -10,23 +10,47 @@ type AgentResponse = { providers: Provider[]; reply: string };
 const DEFAULT_QUICK_REPLIES = ['Zoek een bedrijf', 'Eten & catering', 'Dienst nodig', 'Wat is er te doen?'];
 const EMERGENCY_QUICK_REPLIES = ['Bel 112', 'Politie (niet-spoed)', 'Ik heb hulp nodig'];
 
-function renderRichText(text: string) {
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatInline(text: string, providerNames: string[] = []): ReactNode[] {
+  const providerPattern = providerNames.filter(Boolean).sort((a, b) => b.length - a.length).map(escapeRegex).join('|');
+  const tokenPattern = providerPattern
+    ? `(\\*\\*[^*]+\\*\\*|\`[^\`]+\`|[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|${providerPattern})`
+    : `(\\*\\*[^*]+\\*\\*|\`[^\`]+\`|[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})`;
+  const parts = text.split(new RegExp(tokenPattern, 'gi'));
+  return parts.map((part, i) => {
+    if (!part) return null;
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('`') && part.endsWith('`')) return <code key={i}>{part.slice(1, -1)}</code>;
+    if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(part)) {
+      return <a key={i} className="chat-email" href={`mailto:${part}`}>{part}</a>;
+    }
+    if (providerNames.some((name) => name.toLowerCase() === part.toLowerCase())) {
+      return <span key={i} className="chat-business-name">{part}</span>;
+    }
+    return <span key={i}>{part}</span>;
+  }).filter(Boolean) as ReactNode[];
+}
+
+function renderRichText(text: string, providerNames: string[] = []) {
   const lines = text.replace(/\r/g, '').split('\n').map((line) => line.trim()).filter(Boolean);
-  const nodes: React.ReactNode[] = [];
+  const nodes: ReactNode[] = [];
   let list: string[] = [];
 
   const flushList = () => {
     if (!list.length) return;
     const items = list;
     list = [];
-    nodes.push(<ul key={`list-${nodes.length}`}>{items.map((item, i) => <li key={i}>{formatInline(item)}</li>)}</ul>);
+    nodes.push(<ul key={`list-${nodes.length}`}>{items.map((item, i) => <li key={i}>{formatInline(item, providerNames)}</li>)}</ul>);
   };
 
   lines.forEach((line, index) => {
-    const emergency = /\b112\b/.test(line) && /(urgent|nood|emergency|spoed|danger|gevaar|bel|call|only number)/i.test(line);
+    const emergency = /\b112\b/.test(line) && /(urgent|nood|emergency|spoed|danger|gevaar|bel|call|only number|immediate)/i.test(line);
     if (/^#{1,3}\s/.test(line)) {
       flushList();
-      nodes.push(<p className="chat-heading" key={`h-${index}`}>{formatInline(line.replace(/^#{1,3}\s+/, ''))}</p>);
+      nodes.push(<p className="chat-heading" key={`h-${index}`}>{formatInline(line.replace(/^#{1,3}\s+/, ''), providerNames)}</p>);
       return;
     }
     if (/^\d+[.)]\s+/.test(line)) {
@@ -42,25 +66,16 @@ function renderRichText(text: string) {
       nodes.push(
         <div className="chat-emergency" key={`e-${index}`}>
           <strong>Directe hulp nodig?</strong>
-          <span>{formatInline(line)}</span>
+          <span>{formatInline(line, providerNames)}</span>
           <a className="chat-emergency-number" href="tel:112"><Phone size={15} />112</a>
         </div>
       );
       return;
     }
-    nodes.push(<p key={`p-${index}`}>{formatInline(line)}</p>);
+    nodes.push(<p key={`p-${index}`}>{formatInline(line, providerNames)}</p>);
   });
   flushList();
   return nodes;
-}
-
-function formatInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={i}>{part.slice(1, -1)}</code>;
-    return <span key={i}>{part}</span>;
-  });
 }
 
 function quickRepliesFor(text: string) {
@@ -74,6 +89,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
+  const [providerNames, setProviderNames] = useState<string[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,6 +114,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       });
       const data: AgentResponse = await response.json();
       if (!response.ok) throw new Error('agent_request_failed');
+      setProviderNames((current) => Array.from(new Set([...current, ...data.providers.map((provider) => provider.name)])));
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, quickReplies: quickRepliesFor(data.reply) }]);
     } catch {
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: 'Ik kan je vraag op dit moment niet verwerken. Probeer het nog eens.', quickReplies: DEFAULT_QUICK_REPLIES }]);
@@ -130,7 +147,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
             <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <Bot />}</div>
             <div className="agent-message">
               <span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span>
-              <div className="agent-message-bubble">{renderRichText(message.text)}</div>
+              <div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>
               {message.role === 'assistant' && message.quickReplies && !typing && (
                 <div className="agent-quick-replies" aria-label="Snelle keuzes">
                   {message.quickReplies.map((reply) => (
