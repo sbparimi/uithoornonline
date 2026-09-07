@@ -55,7 +55,9 @@ async function callOpenAICompatible(provider: 'groq' | 'openai', messages: ChatM
     messages,
     temperature: options.temperature,
     max_completion_tokens: options.maxCompletionTokens,
-    ...(isGroq ? { reasoning_effort: options.reasoningEffort, include_reasoning: false } : {}),
+    ...(isGroq
+      ? { reasoning_effort: options.reasoningEffort, include_reasoning: false, response_format: { type: 'json_object' } }
+      : {}),
   });
 
   let response = await fetch(`${baseUrl}/chat/completions`, {
@@ -117,7 +119,7 @@ async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOp
 
 export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}): Promise<KimiChatResponse> {
   const options: Required<KimiChatOptions> = {
-    maxCompletionTokens: inputOptions.maxCompletionTokens ?? 900,
+    maxCompletionTokens: inputOptions.maxCompletionTokens ?? 1600,
     temperature: inputOptions.temperature ?? 0.1,
     reasoningEffort: inputOptions.reasoningEffort ?? 'low',
   };
