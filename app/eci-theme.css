@@ -1,0 +1,62 @@
+/* ECI-inspired visual system for Uithoorn.online.
+   Inspired by ECI's current visual language: white space, charcoal typography,
+   restrained light-gray surfaces and a strong red action accent. */
+:root{--eci-red:#ef4b4b;--eci-red-dark:#d93f3f;--eci-ink:#202020;--eci-muted:#666;--eci-line:#e5e5e5;--eci-surface:#f6f6f4;--eci-soft:#fafafa}
+body{background:#fff;color:var(--eci-ink)}
+.uo-agent-site{background:#fff;color:var(--eci-ink)}
+.uo-agent-header{background:#fff;border-bottom:1px solid var(--eci-line)}
+.uo-agent-brand{color:var(--eci-ink)}
+.uo-agent-brand>span:last-child>span{color:var(--eci-red);font-weight:700}
+.uo-agent-nav a,.uo-agent-header-actions a{color:#3f3f3f}
+.uo-agent-nav a:hover,.uo-agent-header-actions a:hover{color:var(--eci-red)}
+.uo-agent-header-actions>span{color:#666}
+.uo-agent-eyebrow,.uo-agent-section-label{color:var(--eci-red)}
+.uo-live-dot{background:var(--eci-red)}
+.uo-agent-hero{background:#fff}
+.uo-agent-hero h1{color:var(--eci-ink)}
+.uo-agent-hero h1 em,.uo-agent-local h2 em,.uo-agent-business h2 em{color:var(--eci-red)}
+.uo-agent-hero-copy>p{color:#5f5f5f}
+.uo-agent-primary,.uo-agent-secondary{background:var(--eci-red);border-radius:4px}
+.uo-agent-primary:hover,.uo-agent-secondary:hover{background:var(--eci-red-dark)}
+.uo-agent-trust{color:#777}
+.uo-agent-trust svg{color:var(--eci-red)}
+.uo-agent-launch-card{border:1px solid #dedede;border-radius:4px;box-shadow:0 16px 40px rgba(0,0,0,.07)}
+.uo-agent-launch-card:hover{box-shadow:0 20px 48px rgba(0,0,0,.10)}
+.uo-agent-large-avatar,.agent-avatar{background:#f3f3f1;color:var(--eci-red)}
+.uo-agent-launch-top{color:var(--eci-ink)}
+.uo-agent-launch-button{color:var(--eci-red)}
+/* Remaining legacy sections use the same ECI-inspired neutral/red system. */
+.uo-agent-how{background:#222;color:#fff}
+.uo-agent-flow article{border-color:#4b4b4b}
+.uo-agent-flow article svg{color:#ff7777}
+.uo-agent-flow p{color:#c5c5c5}
+.uo-agent-specialists{background:#fff}
+.uo-agent-specialist-grid{background:#ddd}
+.uo-agent-specialist-grid article>svg{color:var(--eci-red)}
+.uo-agent-local{background:#f3f3f1}
+.uo-agent-orchestration{border-color:#ddd;background:#fafafa}
+.uo-orch-center,.uo-orch-node{border-color:#ddd;box-shadow:0 8px 20px rgba(0,0,0,.05)}
+.uo-orch-center svg{color:var(--eci-red)}
+.uo-agent-business{background:var(--eci-red)}
+.uo-agent-business .uo-agent-section-label{color:#ffe1e1}
+.uo-agent-business>a{border-radius:4px;color:var(--eci-ink)}
+.uo-agent-footer{background:#1f1f1f;color:#bdbdbd}
+.uo-agent-footer .uo-agent-brand{color:#fff}
+/* Chat */
+.agent-chat-overlay{background:rgba(0,0,0,.28)}
+.agent-chat-window{background:#f5f5f4}
+.agent-chat-header{background:#222;color:#fff}
+.agent-chat-title strong{color:#fff}
+.agent-chat-title span{color:#c8c8c8}
+.agent-chat-actions button{color:#ff7373}
+.agent-message-avatar{color:var(--eci-red);background:#ededeb}
+.user-avatar{background:var(--eci-red);color:#fff}
+.is-user .agent-message p{background:var(--eci-red)}
+.agent-routing{border-color:#ddd;background:#ededeb}
+.agent-routing svg{color:var(--eci-red)}
+.agent-chat-composer{background:#f5f5f4;border-top-color:#d8d8d8}
+.agent-chat-composer textarea{border:1px solid #cfcfcf}
+.agent-chat-composer textarea:focus{border-color:var(--eci-red)}
+.agent-chat-composer button{background:var(--eci-red);border-radius:4px}
+.agent-chat-intro svg{color:var(--eci-red)}
+@media(max-width:850px){.uo-agent-mobile-nav{background:#fff;border-bottom-color:#ddd}.uo-agent-mobile-nav a:hover{color:var(--eci-red)}}
