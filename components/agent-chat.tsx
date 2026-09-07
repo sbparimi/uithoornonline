@@ -117,8 +117,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       if (data.contact_offer) { setPendingRequest(data.pending_request || value); setContactFormVisible(false); }
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, actions: data.actions, providers: data.providers }]);
     } catch (error) {
-      const failed = error instanceof Error && error.message === 'lead_save_failed';
-      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: failed ? (contactLanguage === 'en' ? 'I could not securely save those details. Please try again.' : 'Ik kon die gegevens niet veilig opslaan. Probeer het nog eens.') : (contactLanguage === 'en' ? 'I have your request. Please choose an option below or tell me what you need in your own words.' : 'Ik heb je aanvraag. Kies hieronder een optie of vertel in je eigen woorden wat je nodig hebt.'), actions: DEFAULT_ACTIONS }]);
+      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: 'Sorry, our technology is letting us down. Please call +31616270233 for immediate assistance.', actions: [] }]);
     } finally { setTyping(false); }
   }
 
