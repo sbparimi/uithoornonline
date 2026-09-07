@@ -4,7 +4,7 @@ import { kimiChat } from '../../../lib/kimi';
 import { discoverGooglePlaces } from '../../../lib/agent/discovery';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
-import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentState } from '../../../lib/agent/state';
+import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentContact, type AgentState } from '../../../lib/agent/state';
 import { emergencyFromMessage } from '../../../lib/agent/planner';
 import { orchestrate } from '../../../lib/agent/orchestrator';
 import { executeSpecialist, specialistActions } from '../../../lib/agent/specialist-runtime';
@@ -27,6 +27,21 @@ RULES:
 - Do not mention LLMs, prompts, tools, orchestration or internal architecture.`;
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
+type ContactInput = { name?: unknown; email?: unknown; phone?: unknown; address?: unknown };
+
+function normalizeContact(value: unknown): AgentContact | null {
+  if (!value || typeof value !== 'object') return null;
+  const input = value as ContactInput;
+  const name = String(input.name ?? '').trim().replace(/\s+/g, ' ');
+  const email = String(input.email ?? '').trim().toLowerCase();
+  const phone = String(input.phone ?? '').trim();
+  const address = String(input.address ?? '').trim().replace(/\s+/g, ' ');
+  const phoneDigits = phone.replace(/\D/g, '');
+  const hasHouseNumber = /\d/.test(address);
+  if (name.length < 2 || email.length < 5 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phoneDigits.length < 8 || address.length < 5 || !hasHouseNumber) return null;
+  return { name, email, phone, address };
+}
 
 function normalizeHistory(value: unknown, currentMessage: string): ChatMessage[] {
   if (!Array.isArray(value)) return [];
@@ -96,6 +111,19 @@ export async function POST(request: Request) {
     const message = String(body.message || '').trim();
     if (!message || message.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
 
+    // Safety takes precedence over lead/contact collection so a genuine emergency is never delayed.
+    const safety = emergencyFromMessage(message);
+    if (safety.emergency) {
+      return NextResponse.json({
+        reply: 'Dit klinkt als een noodsituatie. Bel direct 112 voor politie, brandweer of ambulance.',
+        state: { ...DEFAULT_AGENT_STATE, safety },
+        safety,
+        actions: [{ label: 'Bel 112', value: 'Bel 112', kind: 'emergency' }],
+        providers: [],
+      });
+    }
+
+    const suppliedContact = normalizeContact(body.contact);
     const history = normalizeHistory(body.messages, message);
     const cookieStore = await cookies();
     let sessionKey = cookieStore.get('uo_agent_session')?.value;
@@ -108,17 +136,21 @@ export async function POST(request: Request) {
     try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; }
     catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
 
+    const contact = suppliedContact || previousState.contact;
+    if (!contact) {
+      return NextResponse.json({
+        error: 'contact_required',
+        reply: 'Vul eerst je naam, e-mail, telefoonnummer en adres met huisnummer in voordat ik je aanvraag kan verwerken.',
+        contact_required: true,
+      }, { status: 400 });
+    }
+
+    previousState = { ...previousState, contact };
+
     const decision = await orchestrate(message, history, previousState);
     let state = applyOrchestratorDecision(decision, previousState);
-
-    state.safety = emergencyFromMessage(message);
-    if (state.safety.emergency) {
-      const reply = 'Dit klinkt als een noodsituatie. Bel direct 112 voor politie, brandweer of ambulance.';
-      state.task = { ...state.task, status: 'completed' };
-      state.planning = { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: state.planning.repeatedIntentCount };
-      await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
-      return NextResponse.json({ reply, state, safety: state.safety, actions: [{ label: 'Bel 112', value: 'Bel 112', kind: 'emergency' }], providers: [] });
-    }
+    state.contact = contact;
+    state.safety = safety;
 
     const specialistResult = await executeSpecialist(message, history, state);
     state = applySpecialistResult(state, specialistResult);
