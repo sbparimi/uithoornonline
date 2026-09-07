@@ -27,7 +27,6 @@ RULES:
 - Do not mention LLMs, prompts, tools, orchestration or internal architecture.`;
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
-
 type ContactInput = { name?: unknown; email?: unknown; phone?: unknown; address?: unknown };
 
 function normalizeContact(value: unknown): AgentContact | null {
@@ -146,6 +145,7 @@ export async function POST(request: Request) {
     }
 
     previousState = { ...previousState, contact };
+    await saveAgentState(sessionKey, previousState).catch((error) => console.error('AGENT_CONTACT_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
 
     const decision = await orchestrate(message, history, previousState);
     let state = applyOrchestratorDecision(decision, previousState);
