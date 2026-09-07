@@ -5,10 +5,10 @@ import { discoverGooglePlaces } from '../../../lib/agent/discovery';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 import { upsertAgentLead } from '../../../lib/supabase/leads';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
-import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentContact, type AgentState, type SemanticIntent } from '../../../lib/agent/state';
+import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentContact, type AgentState, type SemanticIntent, type AgentSlot } from '../../../lib/agent/state';
 import { emergencyFromMessage } from '../../../lib/agent/planner';
-import { orchestrate } from '../../../lib/agent/orchestrator';
-import { executeSpecialist, specialistActions } from '../../../lib/agent/specialist-runtime';
+import { orchestrate, type OrchestratorDecision } from '../../../lib/agent/orchestrator';
+import { executeSpecialist, specialistActions, type SpecialistResult } from '../../../lib/agent/specialist-runtime';
 
 const RESPONSE_PROMPT = `You are the final customer-facing concierge for Uithoorn.online.
 The ORCHESTRATOR owns intent and routing. The SPECIALIST owns the flow and slot filling. Your job is to turn the verified execution result into a modern, concise, persuasive customer response that moves the user toward a useful local outcome and, where applicable, direct contact or purchase.
@@ -40,12 +40,9 @@ CONVERSION / SALES STANDARD:
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type ContactInput = { name?: unknown; email?: unknown; phone?: unknown; address?: unknown };
-
 const BUSINESS_INTENTS = new Set<SemanticIntent>(['find_food', 'order_food', 'find_service', 'find_business', 'find_event']);
 
-function isBusinessIntent(intent: SemanticIntent, confidence: number): boolean {
-  return BUSINESS_INTENTS.has(intent) && confidence >= 0.55;
-}
+function isBusinessIntent(intent: SemanticIntent, confidence: number) { return BUSINESS_INTENTS.has(intent) && confidence >= 0.55; }
 
 function normalizeContact(value: unknown): AgentContact | null {
   if (!value || typeof value !== 'object') return null;
@@ -55,8 +52,7 @@ function normalizeContact(value: unknown): AgentContact | null {
   const phone = String(input.phone ?? '').trim();
   const address = String(input.address ?? '').trim().replace(/\s+/g, ' ');
   const phoneDigits = phone.replace(/\D/g, '');
-  const hasHouseNumber = /\d/.test(address);
-  if (name.length < 2 || email.length < 5 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phoneDigits.length < 8 || address.length < 5 || !hasHouseNumber) return null;
+  if (name.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phoneDigits.length < 8 || address.length < 5 || !/\d/.test(address)) return null;
   return { name, email, phone, address };
 }
 
@@ -70,60 +66,139 @@ function normalizeHistory(value: unknown, currentMessage: string): ChatMessage[]
   return normalized.slice(-16);
 }
 
+function detectLanguage(text: string, locked: AgentState['language']): 'nl' | 'en' {
+  if (locked) return locked;
+  const words = new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g) || []);
+  const nl = ['ik','zoek','eten','catering','restaurant','bedrijf','loodgieter','elektricien','schoonmaak','vandaag','weekend','wat','nodig','hulp','graag'].reduce((n, w) => n + (words.has(w) ? 1 : 0), 0);
+  const en = ['i','need','food','catering','restaurant','business','plumber','electrician','cleaning','today','weekend','what','looking','help','please'].reduce((n, w) => n + (words.has(w) ? 1 : 0), 0);
+  return en > nl ? 'en' : 'nl';
+}
+
 function detectEmergencyLanguage(text: string): 'nl' | 'en' {
   const words = new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g) || []);
-  const nl = ['ik','hulp','help','112','brand','ambulance','politie','gevaar','nood','spoed','ongeluk','bloed'].reduce((n, w) => n + (words.has(w) ? 1 : 0), 0);
+  const nl = ['ik','hulp','112','brand','ambulance','politie','gevaar','nood','spoed','ongeluk','bloed'].reduce((n, w) => n + (words.has(w) ? 1 : 0), 0);
   const en = ['i','help','112','fire','ambulance','police','danger','emergency','urgent','accident','blood'].reduce((n, w) => n + (words.has(w) ? 1 : 0), 0);
   return en > nl ? 'en' : 'nl';
 }
 
+function fallbackDecision(message: string, previous: AgentState): OrchestratorDecision {
+  const text = message.toLowerCase().trim();
+  const language = detectLanguage(message, previous.languageLocked ? previous.language : 'nl');
+  const has = (...values: string[]) => values.some((value) => text.includes(value));
+  let intent: SemanticIntent = previous.intent.primary !== 'general_local' && previous.planning.nextRequiredSlot ? previous.intent.primary : 'general_local';
+  let specialist: AgentState['specialist'] = previous.specialist !== 'general' && intent !== 'general_local' ? previous.specialist : 'general';
+  const entities: AgentState['entities'] = { ...previous.entities };
+
+  if (has('wat is er te doen','iets leuks doen','activiteiten','evenement','events','event','things to do','what is there to do')) {
+    intent = 'find_event'; specialist = 'events';
+  } else if (has('loodgieter','plumber','elektricien','electrician','schoonmaak','cleaning','tuinonderhoud','gardening','klus','service nodig','dienst nodig','service')) {
+    intent = 'find_service'; specialist = 'local_service';
+    const serviceMap: Array<[string, string]> = [['loodgieter','loodgieter'],['plumber','plumber'],['elektricien','elektricien'],['electrician','electrician'],['schoonmaak','schoonmaak'],['cleaning','cleaning'],['tuinonderhoud','tuinonderhoud'],['gardening','gardening']];
+    const match = serviceMap.find(([key]) => text.includes(key)); if (match) entities.service = match[1];
+  } else if (has('eten','food','catering','restaurant','restaurants','maaltijd','lunch','diner','takeaway','take away','bezorgen','delivery')) {
+    intent = has('bestel','order','bestellen') ? 'order_food' : 'find_food'; specialist = 'food';
+    if (has('catering')) entities.category = 'catering';
+    else if (has('restaurant','restaurants')) entities.category = 'restaurant';
+    else if (!entities.category && !entities.cuisine && !entities.dish) entities.category = language === 'en' ? 'food' : 'eten';
+  } else if (has('zoek een bedrijf','find a business','business','bedrijf','winkel','shop','store')) {
+    intent = 'find_business'; specialist = 'local_discovery';
+    if (has('restaurant')) entities.category = 'restaurant';
+    else if (has('winkel','shop','store')) entities.category = language === 'en' ? 'shop' : 'winkel';
+  }
+
+  if (previous.planning.nextRequiredSlot === 'date' && !entities.date && /\b(vandaag|today|morgen|tomorrow|weekend|week|zaterdag|zondag|saturday|sunday)\b/i.test(text)) entities.date = message.trim();
+  if (previous.planning.nextRequiredSlot === 'category' && intent === previous.intent.primary && text.length < 80 && !['zoek een bedrijf','find a business'].includes(text)) entities.category = message.trim();
+  if (previous.planning.nextRequiredSlot === 'service' && intent === previous.intent.primary && text.length < 80) entities.service = message.trim();
+
+  const confidence = intent === 'general_local' ? 0.35 : 0.92;
+  return {
+    language,
+    location: previous.location,
+    intent: { primary: intent, confidence },
+    entities,
+    specialist,
+    task: { type: intent === 'general_local' ? 'local_help' : intent },
+    handoff: { specialist, reason: 'fallback_semantic_route' },
+    focusSlot: previous.planning.nextRequiredSlot || null,
+  };
+}
+
+function requiredFallbackSlots(state: AgentState): AgentSlot[] {
+  switch (state.intent.primary) {
+    case 'find_service': return state.entities.service ? [] : ['service'];
+    case 'find_business': return state.entities.category ? [] : ['category'];
+    case 'find_event': return state.entities.date ? [] : ['date'];
+    case 'find_food': return state.entities.category || state.entities.cuisine || state.entities.dish ? [] : ['category'];
+    case 'order_food': return state.entities.category || state.entities.cuisine || state.entities.dish ? [] : ['category'];
+    default: return [];
+  }
+}
+
+function fallbackSpecialist(message: string, state: AgentState): SpecialistResult {
+  const entities = { ...state.entities };
+  const text = message.toLowerCase().trim();
+  if (state.intent.primary === 'find_service' && !entities.service && text.length < 100) entities.service = message.trim();
+  if ((state.intent.primary === 'find_food' || state.intent.primary === 'order_food') && !entities.category && !entities.cuisine && !entities.dish && text.length < 100) entities.category = message.trim();
+  if (state.intent.primary === 'find_business' && !entities.category && text.length < 80 && !text.includes('zoek een bedrijf') && !text.includes('find a business')) entities.category = message.trim();
+  if (state.intent.primary === 'find_event' && !entities.date && /\b(vandaag|today|morgen|tomorrow|weekend|week|zaterdag|zondag|saturday|sunday)\b/i.test(text)) entities.date = message.trim();
+  const nextState = { ...state, entities };
+  const missingSlots = requiredFallbackSlots(nextState);
+  const nextRequiredSlot = missingSlots[0] || null;
+  const ready = missingSlots.length === 0 && state.intent.primary !== 'general_local';
+  const en = state.language === 'en';
+  let reply = '';
+  if (!ready) {
+    if (nextRequiredSlot === 'service') reply = en ? 'I can find the right local service for you. **Which service do you need?**' : 'Ik help je direct met een passende lokale dienst. **Welke dienst heb je nodig?**';
+    else if (nextRequiredSlot === 'category') reply = en ? 'I can narrow that down quickly. **What type of business or food are you looking for?**' : 'Ik kan dit snel voor je verfijnen. **Welk type bedrijf of eten zoek je?**';
+    else if (nextRequiredSlot === 'date') reply = en ? 'I can find the best local options. **When would you like to go?**' : 'Ik kan de beste lokale opties voor je zoeken. **Wanneer wil je gaan?**';
+    else reply = en ? 'Tell me what you need locally and I will take it from there.' : 'Vertel wat je lokaal nodig hebt, dan pak ik het voor je op.';
+  } else {
+    reply = en ? 'I have what I need. I’ll find the most relevant local options for you now.' : 'Ik heb genoeg informatie. Ik zoek nu de meest passende lokale opties voor je.';
+  }
+  return { reply, captured: entities, nextRequiredSlot, missingSlots, status: ready ? 'ready' : 'collecting', shouldSearch: ready };
+}
+
+function fallbackFailureResponse(state: AgentState, message: string) {
+  const en = state.language === 'en';
+  const text = message.toLowerCase();
+  if (text.includes('eten') || text.includes('food') || text.includes('catering')) return {
+    reply: en ? 'I understand — you are looking for **food or catering in Uithoorn**. I can help you find a suitable local option. What would you prefer: restaurant, catering or takeaway?' : 'Ik begrijp je — je zoekt **eten of catering in Uithoorn**. Ik help je direct een passende lokale optie te vinden. Wat zoek je: restaurant, catering of afhalen?',
+    actions: en ? [{ label: 'Restaurant', value: 'Restaurant', kind: 'quick_reply' as const }, { label: 'Catering', value: 'Catering', kind: 'quick_reply' as const }, { label: 'Takeaway', value: 'Takeaway', kind: 'quick_reply' as const }] : [{ label: 'Restaurant', value: 'Restaurant', kind: 'quick_reply' as const }, { label: 'Catering', value: 'Catering', kind: 'quick_reply' as const }, { label: 'Afhalen', value: 'Afhalen', kind: 'quick_reply' as const }],
+  };
+  return {
+    reply: en ? 'I have your request. I’m ready to help — choose an option below or tell me what you need in your own words.' : 'Ik heb je aanvraag. Ik help je direct verder — kies hieronder een optie of vertel in je eigen woorden wat je nodig hebt.',
+    actions: en ? [{ label: 'Find a business', value: 'Find a business', kind: 'quick_reply' as const }, { label: 'Food & catering', value: 'Food & catering', kind: 'quick_reply' as const }, { label: 'Local service', value: 'Local service', kind: 'quick_reply' as const }] : [{ label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' as const }, { label: 'Eten & catering', value: 'Eten & catering', kind: 'quick_reply' as const }, { label: 'Dienst nodig', value: 'Dienst nodig', kind: 'quick_reply' as const }],
+  };
+}
+
 function formatProviderContext(providers: AgentProvider[]): string {
   if (!providers.length) return 'LOCAL BUSINESS RESULTS: none found.';
-  return `LOCAL BUSINESS RESULTS:\n${providers.map((provider) => JSON.stringify({
-    id: provider.id, name: provider.name, category: provider.category, verified: provider.verified,
-    summary: provider.agent_summary, description: provider.description, postcode: provider.postcode,
-    service_areas: provider.service_areas, capabilities: provider.capabilities, availability: provider.availability,
-    pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url,
-    verified_at: provider.verified_at, rating_score: provider.rating_score, rating_max: provider.rating_max,
-    rating_review_count: provider.rating_review_count, rating_source: provider.rating_source,
-    rating_retrieved_at: provider.rating_retrieved_at, agent_metadata: provider.agent_metadata,
-  })).join('\n')}`;
+  return `LOCAL BUSINESS RESULTS:\n${providers.map((provider) => JSON.stringify({ id: provider.id, name: provider.name, category: provider.category, verified: provider.verified, summary: provider.agent_summary, description: provider.description, postcode: provider.postcode, service_areas: provider.service_areas, capabilities: provider.capabilities, availability: provider.availability, pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url, verified_at: provider.verified_at, rating_score: provider.rating_score, rating_max: provider.rating_max, rating_review_count: provider.rating_review_count, rating_source: provider.rating_source, rating_retrieved_at: provider.rating_retrieved_at, agent_metadata: provider.agent_metadata, })).join('\n')}`;
 }
 
 async function renderReadyResponse(message: string, history: ChatMessage[], state: AgentState, specialistReply: string, providers: AgentProvider[]): Promise<string> {
-  const result = await kimiChat([
-    { role: 'system', content: RESPONSE_PROMPT },
-    { role: 'system', content: stateContext(state) },
-    { role: 'system', content: `SPECIALIST EXECUTION RESULT:\n${specialistReply}\n${formatProviderContext(providers)}` },
-    ...history,
-    { role: 'user', content: message },
-  ]);
-  return String(result?.choices?.[0]?.message?.content || '').trim();
+  try {
+    const result = await kimiChat([{ role: 'system', content: RESPONSE_PROMPT }, { role: 'system', content: stateContext(state) }, { role: 'system', content: `SPECIALIST EXECUTION RESULT:\n${specialistReply}\n${formatProviderContext(providers)}` }, ...history, { role: 'user', content: message }]);
+    return String(result?.choices?.[0]?.message?.content || '').trim();
+  } catch (error) {
+    console.error('AGENT_RENDERER_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
+    return specialistReply;
+  }
 }
 
 function mergeProviders(local: AgentProvider[], discovered: AgentProvider[]): AgentProvider[] {
   const result = [...local];
   const seen = new Set(local.map((provider) => provider.name.toLowerCase().trim()));
-  for (const provider of discovered) {
-    const key = provider.name.toLowerCase().trim();
-    if (!seen.has(key)) { result.push(provider); seen.add(key); }
-    if (result.length >= 5) break;
-  }
+  for (const provider of discovered) { const key = provider.name.toLowerCase().trim(); if (!seen.has(key)) { result.push(provider); seen.add(key); } if (result.length >= 5) break; }
   return result;
 }
 
 async function searchProviders(state: AgentState, query: string): Promise<AgentProvider[]> {
   let local: AgentProvider[] = [];
-  try { local = await searchVerifiedProviders(query, state.location.municipality, 5); }
-  catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+  try { local = await searchVerifiedProviders(query, state.location.municipality, 5); } catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
   if (state.specialist === 'events' || local.length >= 5) return local;
-  try {
-    const discovered = await discoverGooglePlaces(query, state.location.municipality, 5 - local.length);
-    return mergeProviders(local, discovered);
-  } catch (error) {
-    console.error('AGENT_DISCOVERY_ERROR', error instanceof Error ? error.message : 'unknown_error');
-    return local;
-  }
+  try { const discovered = await discoverGooglePlaces(query, state.location.municipality, 5 - local.length); return mergeProviders(local, discovered); }
+  catch (error) { console.error('AGENT_DISCOVERY_ERROR', error instanceof Error ? error.message : 'unknown_error'); return local; }
 }
 
 export async function POST(request: Request) {
@@ -136,9 +211,7 @@ export async function POST(request: Request) {
     const safety = emergencyFromMessage(message);
     if (safety.emergency) {
       const language = detectEmergencyLanguage(message);
-      const reply = language === 'en'
-        ? 'This sounds like an emergency. **Call 112 now** for police, fire or ambulance.'
-        : 'Dit klinkt als een noodsituatie. **Bel direct 112** voor politie, brandweer of ambulance.';
+      const reply = language === 'en' ? 'This sounds like an emergency. **Call 112 now** for police, fire or ambulance.' : 'Dit klinkt als een noodsituatie. **Bel direct 112** voor politie, brandweer of ambulance.';
       return NextResponse.json({ reply, state: { ...DEFAULT_AGENT_STATE, language, languageLocked: true, safety }, safety, actions: [{ label: language === 'en' ? 'Call 112' : 'Bel 112', value: '112', kind: 'emergency' }], providers: [], render_mode: 'message' });
     }
 
@@ -146,63 +219,41 @@ export async function POST(request: Request) {
     const history = normalizeHistory(body.messages, message);
     const cookieStore = await cookies();
     let sessionKey = cookieStore.get('uo_agent_session')?.value;
-    if (!sessionKey) {
-      sessionKey = crypto.randomUUID();
-      cookieStore.set('uo_agent_session', sessionKey, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
-    }
+    if (!sessionKey) { sessionKey = crypto.randomUUID(); cookieStore.set('uo_agent_session', sessionKey, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 }); }
 
     let previousState = DEFAULT_AGENT_STATE;
-    try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; }
-    catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+    try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; } catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+    if (previousState.contact && previousState.contactCapture?.status !== 'accepted') previousState = { ...previousState, contactCapture: { ...previousState.contactCapture, status: 'accepted' } };
 
-    if (previousState.contact && previousState.contactCapture?.status !== 'accepted') {
-      previousState = { ...previousState, contactCapture: { ...previousState.contactCapture, status: 'accepted' } };
-    }
+    let decision: OrchestratorDecision;
+    try { decision = await orchestrate(message, history, previousState); }
+    catch (error) { console.error('AGENT_ORCHESTRATOR_FALLBACK', error instanceof Error ? error.message : 'unknown_error'); decision = fallbackDecision(message, previousState); }
 
-    const decision = await orchestrate(message, history, previousState);
     let state = applyOrchestratorDecision(decision, previousState);
     state.safety = safety;
-
-    if (contactDecision === 'no') {
-      state.contactCapture = { status: 'declined', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
-    }
+    if (contactDecision === 'no') state.contactCapture = { status: 'declined', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
 
     if (suppliedContact) {
       state.contact = suppliedContact;
       state.contactCapture = { status: 'accepted', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
-      try {
-        await upsertAgentLead(sessionKey, suppliedContact, state.language, state.contactCapture.promptIntent || state.intent.primary);
-      } catch (error) {
+      try { await upsertAgentLead(sessionKey, suppliedContact, state.language, state.contactCapture.promptIntent || state.intent.primary); }
+      catch (error) {
         console.error('AGENT_LEAD_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error');
-        const reply = state.language === 'en'
-          ? 'I could not securely save your contact details yet. Please try once more so I can continue.'
-          : 'Ik kon je contactgegevens nog niet veilig opslaan. Probeer het nog één keer, dan ga ik direct verder.';
+        const reply = state.language === 'en' ? 'I could not securely save your contact details yet. Please try once more so I can continue.' : 'Ik kon je contactgegevens nog niet veilig opslaan. Probeer het nog één keer, dan ga ik direct verder.';
         return NextResponse.json({ error: 'lead_save_failed', reply, providers: [], actions: [], state, safety: state.safety, render_mode: 'message' }, { status: 503 });
       }
     } else if (isBusinessIntent(state.intent.primary, state.intent.confidence) && !state.contact && state.contactCapture.status === 'unknown') {
       state.contactCapture = { status: 'offered', promptIntent: state.intent.primary, pendingMessage: message };
       await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
-      const reply = state.language === 'en'
-        ? 'I can find the right local options for you. To make this quicker, would you like to share your details so I can help you faster?'
-        : 'Ik kan direct de juiste lokale opties voor je zoeken. Wil je je gegevens delen? Dan kan ik je sneller helpen.';
-      return NextResponse.json({
-        reply,
-        render_mode: 'message',
-        contact_offer: true,
-        pending_request: message,
-        state,
-        safety: state.safety,
-        actions: [
-          { label: 'Yes' , value: '__contact_yes', kind: 'contact_yes' },
-          { label: 'No', value: '__contact_no', kind: 'contact_no' },
-        ].map((action) => ({ ...action, label: state.language === 'en' ? action.label : action.value === '__contact_yes' ? 'Ja' : 'Nee' })),
-        providers: [],
-      });
+      const en = state.language === 'en';
+      return NextResponse.json({ reply: en ? 'I can find the right local options for you. To make this quicker, would you like to share your details?' : 'Ik kan direct de juiste lokale opties voor je zoeken. Wil je je gegevens delen, zodat ik je sneller kan helpen?', render_mode: 'message', contact_offer: true, pending_request: message, state, safety: state.safety, actions: en ? [{ label: 'Yes', value: '__contact_yes', kind: 'contact_yes' }, { label: 'No', value: '__contact_no', kind: 'contact_no' }] : [{ label: 'Ja', value: '__contact_yes', kind: 'contact_yes' }, { label: 'Nee', value: '__contact_no', kind: 'contact_no' }], providers: [] });
     }
 
     await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
 
-    const specialistResult = await executeSpecialist(message, history, state);
+    let specialistResult: SpecialistResult;
+    try { specialistResult = await executeSpecialist(message, history, state); }
+    catch (error) { console.error('AGENT_SPECIALIST_FALLBACK', error instanceof Error ? error.message : 'unknown_error'); specialistResult = fallbackSpecialist(message, state); }
     state = applySpecialistResult(state, specialistResult);
 
     let providers: AgentProvider[] = [];
@@ -214,27 +265,19 @@ export async function POST(request: Request) {
     }
 
     await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
-
     const actions = specialistActions(specialistResult, state);
     const hasProviderResults = providers.length > 0;
-    const reply = specialistResult.status === 'collecting'
-      ? specialistResult.reply
-      : hasProviderResults
-        ? ''
-        : await renderReadyResponse(message, history, state, specialistResult.reply, providers);
+    const reply = specialistResult.status === 'collecting' ? specialistResult.reply : hasProviderResults ? '' : await renderReadyResponse(message, history, state, specialistResult.reply, providers);
+    const safeReply = reply || fallbackFailureResponse(state, message).reply;
+    const safeActions = reply ? actions : fallbackFailureResponse(state, message).actions;
 
-    if (!reply && !hasProviderResults) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
-
-    return NextResponse.json({
-      reply,
-      render_mode: hasProviderResults ? 'provider_cards' : 'message',
-      state,
-      safety: state.safety,
-      actions,
-      providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, agent_metadata }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, external_source: agent_metadata?.discovery_source || null })),
-    });
+    return NextResponse.json({ reply: hasProviderResults ? '' : safeReply, render_mode: hasProviderResults ? 'provider_cards' : 'message', state, safety: state.safety, actions: safeActions, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, agent_metadata }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, external_source: agent_metadata?.discovery_source || null })) });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
-    return NextResponse.json({ error: 'agent_unavailable', reply: 'Ik kan je aanvraag op dit moment niet verwerken. Probeer het over een moment opnieuw.' }, { status: 503 });
+    const body = await request.clone().json().catch(() => ({}));
+    const message = String(body.message || '').trim();
+    const language = detectLanguage(message, 'nl');
+    const fallback = fallbackFailureResponse({ ...DEFAULT_AGENT_STATE, language }, message);
+    return NextResponse.json({ error: 'agent_degraded', reply: fallback.reply, actions: fallback.actions, providers: [], render_mode: 'message', state: { ...DEFAULT_AGENT_STATE, language }, safety: { emergency: false, reason: null } }, { status: 200 });
   }
 }
