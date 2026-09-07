@@ -7,6 +7,7 @@ import './locale.css';
 import './brand-proof-fixes.css';
 import './provider-profile.css';
 import './agentic-home.css';
+import './eci-theme.css';
 import './agent-chat.css';
 import { LocaleProvider } from '../components/locale-provider';
 
