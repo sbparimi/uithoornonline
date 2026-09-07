@@ -41,8 +41,21 @@ CONVERSION / SALES STANDARD:
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type ContactInput = { name?: unknown; email?: unknown; phone?: unknown; address?: unknown };
 const BUSINESS_INTENTS = new Set<SemanticIntent>(['find_food', 'order_food', 'find_service', 'find_business', 'find_event']);
+const BACKEND_FAILURE_MESSAGE = 'Sorry, our technology is letting us down. Please call +31616270233 for immediate assistance.';
 
 function isBusinessIntent(intent: SemanticIntent, confidence: number) { return BUSINESS_INTENTS.has(intent) && confidence >= 0.55; }
+
+function backendFailureResponse(language: AgentState['language'], state: AgentState = DEFAULT_AGENT_STATE, safety = state.safety) {
+  return NextResponse.json({
+    error: 'backend_unavailable',
+    reply: BACKEND_FAILURE_MESSAGE,
+    actions: [],
+    providers: [],
+    render_mode: 'message',
+    state: { ...state, language },
+    safety,
+  }, { status: 503 });
+}
 
 function normalizeContact(value: unknown): AgentContact | null {
   if (!value || typeof value !== 'object') return null;
@@ -83,7 +96,7 @@ function detectEmergencyLanguage(text: string): 'nl' | 'en' {
 
 function fallbackDecision(message: string, previous: AgentState): OrchestratorDecision {
   const text = message.toLowerCase().trim();
-  const language = detectLanguage(message, previous.languageLocked ? previous.language : 'nl');
+  const language = detectLanguage(message, previous.languageLocked ? previous.language : null);
   const has = (...values: string[]) => values.some((value) => text.includes(value));
   let intent: SemanticIntent = previous.intent.primary !== 'general_local' && previous.planning.nextRequiredSlot ? previous.intent.primary : 'general_local';
   let specialist: AgentState['specialist'] = previous.specialist !== 'general' && intent !== 'general_local' ? previous.specialist : 'general';
@@ -158,32 +171,16 @@ function fallbackSpecialist(message: string, state: AgentState): SpecialistResul
   return { reply, captured: entities, nextRequiredSlot, missingSlots, status: ready ? 'ready' : 'collecting', shouldSearch: ready };
 }
 
-function fallbackFailureResponse(state: AgentState, message: string) {
-  const en = state.language === 'en';
-  const text = message.toLowerCase();
-  if (text.includes('eten') || text.includes('food') || text.includes('catering')) return {
-    reply: en ? 'I understand — you are looking for **food or catering in Uithoorn**. I can help you find a suitable local option. What would you prefer: restaurant, catering or takeaway?' : 'Ik begrijp je — je zoekt **eten of catering in Uithoorn**. Ik help je direct een passende lokale optie te vinden. Wat zoek je: restaurant, catering of afhalen?',
-    actions: en ? [{ label: 'Restaurant', value: 'Restaurant', kind: 'quick_reply' as const }, { label: 'Catering', value: 'Catering', kind: 'quick_reply' as const }, { label: 'Takeaway', value: 'Takeaway', kind: 'quick_reply' as const }] : [{ label: 'Restaurant', value: 'Restaurant', kind: 'quick_reply' as const }, { label: 'Catering', value: 'Catering', kind: 'quick_reply' as const }, { label: 'Afhalen', value: 'Afhalen', kind: 'quick_reply' as const }],
-  };
-  return {
-    reply: en ? 'I have your request. I’m ready to help — choose an option below or tell me what you need in your own words.' : 'Ik heb je aanvraag. Ik help je direct verder — kies hieronder een optie of vertel in je eigen woorden wat je nodig hebt.',
-    actions: en ? [{ label: 'Find a business', value: 'Find a business', kind: 'quick_reply' as const }, { label: 'Food & catering', value: 'Food & catering', kind: 'quick_reply' as const }, { label: 'Local service', value: 'Local service', kind: 'quick_reply' as const }] : [{ label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' as const }, { label: 'Eten & catering', value: 'Eten & catering', kind: 'quick_reply' as const }, { label: 'Dienst nodig', value: 'Dienst nodig', kind: 'quick_reply' as const }],
-  };
-}
-
 function formatProviderContext(providers: AgentProvider[]): string {
   if (!providers.length) return 'LOCAL BUSINESS RESULTS: none found.';
   return `LOCAL BUSINESS RESULTS:\n${providers.map((provider) => JSON.stringify({ id: provider.id, name: provider.name, category: provider.category, verified: provider.verified, summary: provider.agent_summary, description: provider.description, postcode: provider.postcode, service_areas: provider.service_areas, capabilities: provider.capabilities, availability: provider.availability, pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url, verified_at: provider.verified_at, rating_score: provider.rating_score, rating_max: provider.rating_max, rating_review_count: provider.rating_review_count, rating_source: provider.rating_source, rating_retrieved_at: provider.rating_retrieved_at, agent_metadata: provider.agent_metadata, })).join('\n')}`;
 }
 
 async function renderReadyResponse(message: string, history: ChatMessage[], state: AgentState, specialistReply: string, providers: AgentProvider[]): Promise<string> {
-  try {
-    const result = await kimiChat([{ role: 'system', content: RESPONSE_PROMPT }, { role: 'system', content: stateContext(state) }, { role: 'system', content: `SPECIALIST EXECUTION RESULT:\n${specialistReply}\n${formatProviderContext(providers)}` }, ...history, { role: 'user', content: message }]);
-    return String(result?.choices?.[0]?.message?.content || '').trim();
-  } catch (error) {
-    console.error('AGENT_RENDERER_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
-    return specialistReply;
-  }
+  const result = await kimiChat([{ role: 'system', content: RESPONSE_PROMPT }, { role: 'system', content: stateContext(state) }, { role: 'system', content: `SPECIALIST EXECUTION RESULT:\n${specialistReply}\n${formatProviderContext(providers)}` }, ...history, { role: 'user', content: message }]);
+  const reply = String(result?.choices?.[0]?.message?.content || '').trim();
+  if (!reply) throw new Error('AGENT_RENDERER_EMPTY');
+  return reply;
 }
 
 function mergeProviders(local: AgentProvider[], discovered: AgentProvider[]): AgentProvider[] {
@@ -194,40 +191,41 @@ function mergeProviders(local: AgentProvider[], discovered: AgentProvider[]): Ag
 }
 
 async function searchProviders(state: AgentState, query: string): Promise<AgentProvider[]> {
-  let local: AgentProvider[] = [];
-  try { local = await searchVerifiedProviders(query, state.location.municipality, 5); } catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+  const local = await searchVerifiedProviders(query, state.location.municipality, 5);
   if (state.specialist === 'events' || local.length >= 5) return local;
-  try { const discovered = await discoverGooglePlaces(query, state.location.municipality, 5 - local.length); return mergeProviders(local, discovered); }
-  catch (error) { console.error('AGENT_DISCOVERY_ERROR', error instanceof Error ? error.message : 'unknown_error'); return local; }
+  const discovered = await discoverGooglePlaces(query, state.location.municipality, 5 - local.length);
+  return mergeProviders(local, discovered);
 }
 
 export async function POST(request: Request) {
+  let requestMessage = '';
   try {
     const body = await request.json();
-    const message = String(body.message || '').trim();
+    requestMessage = String(body.message || '').trim();
     const contactDecision = body.contact_decision === 'no' ? 'no' : body.contact_decision === 'yes' ? 'yes' : null;
-    if (!message || message.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
+    if (!requestMessage || requestMessage.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
 
-    const safety = emergencyFromMessage(message);
+    const safety = emergencyFromMessage(requestMessage);
     if (safety.emergency) {
-      const language = detectEmergencyLanguage(message);
+      const language = detectEmergencyLanguage(requestMessage);
       const reply = language === 'en' ? 'This sounds like an emergency. **Call 112 now** for police, fire or ambulance.' : 'Dit klinkt als een noodsituatie. **Bel direct 112** voor politie, brandweer of ambulance.';
       return NextResponse.json({ reply, state: { ...DEFAULT_AGENT_STATE, language, languageLocked: true, safety }, safety, actions: [{ label: language === 'en' ? 'Call 112' : 'Bel 112', value: '112', kind: 'emergency' }], providers: [], render_mode: 'message' });
     }
 
     const suppliedContact = normalizeContact(body.contact);
-    const history = normalizeHistory(body.messages, message);
+    const history = normalizeHistory(body.messages, requestMessage);
     const cookieStore = await cookies();
     let sessionKey = cookieStore.get('uo_agent_session')?.value;
     if (!sessionKey) { sessionKey = crypto.randomUUID(); cookieStore.set('uo_agent_session', sessionKey, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 }); }
 
     let previousState = DEFAULT_AGENT_STATE;
-    try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; } catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
+    try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; }
+    catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(detectLanguage(requestMessage, null), DEFAULT_AGENT_STATE, safety); }
     if (previousState.contact && previousState.contactCapture?.status !== 'accepted') previousState = { ...previousState, contactCapture: { ...previousState.contactCapture, status: 'accepted' } };
 
     let decision: OrchestratorDecision;
-    try { decision = await orchestrate(message, history, previousState); }
-    catch (error) { console.error('AGENT_ORCHESTRATOR_FALLBACK', error instanceof Error ? error.message : 'unknown_error'); decision = fallbackDecision(message, previousState); }
+    try { decision = await orchestrate(requestMessage, history, previousState); }
+    catch (error) { console.error('AGENT_ORCHESTRATOR_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(previousState.language, previousState, safety); }
 
     let state = applyOrchestratorDecision(decision, previousState);
     state.safety = safety;
@@ -237,23 +235,21 @@ export async function POST(request: Request) {
       state.contact = suppliedContact;
       state.contactCapture = { status: 'accepted', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
       try { await upsertAgentLead(sessionKey, suppliedContact, state.language, state.contactCapture.promptIntent || state.intent.primary); }
-      catch (error) {
-        console.error('AGENT_LEAD_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error');
-        const reply = state.language === 'en' ? 'I could not securely save your contact details yet. Please try once more so I can continue.' : 'Ik kon je contactgegevens nog niet veilig opslaan. Probeer het nog één keer, dan ga ik direct verder.';
-        return NextResponse.json({ error: 'lead_save_failed', reply, providers: [], actions: [], state, safety: state.safety, render_mode: 'message' }, { status: 503 });
-      }
+      catch (error) { console.error('AGENT_LEAD_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(state.language, state, safety); }
     } else if (isBusinessIntent(state.intent.primary, state.intent.confidence) && !state.contact && state.contactCapture.status === 'unknown') {
-      state.contactCapture = { status: 'offered', promptIntent: state.intent.primary, pendingMessage: message };
-      await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
+      state.contactCapture = { status: 'offered', promptIntent: state.intent.primary, pendingMessage: requestMessage };
+      try { await saveAgentState(sessionKey, state); }
+      catch (error) { console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(state.language, state, safety); }
       const en = state.language === 'en';
-      return NextResponse.json({ reply: en ? 'I can find the right local options for you. To make this quicker, would you like to share your details?' : 'Ik kan direct de juiste lokale opties voor je zoeken. Wil je je gegevens delen, zodat ik je sneller kan helpen?', render_mode: 'message', contact_offer: true, pending_request: message, state, safety: state.safety, actions: en ? [{ label: 'Yes', value: '__contact_yes', kind: 'contact_yes' }, { label: 'No', value: '__contact_no', kind: 'contact_no' }] : [{ label: 'Ja', value: '__contact_yes', kind: 'contact_yes' }, { label: 'Nee', value: '__contact_no', kind: 'contact_no' }], providers: [] });
+      return NextResponse.json({ reply: en ? 'I can find the right local options for you. To make this quicker, would you like to share your details?' : 'Ik kan direct de juiste lokale opties voor je zoeken. Wil je je gegevens delen, zodat ik je sneller kan helpen?', render_mode: 'message', contact_offer: true, pending_request: requestMessage, state, safety: state.safety, actions: en ? [{ label: 'Yes', value: '__contact_yes', kind: 'contact_yes' }, { label: 'No', value: '__contact_no', kind: 'contact_no' }] : [{ label: 'Ja', value: '__contact_yes', kind: 'contact_yes' }, { label: 'Nee', value: '__contact_no', kind: 'contact_no' }], providers: [] });
     }
 
-    await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
+    try { await saveAgentState(sessionKey, state); }
+    catch (error) { console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(state.language, state, safety); }
 
     let specialistResult: SpecialistResult;
-    try { specialistResult = await executeSpecialist(message, history, state); }
-    catch (error) { console.error('AGENT_SPECIALIST_FALLBACK', error instanceof Error ? error.message : 'unknown_error'); specialistResult = fallbackSpecialist(message, state); }
+    try { specialistResult = await executeSpecialist(requestMessage, history, state); }
+    catch (error) { console.error('AGENT_SPECIALIST_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(state.language, state, safety); }
     state = applySpecialistResult(state, specialistResult);
 
     let providers: AgentProvider[] = [];
@@ -264,20 +260,16 @@ export async function POST(request: Request) {
       if (providers.length === 1) state.activeProviderId = providers[0].id;
     }
 
-    await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
+    try { await saveAgentState(sessionKey, state); }
+    catch (error) { console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'); return backendFailureResponse(state.language, state, safety); }
     const actions = specialistActions(specialistResult, state);
     const hasProviderResults = providers.length > 0;
-    const reply = specialistResult.status === 'collecting' ? specialistResult.reply : hasProviderResults ? '' : await renderReadyResponse(message, history, state, specialistResult.reply, providers);
-    const safeReply = reply || fallbackFailureResponse(state, message).reply;
-    const safeActions = reply ? actions : fallbackFailureResponse(state, message).actions;
+    const reply = specialistResult.status === 'collecting' ? specialistResult.reply : hasProviderResults ? '' : await renderReadyResponse(requestMessage, history, state, specialistResult.reply, providers);
 
-    return NextResponse.json({ reply: hasProviderResults ? '' : safeReply, render_mode: hasProviderResults ? 'provider_cards' : 'message', state, safety: state.safety, actions: safeActions, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, agent_metadata }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, external_source: agent_metadata?.discovery_source || null })) });
+    return NextResponse.json({ reply: hasProviderResults ? '' : reply, render_mode: hasProviderResults ? 'provider_cards' : 'message', state, safety: state.safety, actions, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, agent_metadata }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source, source_url, external_source: agent_metadata?.discovery_source || null })) });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
-    const body = await request.clone().json().catch(() => ({}));
-    const message = String(body.message || '').trim();
-    const language = detectLanguage(message, 'nl');
-    const fallback = fallbackFailureResponse({ ...DEFAULT_AGENT_STATE, language }, message);
-    return NextResponse.json({ error: 'agent_degraded', reply: fallback.reply, actions: fallback.actions, providers: [], render_mode: 'message', state: { ...DEFAULT_AGENT_STATE, language }, safety: { emergency: false, reason: null } }, { status: 200 });
+    const language = detectLanguage(requestMessage, null);
+    return backendFailureResponse(language, { ...DEFAULT_AGENT_STATE, language }, { emergency: false, reason: null });
   }
 }
