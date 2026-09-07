@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
 
-type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null };
+type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null; source_url?: string | null; external_source?: string | null };
 type Action = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
 type Message = { id: number; role: 'assistant' | 'user'; text: string; actions?: Action[]; providers?: Provider[] };
 type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null } };
@@ -56,14 +56,17 @@ function ProviderCards({ providers }: { providers: Provider[] }) {
           <div><strong className="chat-provider-name">{provider.name}</strong><span className="chat-provider-category">{provider.category}</span></div>
           {provider.verified && <span className="chat-provider-verified">Verified</span>}
         </div>
+        {provider.external_source && <div className="chat-provider-category">Live gevonden via {provider.external_source}</div>}
         {provider.rating_score != null && <div className="chat-provider-rating"><Star size={13} fill="currentColor" /><strong>{provider.rating_score.toFixed(1)}/{(provider.rating_max ?? 5).toFixed(0)}</strong><span>· {provider.rating_review_count ?? 0} reviews</span><em>({provider.rating_source ?? 'source'})</em></div>}
         {provider.description && <p>{provider.description}</p>}
         <div className="chat-provider-actions">
           {provider.phone && <a href={`tel:${provider.phone.replace(/[^+\d]/g, '')}`}><Phone size={13} />Bel</a>}
           {provider.website && <a href={provider.website} target="_blank" rel="noreferrer">Website</a>}
+          {provider.external_source && provider.source_url && <a href={provider.source_url} target="_blank" rel="noreferrer">Google Maps</a>}
         </div>
       </article>
     ))}
+    {providers.some((provider) => provider.external_source === 'Google Places') && <small className="chat-provider-category">Google Maps/Places attribution: live discovery source.</small>}
   </div>;
 }
 
@@ -85,7 +88,6 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
     const nextMessages = [...messages, { id: Date.now(), role: 'user' as const, text: value }];
     setMessages(nextMessages); setInput(''); setTyping(true);
     try {
-      // Send only prior conversation turns. The API appends the current user message once.
       const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, messages: messages.map((item) => ({ role: item.role, content: item.text })) }) });
       const data: AgentResponse = await response.json();
       if (!response.ok) throw new Error('agent_request_failed');
