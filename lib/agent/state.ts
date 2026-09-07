@@ -2,13 +2,15 @@ export type AgentLanguage = 'nl' | 'en';
 
 export type SemanticIntent = 'find_food' | 'order_food' | 'find_service' | 'find_business' | 'find_event' | 'general_local';
 export type AgentSlot = 'service' | 'cuisine' | 'category' | 'fulfilment' | 'date' | 'people' | 'location';
-export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
+export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 'emergency' | 'contact_yes' | 'contact_no' };
 export type AgentContact = { name: string; email: string; phone: string; address: string };
+export type ContactCaptureStatus = 'unknown' | 'offered' | 'accepted' | 'declined';
 
 export type AgentState = {
   language: AgentLanguage;
   languageLocked: boolean;
   contact: AgentContact | null;
+  contactCapture: { status: ContactCaptureStatus; promptIntent: SemanticIntent | null; pendingMessage: string | null };
   location: { municipality: 'Uithoorn' | 'De Kwakel'; postcode: string | null; source: 'default' | 'user' | 'postcode' };
   intent: { primary: SemanticIntent; confidence: number };
   entities: { category: string | null; cuisine: string | null; service: string | null; fulfilment: 'pickup' | 'delivery' | 'dine_in' | null; dish: string | null; people: number | null; date: string | null };
@@ -21,6 +23,7 @@ export type AgentState = {
 
 export const DEFAULT_AGENT_STATE: AgentState = {
   language: 'nl', languageLocked: false, contact: null,
+  contactCapture: { status: 'unknown', promptIntent: null, pendingMessage: null },
   location: { municipality: 'Uithoorn', postcode: null, source: 'default' },
   intent: { primary: 'general_local', confidence: 0 },
   entities: { category: null, cuisine: null, service: null, fulfilment: null, dish: null, people: null, date: null },
@@ -63,7 +66,9 @@ export function applyOrchestratorDecision(decision: {
   const firstIntent = previous.intent.primary === 'general_local' && previous.intent.confidence === 0 && !previous.languageLocked;
   const language = firstIntent ? decision.language : previous.language;
   const merged: AgentState = {
-    ...DEFAULT_AGENT_STATE, ...previous, contact: previous.contact || null,
+    ...DEFAULT_AGENT_STATE, ...previous,
+    contact: previous.contact || null,
+    contactCapture: previous.contactCapture || DEFAULT_AGENT_STATE.contactCapture,
     language, languageLocked: previous.languageLocked || firstIntent,
     location: mergeLocation(previous.location, decision.location),
     intent: decision.intent?.primary ? { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) } : previous.intent,
@@ -93,5 +98,5 @@ export function buildProviderQuery(state: AgentState): string {
 }
 
 export function stateContext(state: AgentState): string {
-  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. The orchestrator owns routing; the specialist owns the flow and slot filling. Do not ask for information already represented here. Ask for at most one missing slot at a time. The conversation language is ${state.language}; use it exclusively.`;
+  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. The orchestrator owns routing; the specialist owns the flow and slot filling. Do not ask for information already represented here. Ask for at most one missing slot at a time. The conversation language is ${state.language}; use it exclusively. Contact capture is optional and must never block useful local information. If contactCapture.status is declined, do not ask for contact details again in this session.`;
 }
