@@ -6,6 +6,13 @@ export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 
 export type AgentContact = { name: string; email: string; phone: string; address: string };
 export type ContactCaptureStatus = 'unknown' | 'offered' | 'accepted' | 'declined';
 
+export type AgentPlan = {
+  goal: string;
+  steps: string[];
+  nextAction: string;
+  searchQuery: string | null;
+};
+
 export type AgentState = {
   language: AgentLanguage;
   languageLocked: boolean;
@@ -16,7 +23,7 @@ export type AgentState = {
   entities: { category: string | null; cuisine: string | null; service: string | null; fulfilment: 'pickup' | 'delivery' | 'dine_in' | null; dish: string | null; people: number | null; date: string | null };
   task: { type: string; status: 'collecting' | 'ready' | 'executing' | 'completed' };
   specialist: 'food' | 'local_discovery' | 'local_service' | 'events' | 'general';
-  planning: { missingSlots: AgentSlot[]; nextRequiredSlot: AgentSlot | null; repeatedIntentCount: number };
+  planning: { goal: string; steps: string[]; nextAction: string; searchQuery: string | null; missingSlots: AgentSlot[]; nextRequiredSlot: AgentSlot | null; repeatedIntentCount: number };
   safety: { emergency: boolean; reason: string | null };
   activeProviderId: string | null;
 };
@@ -28,7 +35,7 @@ export const DEFAULT_AGENT_STATE: AgentState = {
   intent: { primary: 'general_local', confidence: 0 },
   entities: { category: null, cuisine: null, service: null, fulfilment: null, dish: null, people: null, date: null },
   task: { type: 'local_help', status: 'collecting' }, specialist: 'general',
-  planning: { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 },
+  planning: { goal: '', steps: [], nextAction: '', searchQuery: null, missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 },
   safety: { emergency: false, reason: null }, activeProviderId: null,
 };
 
@@ -57,9 +64,21 @@ function mergeLocation(previous: AgentState['location'], incoming: AgentState['l
   return { municipality: incoming.municipality || previous.municipality, postcode: incoming.postcode || previous.postcode, source: incoming.source || previous.source };
 }
 
+function normalizePlan(plan: Partial<AgentPlan> | undefined, previous: AgentState['planning']): AgentState['planning'] {
+  return {
+    goal: typeof plan?.goal === 'string' ? plan.goal : previous.goal,
+    steps: Array.isArray(plan?.steps) ? plan!.steps.filter((x): x is string => typeof x === 'string').slice(0, 8) : previous.steps,
+    nextAction: typeof plan?.nextAction === 'string' ? plan.nextAction : previous.nextAction,
+    searchQuery: typeof plan?.searchQuery === 'string' && plan.searchQuery.trim() ? plan.searchQuery.trim() : previous.searchQuery,
+    missingSlots: previous.missingSlots,
+    nextRequiredSlot: previous.nextRequiredSlot,
+    repeatedIntentCount: previous.repeatedIntentCount,
+  };
+}
+
 export function applyOrchestratorDecision(decision: {
   language: AgentLanguage; location: AgentState['location']; intent: AgentState['intent']; entities: Partial<AgentState['entities']>;
-  specialist: AgentState['specialist']; task: { type: string };
+  specialist: AgentState['specialist']; task: { type: string }; plan?: Partial<AgentPlan>;
 }, previous: AgentState): AgentState {
   const sameIntent = previous.intent.primary === decision.intent.primary;
   const sameSpecialist = previous.specialist === decision.specialist;
@@ -74,22 +93,25 @@ export function applyOrchestratorDecision(decision: {
     intent: decision.intent?.primary ? { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) } : previous.intent,
     entities: mergeEntities(previous.entities, decision.entities),
     task: { type: decision.task?.type || previous.task.type, status: previous.task.status },
-    specialist: decision.specialist || previous.specialist, planning: previous.planning || DEFAULT_AGENT_STATE.planning,
+    specialist: decision.specialist || previous.specialist,
+    planning: normalizePlan(decision.plan, previous.planning || DEFAULT_AGENT_STATE.planning),
     safety: { emergency: false, reason: null }, activeProviderId: null,
   };
   merged.planning = !sameIntent || !sameSpecialist
-    ? { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 }
+    ? { ...merged.planning, missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 }
     : { ...merged.planning, repeatedIntentCount: merged.planning.repeatedIntentCount + 1 };
   return merged;
 }
 
-export function applySpecialistResult(state: AgentState, result: { captured: Partial<AgentState['entities']>; nextRequiredSlot: AgentSlot | null; missingSlots: AgentSlot[]; status: 'collecting' | 'ready' }): AgentState {
+export function applySpecialistResult(state: AgentState, result: { captured: Partial<AgentState['entities']>; nextRequiredSlot: AgentSlot | null; missingSlots: AgentSlot[]; status: 'collecting' | 'ready'; plan?: Partial<AgentPlan> }): AgentState {
   const entities = mergeEntities(state.entities, result.captured);
   const missingSlots = result.missingSlots.filter((slot) => slot !== 'location' || Boolean(state.location.municipality));
-  return { ...state, entities, planning: { ...state.planning, missingSlots, nextRequiredSlot: result.nextRequiredSlot || missingSlots[0] || null }, task: { ...state.task, status: result.status } };
+  const planning = normalizePlan(result.plan, state.planning);
+  return { ...state, entities, planning: { ...planning, missingSlots, nextRequiredSlot: result.nextRequiredSlot || missingSlots[0] || null }, task: { ...state.task, status: result.status } };
 }
 
 export function buildProviderQuery(state: AgentState): string {
+  if (state.planning.searchQuery) return state.planning.searchQuery;
   if (state.entities.service) return state.entities.service;
   if (state.entities.dish) return state.entities.dish;
   if (state.entities.cuisine) return `${state.entities.cuisine} food`;
@@ -98,5 +120,5 @@ export function buildProviderQuery(state: AgentState): string {
 }
 
 export function stateContext(state: AgentState): string {
-  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. The orchestrator owns routing; the specialist owns the flow and slot filling. Do not ask for information already represented here. Ask for at most one missing slot at a time. The conversation language is ${state.language}; use it exclusively. Contact capture is optional and must never block useful local information. If contactCapture.status is declined, do not ask for contact details again in this session.`;
+  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. The orchestrator owns understanding, planning and delegation; the specialist owns domain reasoning and execution planning. Do not ask for information already represented here. Do not force a predefined slot sequence. Ask only for information that is genuinely necessary to achieve the current goal. The conversation language is ${state.language}; use it exclusively. Contact capture is optional and must never block useful local information. If contactCapture.status is declined, do not ask for contact details again in this session.`;
 }
