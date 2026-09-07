@@ -8,7 +8,7 @@ type Action = { label: string; value: string; kind: 'quick_reply' | 'emergency' 
 type Message = { id: number; role: 'assistant' | 'user'; text: string; actions?: Action[]; providers?: Provider[] };
 type Contact = { name: string; email: string; phone: string; address: string };
 type AgentLanguage = 'nl' | 'en';
-type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null }; contact_offer?: boolean; pending_request?: string; state?: { language: AgentLanguage } };
+type AgentResponse = { error?: string; providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null }; contact_offer?: boolean; pending_request?: string; state?: { language: AgentLanguage } };
 
 const DEFAULT_ACTIONS: Action[] = [
   { label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' },
