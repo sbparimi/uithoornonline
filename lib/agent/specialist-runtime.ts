@@ -136,7 +136,7 @@ FLOW EXECUTION:
 - events: a broad event request asks for a time window; once date is known, status=ready and shouldSearch=true. Category is optional.
 - local_discovery: once category is known, status=ready and shouldSearch=true.
 - find_food: once category, cuisine or dish identifies what the user wants, status=ready and shouldSearch=true for discovery.
-- order_food: collect the food item first; fulfilment can be requested only if it is necessary to execute the order.
+- order_food: collect the food item first; once identified, status=ready and shouldSearch=true to find suitable providers. Do not invent an order or purchase.
 - A repeated utterance such as "Service nodig" is not an emergency and must not switch tasks.
 - Do not fabricate providers, prices, ratings, availability or capabilities.
 - Reply in the state's language. Never mix languages.
@@ -181,16 +181,18 @@ function localizedActions(state: AgentState, slot: AgentSlot | null): AgentActio
 }
 
 function sanitizeResult(result: SpecialistResult, state: AgentState): SpecialistResult {
-  const required = requiredSlots({ ...state, entities: { ...state.entities, ...result.captured } });
-  const nextRequiredSlot = required[0] || null;
-  const ready = required.length === 0;
+  const nextState = { ...state, entities: { ...state.entities, ...result.captured } };
+  const missingSlots = requiredSlots(nextState);
+  const nextRequiredSlot = missingSlots[0] || null;
+  const ready = missingSlots.length === 0;
+  const searchable = ['find_service', 'find_business', 'find_event', 'find_food', 'order_food'].includes(state.intent.primary);
   return {
     reply: result.reply,
     captured: result.captured,
-    missingSlots: required,
+    missingSlots,
     nextRequiredSlot,
     status: ready ? 'ready' : 'collecting',
-    shouldSearch: ready && Boolean(result.shouldSearch),
+    shouldSearch: ready && searchable,
   };
 }
 
