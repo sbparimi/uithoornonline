@@ -8,28 +8,19 @@ export type SemanticIntent =
   | 'find_event'
   | 'general_local';
 
+export type AgentSlot = 'service' | 'cuisine' | 'category' | 'fulfilment' | 'date' | 'people' | 'location';
+
+export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
+
 export type AgentState = {
   language: AgentLanguage;
-  location: {
-    municipality: 'Uithoorn' | 'De Kwakel';
-    postcode: string | null;
-    source: 'default' | 'user' | 'postcode';
-  };
+  location: { municipality: 'Uithoorn' | 'De Kwakel'; postcode: string | null; source: 'default' | 'user' | 'postcode' };
   intent: { primary: SemanticIntent; confidence: number };
-  entities: {
-    category: string | null;
-    cuisine: string | null;
-    service: string | null;
-    fulfilment: 'pickup' | 'delivery' | 'dine_in' | null;
-    dish: string | null;
-    people: number | null;
-    date: string | null;
-  };
-  task: {
-    type: string;
-    status: 'collecting' | 'ready' | 'executing' | 'completed';
-  };
+  entities: { category: string | null; cuisine: string | null; service: string | null; fulfilment: 'pickup' | 'delivery' | 'dine_in' | null; dish: string | null; people: number | null; date: string | null };
+  task: { type: string; status: 'collecting' | 'ready' | 'executing' | 'completed' };
   specialist: 'food' | 'local_discovery' | 'local_service' | 'events' | 'general';
+  planning: { missingSlots: AgentSlot[]; nextRequiredSlot: AgentSlot | null; repeatedIntentCount: number };
+  safety: { emergency: boolean; reason: string | null };
   activeProviderId: string | null;
 };
 
@@ -40,6 +31,8 @@ export const DEFAULT_AGENT_STATE: AgentState = {
   entities: { category: null, cuisine: null, service: null, fulfilment: null, dish: null, people: null, date: null },
   task: { type: 'local_help', status: 'collecting' },
   specialist: 'general',
+  planning: { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 },
+  safety: { emergency: false, reason: null },
   activeProviderId: null,
 };
 
@@ -54,27 +47,47 @@ export function resolvePostcode(postcode: string): AgentState['location']['munic
   return null;
 }
 
-export function applySemanticInterpretation(
-  interpretation: Partial<AgentState> | null,
-  previous: AgentState = DEFAULT_AGENT_STATE,
-): AgentState {
-  const i = interpretation || {};
+function deriveMissingSlots(state: AgentState): AgentSlot[] {
+  switch (state.intent.primary) {
+    case 'find_service': return state.entities.service ? [] : ['service'];
+    case 'find_food':
+      if (!state.entities.category && !state.entities.cuisine && !state.entities.dish) return ['category'];
+      return state.entities.fulfilment ? [] : ['fulfilment'];
+    case 'order_food':
+      if (!state.entities.category && !state.entities.cuisine && !state.entities.dish) return ['category'];
+      return state.entities.fulfilment ? [] : ['fulfilment'];
+    case 'find_event': return state.entities.date ? [] : ['date'];
+    case 'find_business': return state.entities.category ? [] : ['category'];
+    default: return [];
+  }
+}
+
+export function planState(state: AgentState, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
+  const missingSlots = deriveMissingSlots(state);
+  const repeatedIntentCount = state.intent.primary === previous.intent.primary ? previous.planning.repeatedIntentCount + 1 : 0;
   return {
+    ...state,
+    planning: { missingSlots, nextRequiredSlot: missingSlots[0] || null, repeatedIntentCount },
+    task: { ...state.task, status: missingSlots.length ? 'collecting' : 'ready' },
+  };
+}
+
+export function applySemanticInterpretation(interpretation: Partial<AgentState> | null, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
+  const i = interpretation || {};
+  const merged: AgentState = {
     ...previous,
     language: i.language || previous.language,
-    location: i.location?.municipality
-      ? { ...previous.location, ...i.location }
-      : previous.location,
-    intent: i.intent?.primary
-      ? { primary: i.intent.primary, confidence: Number(i.intent.confidence ?? 0.8) }
-      : previous.intent,
+    location: i.location?.municipality ? { ...previous.location, ...i.location } : previous.location,
+    intent: i.intent?.primary ? { primary: i.intent.primary, confidence: Number(i.intent.confidence ?? 0.8) } : previous.intent,
     entities: { ...previous.entities, ...(i.entities || {}) },
-    task: i.task?.type
-      ? { type: i.task.type, status: i.task.status || previous.task.status }
-      : previous.task,
+    task: i.task?.type ? { type: i.task.type, status: i.task.status || previous.task.status } : previous.task,
     specialist: i.specialist || previous.specialist,
-    activeProviderId: previous.activeProviderId,
+    planning: previous.planning,
+    safety: previous.safety,
+    activeProviderId: null,
   };
+  if (i.safety?.emergency === true) merged.safety = { emergency: true, reason: i.safety.reason || 'explicit emergency signal' };
+  return planState(merged, previous);
 }
 
 export function buildProviderQuery(state: AgentState): string {
@@ -86,5 +99,5 @@ export function buildProviderQuery(state: AgentState): string {
 }
 
 export function stateContext(state: AgentState): string {
-  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULE: treat this state as authoritative conversation context. Do not ask for information already represented here.`;
+  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. Do not ask for information already represented here. Ask for at most one missing slot at a time. If nextRequiredSlot is present, that is the only slot to ask for before proceeding.`;
 }

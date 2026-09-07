@@ -4,11 +4,16 @@ import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
 
 type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null };
-type Message = { id: number; role: 'assistant' | 'user'; text: string; quickReplies?: string[]; providers?: Provider[] };
-type AgentResponse = { providers: Provider[]; reply: string };
+type Action = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
+type Message = { id: number; role: 'assistant' | 'user'; text: string; actions?: Action[]; providers?: Provider[] };
+type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null } };
 
-const DEFAULT_QUICK_REPLIES = ['Zoek een bedrijf', 'Eten & catering', 'Dienst nodig', 'Wat is er te doen?'];
-const EMERGENCY_QUICK_REPLIES = ['Bel 112', 'Politie (niet-spoed)', 'Ik heb hulp nodig'];
+const DEFAULT_ACTIONS: Action[] = [
+  { label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' },
+  { label: 'Eten & catering', value: 'Eten & catering', kind: 'quick_reply' },
+  { label: 'Dienst nodig', value: 'Dienst nodig', kind: 'quick_reply' },
+  { label: 'Wat is er te doen?', value: 'Wat is er te doen?', kind: 'quick_reply' },
+];
 
 function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -32,19 +37,15 @@ function renderRichText(text: string, providerNames: string[] = []) {
   let list: string[] = [];
   const flushList = () => { if (!list.length) return; const items = list; list = []; nodes.push(<ul key={`list-${nodes.length}`}>{items.map((item, i) => <li key={i}>{formatInline(item, providerNames)}</li>)}</ul>); };
   lines.forEach((line, index) => {
-    const emergency = /\b112\b/.test(line) && /(urgent|nood|emergency|spoed|danger|gevaar|bel|call|only number|immediate)/i.test(line);
     if (/^#{1,3}\s/.test(line)) { flushList(); nodes.push(<p className="chat-heading" key={`h-${index}`}>{formatInline(line.replace(/^#{1,3}\s+/, ''), providerNames)}</p>); return; }
     if (/^\d+[.)]\s+/.test(line)) { list.push(line.replace(/^\d+[.)]\s+/, '')); return; }
     if (/^[-*•]\s+/.test(line)) { list.push(line.replace(/^[-*•]\s+/, '')); return; }
     flushList();
-    if (emergency) { nodes.push(<div className="chat-emergency" key={`e-${index}`}><strong>Directe hulp nodig?</strong><span>{formatInline(line, providerNames)}</span><a className="chat-emergency-number" href="tel:112"><Phone size={15} />112</a></div>); return; }
     nodes.push(<p key={`p-${index}`}>{formatInline(line, providerNames)}</p>);
   });
   flushList();
   return nodes;
 }
-
-function quickRepliesFor(text: string) { return /\b112\b|nood|spoed|emergency|urgent|politie/i.test(text) ? EMERGENCY_QUICK_REPLIES : DEFAULT_QUICK_REPLIES; }
 
 function ProviderCards({ providers }: { providers: Provider[] }) {
   if (!providers.length) return null;
@@ -68,7 +69,7 @@ function ProviderCards({ providers }: { providers: Provider[] }) {
 
 export default function AgentChat({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, role: 'assistant', text: 'Goedendag!\n\nWat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', quickReplies: DEFAULT_QUICK_REPLIES },
+    { id: 1, role: 'assistant', text: 'Goedendag!\n\nWat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', actions: DEFAULT_ACTIONS },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -84,13 +85,14 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
     const nextMessages = [...messages, { id: Date.now(), role: 'user' as const, text: value }];
     setMessages(nextMessages); setInput(''); setTyping(true);
     try {
-      const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, messages: nextMessages.map((item) => ({ role: item.role, content: item.text })) }) });
+      // Send only prior conversation turns. The API appends the current user message once.
+      const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, messages: messages.map((item) => ({ role: item.role, content: item.text })) }) });
       const data: AgentResponse = await response.json();
       if (!response.ok) throw new Error('agent_request_failed');
       setProviderNames((current) => Array.from(new Set([...current, ...data.providers.map((provider) => provider.name)])));
-      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, quickReplies: quickRepliesFor(data.reply), providers: data.providers }]);
+      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, actions: data.actions, providers: data.providers }]);
     } catch {
-      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: 'Ik kan je vraag op dit moment niet verwerken. Probeer het nog eens.', quickReplies: DEFAULT_QUICK_REPLIES }]);
+      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: 'Ik kan je vraag op dit moment niet verwerken. Probeer het nog eens.', actions: DEFAULT_ACTIONS }]);
     } finally { setTyping(false); }
   }
 
@@ -103,7 +105,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       <div className="agent-chat-messages" ref={messagesRef} aria-live="polite">
         {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
           <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
-          <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.quickReplies && !typing && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.quickReplies.map((reply) => <button className="agent-quick-reply" key={reply} type="button" onClick={() => void sendText(reply)} disabled={typing}>{reply}</button>)}</div>}</div>
+          <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void sendText(action.value)} disabled={typing}>{action.label}</button>)}</div>}</div>
         </div>)}
         {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
       </div>

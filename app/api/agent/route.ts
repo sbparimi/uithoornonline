@@ -4,6 +4,7 @@ import { kimiChat } from '../../../lib/kimi';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
 import { applySemanticInterpretation, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentState } from '../../../lib/agent/state';
+import { actionsForState, deterministicReply, emergencyFromMessage } from '../../../lib/agent/planner';
 import { specialistContext } from '../../../lib/agent/specialists';
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -17,16 +18,19 @@ Return ONLY valid JSON matching this shape:
   "intent":{"primary":"find_food|order_food|find_service|find_business|find_event|general_local","confidence":number},
   "entities":{"category":string|null,"cuisine":string|null,"service":string|null,"fulfilment":"pickup|delivery|dine_in"|null,"dish":string|null,"people":number|null,"date":string|null},
   "task":{"type":string,"status":"collecting|ready"},
-  "specialist":"food|local_discovery|local_service|events|general"
+  "specialist":"food|local_discovery|local_service|events|general",
+  "safety":{"emergency":boolean,"reason":string|null}
 }
 Rules:
 - Understand meaning, synonyms, paraphrases, spelling mistakes and natural conversation semantically.
 - If no location is stated, use Uithoorn as the default. Never require a postcode just to search locally.
 - Preserve known context unless the user explicitly changes it.
+- If the current task is find_service and the user replies with a service name such as loodgieter, elektricien, schoonmaak or tuinonderhoud, set entities.service to that value and keep intent find_service.
+- A repeated request such as "Service nodig" is not an emergency and must not change the task to another intent.
 - Indian food, Indiaas eten, dosa, idli, vada and biryani imply cuisine Indian and category food.
-- Choose the specialist from the task, not from keywords alone.
 - For a request to buy/order food, intent is order_food even if the user does not use the exact word order.
-- Do not invent provider facts; this step only interprets intent and entities.`;
+- Do not invent provider facts; this step only interprets intent and entities.
+- SAFETY IS NOT TRIGGERED by ordinary words such as urgent, spoed, politie, nood or hulp when they merely describe a service or a future question. Only mark emergency=true for explicit immediate danger, an explicit request to call 112, fire, gas leak, explosion, unconsciousness/resuscitation, life-threatening injury, active violent incident or an active threat.`;
 
 const RESPONSE_PROMPT = `You are Uithoorn AI, the local AI assistant of Uithoorn.online.
 The orchestrator and specialist have already interpreted the user's task and retrieved local business results. Respond based ONLY on the supplied state and business results.
@@ -38,18 +42,21 @@ The orchestrator and specialist have already interpreted the user's task and ret
 - Never invent or estimate ratings or review counts.
 - If a provider is pickup-only, never offer delivery.
 - Be concise, concrete and action-oriented.
+- Ask for at most ONE missing piece of information. The supplied nextRequiredSlot is the only information you may ask for while the task is collecting.
+- If the task is collecting and a deterministic reply is supplied, preserve its meaning and do not introduce a different question.
+- Do not ask about urgency until the requested service itself is known, unless the user explicitly describes an emergency.
 - Do not mention agents, orchestration, tools, models or internal architecture.`;
 
-function normalizeHistory(value: unknown): ChatMessage[] {
+function normalizeHistory(value: unknown, currentMessage: string): ChatMessage[] {
   if (!Array.isArray(value)) return [];
-  return value
+  const normalized = value
     .filter((item): item is { role?: unknown; content?: unknown; text?: unknown } => Boolean(item && typeof item === 'object'))
-    .map((item): ChatMessage => ({
-      role: item.role === 'assistant' ? 'assistant' : 'user',
-      content: String(item.content ?? item.text ?? '').trim(),
-    }))
-    .filter((item) => item.content.length > 0)
-    .slice(-16);
+    .map((item): ChatMessage => ({ role: item.role === 'assistant' ? 'assistant' : 'user', content: String(item.content ?? item.text ?? '').trim() }))
+    .filter((item) => item.content.length > 0);
+
+  // The UI may send the current message in its history. Remove one trailing copy so the model sees it exactly once.
+  if (normalized.length && normalized[normalized.length - 1].role === 'user' && normalized[normalized.length - 1].content === currentMessage) normalized.pop();
+  return normalized.slice(-16);
 }
 
 function formatProviderContext(providers: AgentProvider[]): string {
@@ -89,7 +96,7 @@ export async function POST(request: Request) {
     const message = String(body.message || '').trim();
     if (!message || message.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
 
-    const history = normalizeHistory(body.messages);
+    const history = normalizeHistory(body.messages, message);
     const cookieStore = await cookies();
     let sessionKey = cookieStore.get('uo_agent_session')?.value;
     if (!sessionKey) {
@@ -103,10 +110,12 @@ export async function POST(request: Request) {
 
     const interpretation = await interpretSemantically(message, history, previousState);
     const state = applySemanticInterpretation(interpretation, previousState);
-    const providerQuery = buildProviderQuery(state);
+    const safety = emergencyFromMessage(message);
+    state.safety = safety;
 
+    const providerQuery = buildProviderQuery(state);
     let providers: AgentProvider[] = [];
-    if (providerQuery) {
+    if (!safety.emergency && providerQuery && state.task.status === 'ready') {
       try { providers = await searchVerifiedProviders(providerQuery, state.location.municipality, 5); }
       catch (error) { console.error('AGENT_PROVIDER_SEARCH_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
     }
@@ -115,17 +124,30 @@ export async function POST(request: Request) {
     try { await saveAgentState(sessionKey, state); }
     catch (error) { console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
 
-    const finalResult = await kimiChat([
-      { role: 'system', content: RESPONSE_PROMPT },
-      { role: 'system', content: stateContext(state) },
-      { role: 'system', content: `SPECIALIST RESULT:\n${specialistContext(state)}\n${formatProviderContext(providers)}` },
-      ...history,
-      { role: 'user', content: message },
-    ]);
-    const reply = String(finalResult?.choices?.[0]?.message?.content || '').trim();
+    const actions = actionsForState(state);
+    const plannedReply = deterministicReply(state, providers.length > 0);
+    let reply = plannedReply;
+
+    if (!reply) {
+      const finalResult = await kimiChat([
+        { role: 'system', content: RESPONSE_PROMPT },
+        { role: 'system', content: stateContext(state) },
+        { role: 'system', content: `SPECIALIST RESULT:\n${specialistContext(state)}\n${formatProviderContext(providers)}` },
+        ...(history.length ? history : []),
+        { role: 'user', content: message },
+      ]);
+      reply = String(finalResult?.choices?.[0]?.message?.content || '').trim();
+    }
+
     if (!reply) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
 
-    return NextResponse.json({ reply, state, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source })) });
+    return NextResponse.json({
+      reply,
+      state,
+      safety,
+      actions,
+      providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source })),
+    });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
     return NextResponse.json({ error: 'agent_unavailable', reply: 'Ik kan je aanvraag op dit moment niet verwerken. Probeer het over een moment opnieuw.' }, { status: 503 });
