@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
-import { Bot, Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
+import { Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
 
 type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null };
 type Message = { id: number; role: 'assistant' | 'user'; text: string; quickReplies?: string[]; providers?: Provider[] };
@@ -68,13 +68,13 @@ function ProviderCards({ providers }: { providers: Provider[] }) {
 
 export default function AgentChat({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, role: 'assistant', text: 'Goedendag!', quickReplies: DEFAULT_QUICK_REPLIES },
-    { id: 2, role: 'assistant', text: 'Wat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', quickReplies: DEFAULT_QUICK_REPLIES },
+    { id: 1, role: 'assistant', text: 'Goedendag!\n\nWat wil je lokaal regelen? Je kunt het gewoon in je eigen woorden vertellen.', quickReplies: DEFAULT_QUICK_REPLIES },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === 'assistant')?.id;
 
   useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, typing]);
 
@@ -98,12 +98,12 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
 
   return <div className="agent-chat-overlay" role="dialog" aria-modal="true" aria-label="Uithoorn AI">
     <section className="agent-chat-window">
-      <header className="agent-chat-header"><div className="agent-chat-title"><div className="agent-avatar"><Bot /></div><div><strong>Uithoorn AI</strong><span>Online</span></div></div><div className="agent-chat-actions"><button aria-label="Minimaliseren" title="Minimaliseren"><Minus /></button><button aria-label="Sluiten" title="Sluiten" onClick={onClose}><X /></button></div></header>
+      <header className="agent-chat-header"><div className="agent-chat-title"><div className="agent-avatar"><img src="/icon.svg" alt="" /></div><div><strong>Uithoorn AI</strong><span>Online</span></div></div><div className="agent-chat-actions"><button aria-label="Minimaliseren" title="Minimaliseren"><Minus /></button><button aria-label="Sluiten" title="Sluiten" onClick={onClose}><X /></button></div></header>
       <div className="agent-chat-intro">Lokale hulp, informatie en diensten — vanuit één gesprek.</div>
       <div className="agent-chat-messages" ref={messagesRef} aria-live="polite">
         {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
-          <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <Bot />}</div>
-          <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.quickReplies && !typing && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.quickReplies.map((reply) => <button className="agent-quick-reply" key={reply} type="button" onClick={() => void sendText(reply)} disabled={typing}>{reply}</button>)}</div>}</div>
+          <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
+          <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.quickReplies && !typing && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.quickReplies.map((reply) => <button className="agent-quick-reply" key={reply} type="button" onClick={() => void sendText(reply)} disabled={typing}>{reply}</button>)}</div>}</div>
         )}
         {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
       </div>
