@@ -14,6 +14,12 @@ export type KimiChatOptions = {
   reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
+type KimiChatResponse = {
+  choices: Array<{ message: { role: string; content: string } }>;
+  provider?: string;
+  model?: string;
+};
+
 type Provider = 'groq' | 'openai' | 'bedrock';
 
 function providerOrder(): Provider[] {
@@ -37,27 +43,25 @@ function parseRetryAfter(response: Response): number {
   return Number.isFinite(seconds) ? Math.max(0, Math.min(seconds * 1000, 3000)) : 0;
 }
 
-async function callOpenAICompatible(
-  provider: 'groq' | 'openai',
-  messages: ChatMessage[],
-  options: Required<KimiChatOptions>,
-): Promise<unknown> {
+async function callOpenAICompatible(provider: 'groq' | 'openai', messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<KimiChatResponse> {
   const isGroq = provider === 'groq';
   const baseUrl = isGroq ? GROQ_BASE_URL : OPENAI_BASE_URL;
   const model = isGroq ? GROQ_MODEL : OPENAI_MODEL;
   const apiKey = isGroq ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error(`${provider.toUpperCase()}_NOT_CONFIGURED`);
 
+  const requestBody = JSON.stringify({
+    model,
+    messages,
+    temperature: options.temperature,
+    max_completion_tokens: options.maxCompletionTokens,
+    ...(isGroq ? { reasoning_effort: options.reasoningEffort, include_reasoning: false } : {}),
+  });
+
   let response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: options.temperature,
-      max_completion_tokens: options.maxCompletionTokens,
-      ...(isGroq ? { reasoning_effort: options.reasoningEffort, include_reasoning: false } : {}),
-    }),
+    body: requestBody,
   });
 
   if (response.status === 429) {
@@ -68,13 +72,7 @@ async function callOpenAICompatible(
       response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: options.temperature,
-          max_completion_tokens: options.maxCompletionTokens,
-          ...(isGroq ? { reasoning_effort: options.reasoningEffort, include_reasoning: false } : {}),
-        }),
+        body: requestBody,
       });
     }
   }
@@ -95,11 +93,11 @@ async function callOpenAICompatible(
     throw new Error(`${provider.toUpperCase()}_REQUEST_FAILED:${response.status}`);
   }
 
-  const payload = await response.json();
+  const payload = await response.json() as KimiChatResponse;
   return { ...payload, provider, model };
 }
 
-async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<unknown> {
+async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<KimiChatResponse> {
   const client = new BedrockRuntimeClient({ region: BEDROCK_REGION });
   const system = messages.filter((message) => message.role === 'system').map((message) => ({ text: message.content }));
   const conversation = messages
@@ -117,7 +115,7 @@ async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOp
   return { choices: [{ message: { role: 'assistant', content } }], provider: 'bedrock', model: BEDROCK_MODEL };
 }
 
-export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}) {
+export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}): Promise<KimiChatResponse> {
   const options: Required<KimiChatOptions> = {
     maxCompletionTokens: inputOptions.maxCompletionTokens ?? 900,
     temperature: inputOptions.temperature ?? 0.1,
@@ -133,7 +131,7 @@ export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOp
       const result = provider === 'bedrock'
         ? await callBedrock(messages, options)
         : await callOpenAICompatible(provider, messages, options);
-      console.info('LLM_PROVIDER_SELECTED', { provider, model: (result as { model?: string }).model });
+      console.info('LLM_PROVIDER_SELECTED', { provider: result.provider, model: result.model });
       return result;
     } catch (error) {
       lastError = error;
