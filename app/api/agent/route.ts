@@ -34,6 +34,8 @@ The orchestrator and specialist have already interpreted the user's task and ret
 - Uithoorn is the default location; do not ask for location when state already has one.
 - Never invent local businesses, prices, availability, opening hours or capabilities.
 - Treat verified=true as independently verified. Treat verified=false as a curated/discoverable business whose facts must be presented without claiming independent verification.
+- When a business has a rating_score, always show its rating and review count in the business result, using the supplied rating_source. Format as: **4.9/5** · 48 reviews (Google).
+- Never invent or estimate ratings or review counts.
 - If a provider is pickup-only, never offer delivery.
 - Be concise, concrete and action-oriented.
 - Do not mention agents, orchestration, tools, models or internal architecture.`;
@@ -57,7 +59,9 @@ function formatProviderContext(providers: AgentProvider[]): string {
     summary: provider.agent_summary, description: provider.description, postcode: provider.postcode,
     service_areas: provider.service_areas, capabilities: provider.capabilities, availability: provider.availability,
     pricing: provider.pricing, phone: provider.phone, website: provider.website, source_url: provider.source_url,
-    verified_at: provider.verified_at,
+    verified_at: provider.verified_at, rating_score: provider.rating_score, rating_max: provider.rating_max,
+    rating_review_count: provider.rating_review_count, rating_source: provider.rating_source,
+    rating_retrieved_at: provider.rating_retrieved_at,
   })).join('\n')}`;
 }
 
@@ -121,7 +125,7 @@ export async function POST(request: Request) {
     const reply = String(finalResult?.choices?.[0]?.message?.content || '').trim();
     if (!reply) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
 
-    return NextResponse.json({ reply, state, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified }) => ({ id, name, category, description, postcode, phone, website, verified })) });
+    return NextResponse.json({ reply, state, providers: providers.map(({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source }) => ({ id, name, category, description, postcode, phone, website, verified, rating_score, rating_max, rating_review_count, rating_source })) });
   } catch (error) {
     console.error('AGENT_ERROR', error instanceof Error ? error.message : 'unknown_error');
     return NextResponse.json({ error: 'agent_unavailable', reply: 'Ik kan je aanvraag op dit moment niet verwerken. Probeer het over een moment opnieuw.' }, { status: 503 });
