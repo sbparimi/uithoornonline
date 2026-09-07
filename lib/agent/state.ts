@@ -39,11 +39,32 @@ export function resolvePostcode(postcode: string): AgentState['location']['munic
   return null;
 }
 
+function mergeEntities(previous: AgentState['entities'], incoming: Partial<AgentState['entities']> | undefined) {
+  const merged = { ...previous };
+  if (!incoming) return merged;
+  (Object.keys(merged) as Array<keyof AgentState['entities']>).forEach((key) => {
+    const value = incoming[key];
+    if (value !== undefined && value !== null && value !== '') merged[key] = value as never;
+  });
+  return merged;
+}
+
+function mergeLocation(previous: AgentState['location'], incoming: AgentState['location'] | undefined) {
+  if (!incoming) return previous;
+  const explicit = incoming.source === 'user' || incoming.source === 'postcode';
+  if (!explicit && previous.source !== 'default') return previous;
+  return {
+    municipality: incoming.municipality || previous.municipality,
+    postcode: incoming.postcode || previous.postcode,
+    source: incoming.source || previous.source,
+  };
+}
+
 export function applyOrchestratorDecision(decision: {
   language: AgentLanguage;
   location: AgentState['location'];
   intent: AgentState['intent'];
-  entities: AgentState['entities'];
+  entities: Partial<AgentState['entities']>;
   specialist: AgentState['specialist'];
   task: { type: string };
 }, previous: AgentState): AgentState {
@@ -53,9 +74,9 @@ export function applyOrchestratorDecision(decision: {
     ...DEFAULT_AGENT_STATE,
     ...previous,
     language: decision.language || previous.language,
-    location: decision.location?.municipality ? { ...previous.location, ...decision.location } : previous.location,
+    location: mergeLocation(previous.location, decision.location),
     intent: decision.intent?.primary ? { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) } : previous.intent,
-    entities: { ...previous.entities, ...decision.entities },
+    entities: mergeEntities(previous.entities, decision.entities),
     task: { type: decision.task?.type || previous.task.type, status: previous.task.status },
     specialist: decision.specialist || previous.specialist,
     planning: previous.planning || DEFAULT_AGENT_STATE.planning,
@@ -63,7 +84,6 @@ export function applyOrchestratorDecision(decision: {
     activeProviderId: null,
   };
 
-  // A genuinely new task starts a new specialist flow while preserving location.
   if (!sameIntent || !sameSpecialist) {
     merged.planning = { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 };
   } else {
@@ -76,7 +96,7 @@ export function applySpecialistResult(
   state: AgentState,
   result: { captured: Partial<AgentState['entities']>; nextRequiredSlot: AgentSlot | null; missingSlots: AgentSlot[]; status: 'collecting' | 'ready' },
 ): AgentState {
-  const entities = { ...state.entities, ...result.captured };
+  const entities = mergeEntities(state.entities, result.captured);
   const missingSlots = result.missingSlots.filter((slot) => slot !== 'location' || Boolean(state.location.municipality));
   return {
     ...state,
@@ -88,8 +108,8 @@ export function applySpecialistResult(
 
 export function buildProviderQuery(state: AgentState): string {
   if (state.entities.service) return state.entities.service;
-  if (state.entities.cuisine && (state.entities.category === 'food' || state.intent.primary === 'find_food' || state.intent.primary === 'order_food')) return `${state.entities.cuisine} food`;
   if (state.entities.dish) return state.entities.dish;
+  if (state.entities.cuisine) return `${state.entities.cuisine} food`;
   if (state.entities.category) return state.entities.category;
   return state.intent.primary === 'find_event' ? 'event' : '';
 }
