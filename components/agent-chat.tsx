@@ -1,14 +1,14 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Loader2, Minus, Phone, Send, Star, X } from 'lucide-react';
+import { ArrowRight, Loader2, Minus, Phone, Send, Star, User, X } from 'lucide-react';
 
 type Provider = { id: string; name: string; category: string; description: string; postcode: string | null; phone: string | null; website: string | null; verified: boolean; rating_score: number | null; rating_max: number | null; rating_review_count: number | null; rating_source: string | null; source_url?: string | null; external_source?: string | null };
 type Action = { label: string; value: string; kind: 'quick_reply' | 'emergency' | 'contact_yes' | 'contact_no' };
 type Message = { id: number; role: 'assistant' | 'user'; text: string; actions?: Action[]; providers?: Provider[] };
 type Contact = { name: string; email: string; phone: string; address: string };
 type AgentLanguage = 'nl' | 'en';
-type AgentResponse = { error?: string; providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null }; contact_offer?: boolean; pending_request?: string; state?: { language: AgentLanguage } };
+type AgentResponse = { providers: Provider[]; reply: string; actions: Action[]; safety: { emergency: boolean; reason: string | null }; contact_offer?: boolean; pending_request?: string; state?: { language: AgentLanguage }; error?: string };
 
 const DEFAULT_ACTIONS: Action[] = [
   { label: 'Zoek een bedrijf', value: 'Zoek een bedrijf', kind: 'quick_reply' },
@@ -17,7 +17,12 @@ const DEFAULT_ACTIONS: Action[] = [
   { label: 'Wat is er te doen?', value: 'Wat is er te doen?', kind: 'quick_reply' },
 ];
 
-const INITIAL_MESSAGE: Message = { id: 1, role: 'assistant', text: 'Goedendag!\n\nWaar kan ik je mee helpen? Vertel gewoon wat je lokaal nodig hebt.', actions: DEFAULT_ACTIONS };
+const INITIAL_MESSAGE: Message = {
+  id: 1,
+  role: 'assistant',
+  text: 'Goedendag!\n\nWat wil je lokaal regelen? Vertel het gewoon in je eigen woorden.',
+  actions: DEFAULT_ACTIONS,
+};
 
 function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function formatInline(text: string, providerNames: string[] = []): ReactNode[] {
@@ -100,32 +105,26 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
   }
 
   async function requestAgent(message: string, options: { contactDecision?: 'no'; contact?: Contact; addUserMessage?: boolean } = {}) {
-    const value = message.trim(); if (!value || typing) return;
+    const value = message.trim(); if (!value || typing || contactSubmitting) return;
     if (options.addUserMessage !== false) setMessages((current) => [...current, { id: Date.now(), role: 'user', text: value }]);
     setInput(''); setTyping(true);
     try {
       const response = await fetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: value, contact: options.contact, contact_decision: options.contactDecision, messages: messages.map((item) => ({ role: item.role, content: item.text })) }) });
       const data: AgentResponse = await response.json();
-      if (!response.ok) throw new Error(data.error || 'agent_request_failed');
       const language = data.state?.language || contactLanguage;
       setContactLanguage(language);
       setProviderNames((current) => Array.from(new Set([...current, ...data.providers.map((provider) => provider.name)])));
       if (data.contact_offer) { setPendingRequest(data.pending_request || value); setContactFormVisible(false); }
       setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: data.reply, actions: data.actions, providers: data.providers }]);
-    } catch {
-      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: contactLanguage === 'en' ? 'I could not complete that request right now. Please try again.' : 'Ik kan die aanvraag op dit moment niet afronden. Probeer het nog eens.', actions: DEFAULT_ACTIONS }]);
+    } catch (error) {
+      const failed = error instanceof Error && error.message === 'lead_save_failed';
+      setMessages((current) => [...current, { id: Date.now() + 1, role: 'assistant', text: failed ? (contactLanguage === 'en' ? 'I could not securely save those details. Please try again.' : 'Ik kon die gegevens niet veilig opslaan. Probeer het nog eens.') : (contactLanguage === 'en' ? 'I have your request. Please choose an option below or tell me what you need in your own words.' : 'Ik heb je aanvraag. Kies hieronder een optie of vertel in je eigen woorden wat je nodig hebt.'), actions: DEFAULT_ACTIONS }]);
     } finally { setTyping(false); }
   }
 
   async function handleContactAction(action: Action) {
-    if (action.kind === 'contact_yes') {
-      setMessages((current) => [...current, { id: Date.now(), role: 'user', text: contactLanguage === 'en' ? 'Yes' : 'Ja' }]);
-      setContactError(''); setContactFormVisible(true); return;
-    }
-    if (action.kind === 'contact_no') {
-      setMessages((current) => [...current, { id: Date.now(), role: 'user', text: contactLanguage === 'en' ? 'No' : 'Nee' }]);
-      await requestAgent(pendingRequest, { contactDecision: 'no', addUserMessage: false }); return;
-    }
+    if (action.kind === 'contact_yes') { setMessages((current) => [...current, { id: Date.now(), role: 'user', text: contactLanguage === 'en' ? 'Yes' : 'Ja' }]); setContactError(''); setContactFormVisible(true); return; }
+    if (action.kind === 'contact_no') { setMessages((current) => [...current, { id: Date.now(), role: 'user', text: contactLanguage === 'en' ? 'No' : 'Nee' }]); await requestAgent(pendingRequest, { contactDecision: 'no', addUserMessage: false }); return; }
     await requestAgent(action.value);
   }
 
@@ -135,9 +134,8 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
     if (error) { setContactError(error); return; }
     if (!pendingRequest) return;
     setContactError(''); setContactFormVisible(false); setContactSubmitting(true);
-    try {
-      await requestAgent(pendingRequest, { contact: { ...contact, name: contact.name.trim(), email: contact.email.trim().toLowerCase(), phone: contact.phone.trim(), address: contact.address.trim() }, addUserMessage: false });
-    } finally { setContactSubmitting(false); }
+    try { await requestAgent(pendingRequest, { contact: { ...contact, name: contact.name.trim(), email: contact.email.trim().toLowerCase(), phone: contact.phone.trim(), address: contact.address.trim() }, addUserMessage: false }); }
+    finally { setContactSubmitting(false); }
   }
 
   function send(e: FormEvent) { e.preventDefault(); void requestAgent(input); }
@@ -150,12 +148,12 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
         const hasProviderResults = message.role === 'assistant' && Boolean(message.providers?.length);
         if (hasProviderResults) return <ProviderCards key={message.id} providers={message.providers!} language={contactLanguage} />;
         return <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} data-no-translate="true" key={message.id}>
-          <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
+          <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? <User size={14} aria-hidden="true" /> : <img src="/icon.svg" alt="" />}</div>
           <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void handleContactAction(action)} disabled={typing || contactSubmitting}>{action.label}</button>)}</div>}</div>
         </div>;
       })}
       {contactFormVisible && <ContactForm contact={contact} setContact={setContact} error={contactError} language={contactLanguage} submitting={contactSubmitting} onSubmit={submitContact} />}
-      {typing && <div className="agent-typing" data-no-translate="true"><Loader2 /> {contactLanguage === 'en' ? 'Checking…' : 'Even kijken…'}</div>}
+      {typing && <div className="agent-typing" data-no-translate="true"><Loader2 /> {contactLanguage === 'en' ? 'Working…' : 'Ik regel het…'}</div>}
     </div>
     <div className="agent-composer-wrap"><form className="agent-chat-composer" onSubmit={send}><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder={contactLanguage === 'en' ? 'Type your message…' : 'Typ je bericht…'} aria-label="Bericht" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e); } }} /><button type="submit" disabled={!input.trim() || typing || contactSubmitting} aria-label="Verstuur"><Send /></button></form><div style={{ fontSize: 8, color: '#9a9d98', textAlign: 'center', marginTop: 7 }}>{contactLanguage === 'en' ? 'Enter to send · Shift + Enter for a new line' : 'Enter om te versturen · Shift + Enter voor een nieuwe regel'}</div></div>
   </section></div>;
