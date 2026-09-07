@@ -11,9 +11,9 @@ export function HomePage() {
   return <main className="uo-agent-site" id="top">
     <header className="uo-agent-header">
       <a href="#top" className="uo-agent-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>uithoorn<span>.online</span></span></a>
-      <nav className="uo-agent-nav" aria-label="Hoofdnavigatie"><a href="#local">Lokaal</a></nav>
+      <nav className="uo-agent-nav" aria-label="Hoofdnavigatie"></nav>
       <div className="uo-agent-header-actions"><span><MapPin /> Uithoorn & De Kwakel</span><a href="/signup">Voor ondernemers</a><button className="uo-agent-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">{mobileOpen ? <X /> : <Menu />}</button></div>
-      {mobileOpen && <nav className="uo-agent-mobile-nav"><a href="#local" onClick={() => setMobileOpen(false)}>Lokaal</a><a href="/signup">Voor ondernemers</a></nav>}
+      {mobileOpen && <nav className="uo-agent-mobile-nav"><a href="/signup">Voor ondernemers</a></nav>}
     </header>
 
     <section className="uo-agent-hero">
@@ -31,8 +31,6 @@ export function HomePage() {
         <span className="uo-agent-launch-button">Start de chat <ArrowRight /></span>
       </button>
     </section>
-
-    <section className="uo-agent-local" id="local"><div className="uo-agent-local-copy"><div className="uo-agent-section-label">BUILT FOR UITHOORN</div><h2>Lokale uitvoering.<br /><em>Niet alleen lokale informatie.</em></h2><p>De waarde van Uithoorn.online zit niet in een lijst met telefoonnummers. De agent helpt een inwoner een concrete taak daadwerkelijk verder te brengen — met lokale aanbieders, relevante informatie en opvolging in hetzelfde gesprek.</p><button className="uo-agent-secondary" onClick={() => setChatOpen(true)}>Probeer een lokale taak <ArrowRight /></button></div><div className="uo-agent-orchestration"><div className="uo-orch-center"><Bot /><span>Orchestrator</span></div><div className="uo-orch-line line-1" /><div className="uo-orch-line line-2" /><div className="uo-orch-line line-3" /><div className="uo-orch-node node-1"><strong>Cleaner</strong><small>Task execution</small></div><div className="uo-orch-node node-2"><strong>Garden</strong><small>Task execution</small></div><div className="uo-orch-node node-3"><strong>Transport</strong><small>Task execution</small></div></div></section>
 
     <section className="uo-agent-business"><div><div className="uo-agent-section-label">FOR LOCAL PROVIDERS</div><h2>Word de specialist die<br /><em>lokale taken uitvoert.</em></h2><p>Ontvang relevante opdrachten die passen bij jouw diensten, werkgebied en capaciteit.</p></div><a href="/signup">Word lokale provider <ArrowRight /></a></section>
     <footer className="uo-agent-footer"><a href="#top" className="uo-agent-brand"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>uithoorn<span>.online</span></span></a><span>Uithoorn & De Kwakel</span><span>© 2026 Uithoorn.online</span></footer>
