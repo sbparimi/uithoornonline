@@ -39,61 +39,61 @@ export function resolvePostcode(postcode: string): AgentState['location']['munic
   return null;
 }
 
-function deriveMissingSlots(state: AgentState): AgentSlot[] {
-  switch (state.intent.primary) {
-    case 'find_service': return state.entities.service ? [] : ['service'];
-    case 'find_food':
-      if (!state.entities.category && !state.entities.cuisine && !state.entities.dish) return ['category'];
-      return state.entities.fulfilment ? [] : ['fulfilment'];
-    case 'order_food':
-      if (!state.entities.category && !state.entities.cuisine && !state.entities.dish) return ['category'];
-      return state.entities.fulfilment ? [] : ['fulfilment'];
-    case 'find_event': return state.entities.date ? [] : ['date'];
-    case 'find_business': return state.entities.category ? [] : ['category'];
-    default: return [];
-  }
-}
-
-export function planState(state: AgentState, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
-  const missingSlots = deriveMissingSlots(state);
-  const previousPlanning = previous.planning || DEFAULT_AGENT_STATE.planning;
-  const repeatedIntentCount = state.intent.primary === previous.intent.primary ? previousPlanning.repeatedIntentCount + 1 : 0;
-  return {
-    ...state,
-    planning: { missingSlots, nextRequiredSlot: missingSlots[0] || null, repeatedIntentCount },
-    task: { ...state.task, status: missingSlots.length ? 'collecting' : 'ready' },
-  };
-}
-
-export function applySemanticInterpretation(interpretation: Partial<AgentState> | null, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
-  const i = interpretation || {};
-  const previousPlanning = previous.planning || DEFAULT_AGENT_STATE.planning;
-  const previousSafety = previous.safety || DEFAULT_AGENT_STATE.safety;
+export function applyOrchestratorDecision(decision: {
+  language: AgentLanguage;
+  location: AgentState['location'];
+  intent: AgentState['intent'];
+  entities: AgentState['entities'];
+  specialist: AgentState['specialist'];
+  task: { type: string };
+}, previous: AgentState): AgentState {
+  const sameIntent = previous.intent.primary === decision.intent.primary;
+  const sameSpecialist = previous.specialist === decision.specialist;
   const merged: AgentState = {
     ...DEFAULT_AGENT_STATE,
     ...previous,
-    language: i.language || previous.language,
-    location: i.location?.municipality ? { ...previous.location, ...i.location } : previous.location,
-    intent: i.intent?.primary ? { primary: i.intent.primary, confidence: Number(i.intent.confidence ?? 0.8) } : previous.intent,
-    entities: { ...DEFAULT_AGENT_STATE.entities, ...previous.entities, ...(i.entities || {}) },
-    task: i.task?.type ? { type: i.task.type, status: i.task.status || previous.task.status } : previous.task,
-    specialist: i.specialist || previous.specialist,
-    planning: previousPlanning,
-    safety: previousSafety,
+    language: decision.language || previous.language,
+    location: decision.location?.municipality ? { ...previous.location, ...decision.location } : previous.location,
+    intent: decision.intent?.primary ? { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) } : previous.intent,
+    entities: { ...previous.entities, ...decision.entities },
+    task: { type: decision.task?.type || previous.task.type, status: previous.task.status },
+    specialist: decision.specialist || previous.specialist,
+    planning: previous.planning || DEFAULT_AGENT_STATE.planning,
+    safety: { emergency: false, reason: null },
     activeProviderId: null,
   };
-  if (i.safety?.emergency === true) merged.safety = { emergency: true, reason: i.safety.reason || 'explicit emergency signal' };
-  return planState(merged, previous);
+
+  // A genuinely new task starts a new specialist flow while preserving location.
+  if (!sameIntent || !sameSpecialist) {
+    merged.planning = { missingSlots: [], nextRequiredSlot: null, repeatedIntentCount: 0 };
+  } else {
+    merged.planning = { ...merged.planning, repeatedIntentCount: merged.planning.repeatedIntentCount + 1 };
+  }
+  return merged;
+}
+
+export function applySpecialistResult(
+  state: AgentState,
+  result: { captured: Partial<AgentState['entities']>; nextRequiredSlot: AgentSlot | null; missingSlots: AgentSlot[]; status: 'collecting' | 'ready' },
+): AgentState {
+  const entities = { ...state.entities, ...result.captured };
+  const missingSlots = result.missingSlots.filter((slot) => slot !== 'location' || Boolean(state.location.municipality));
+  return {
+    ...state,
+    entities,
+    planning: { ...state.planning, missingSlots, nextRequiredSlot: result.nextRequiredSlot || missingSlots[0] || null },
+    task: { ...state.task, status: result.status },
+  };
 }
 
 export function buildProviderQuery(state: AgentState): string {
-  if (state.entities.cuisine && state.entities.category === 'food') return `${state.entities.cuisine} food`;
   if (state.entities.service) return state.entities.service;
-  if (state.entities.cuisine) return state.entities.cuisine;
+  if (state.entities.cuisine && (state.entities.category === 'food' || state.intent.primary === 'find_food' || state.intent.primary === 'order_food')) return `${state.entities.cuisine} food`;
+  if (state.entities.dish) return state.entities.dish;
   if (state.entities.category) return state.entities.category;
   return state.intent.primary === 'find_event' ? 'event' : '';
 }
 
 export function stateContext(state: AgentState): string {
-  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. Do not ask for information already represented here. Ask for at most one missing slot at a time. If nextRequiredSlot is present, that is the only slot to ask for before proceeding.`;
+  return `STRUCTURED AGENT STATE:\n${JSON.stringify(state, null, 2)}\n\nRULES: treat this state as authoritative conversation context. The orchestrator owns routing; the specialist owns the flow and slot filling. Do not ask for information already represented here. Ask for at most one missing slot at a time.`;
 }
