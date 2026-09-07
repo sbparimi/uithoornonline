@@ -51,7 +51,7 @@ function renderRichText(text: string, providerNames: string[] = []) {
 function ProviderCards({ providers }: { providers: Provider[] }) {
   if (!providers.length) return null;
   return <div className="chat-provider-results" aria-label="Lokale bedrijven">
-    {providers.slice(0, 3).map((provider) => (
+    {providers.map((provider) => (
       <article className="chat-provider-card" key={provider.id}>
         <div className="chat-provider-card-top">
           <div><strong className="chat-provider-name">{provider.name}</strong><span className="chat-provider-category">{provider.category}</span></div>
@@ -141,10 +141,16 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
       {!contactCollected ? <div className="agent-contact-scroll"><ContactGate contact={contact} setContact={setContact} error={contactError} onSubmit={collectContact} /></div> : <>
         <div className="agent-chat-intro">Lokale hulp, informatie en diensten — vanuit één gesprek.</div>
         <div className="agent-chat-messages" ref={messagesRef} aria-live="polite">
-          {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
-            <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
-            <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void sendText(action.value)} disabled={typing}>{action.label}</button>)}</div>}</div>
-          </div>)}
+          {messages.map((message) => {
+            const hasProviderResults = message.role === 'assistant' && Boolean(message.providers?.length);
+            if (hasProviderResults) {
+              return <ProviderCards key={message.id} providers={message.providers!} />;
+            }
+            return <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
+              <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
+              <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.actions && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.actions.map((action) => action.kind === 'emergency' ? <a className="agent-quick-reply" key={`${action.kind}-${action.value}`} href="tel:112">{action.label}</a> : <button className="agent-quick-reply" key={`${action.kind}-${action.value}`} type="button" onClick={() => void sendText(action.value)} disabled={typing}>{action.label}</button>)}</div>}</div>
+            </div>;
+          })}
           {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
         </div>
         <div className="agent-composer-wrap"><form className="agent-chat-composer" onSubmit={send}><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Typ je bericht…" aria-label="Bericht" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e); } }} /><button type="submit" disabled={!input.trim() || typing} aria-label="Verstuur"><Send /></button></form><div style={{ fontSize: 8, color: '#9a9d98', textAlign: 'center', marginTop: 7 }}>Enter om te versturen · Shift + Enter voor een nieuwe regel</div></div>
