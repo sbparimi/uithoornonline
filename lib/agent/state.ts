@@ -1,15 +1,7 @@
 export type AgentLanguage = 'nl' | 'en';
 
-export type SemanticIntent =
-  | 'find_food'
-  | 'order_food'
-  | 'find_service'
-  | 'find_business'
-  | 'find_event'
-  | 'general_local';
-
+export type SemanticIntent = 'find_food' | 'order_food' | 'find_service' | 'find_business' | 'find_event' | 'general_local';
 export type AgentSlot = 'service' | 'cuisine' | 'category' | 'fulfilment' | 'date' | 'people' | 'location';
-
 export type AgentAction = { label: string; value: string; kind: 'quick_reply' | 'emergency' };
 
 export type AgentState = {
@@ -64,7 +56,8 @@ function deriveMissingSlots(state: AgentState): AgentSlot[] {
 
 export function planState(state: AgentState, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
   const missingSlots = deriveMissingSlots(state);
-  const repeatedIntentCount = state.intent.primary === previous.intent.primary ? previous.planning.repeatedIntentCount + 1 : 0;
+  const previousPlanning = previous.planning || DEFAULT_AGENT_STATE.planning;
+  const repeatedIntentCount = state.intent.primary === previous.intent.primary ? previousPlanning.repeatedIntentCount + 1 : 0;
   return {
     ...state,
     planning: { missingSlots, nextRequiredSlot: missingSlots[0] || null, repeatedIntentCount },
@@ -74,16 +67,19 @@ export function planState(state: AgentState, previous: AgentState = DEFAULT_AGEN
 
 export function applySemanticInterpretation(interpretation: Partial<AgentState> | null, previous: AgentState = DEFAULT_AGENT_STATE): AgentState {
   const i = interpretation || {};
+  const previousPlanning = previous.planning || DEFAULT_AGENT_STATE.planning;
+  const previousSafety = previous.safety || DEFAULT_AGENT_STATE.safety;
   const merged: AgentState = {
+    ...DEFAULT_AGENT_STATE,
     ...previous,
     language: i.language || previous.language,
     location: i.location?.municipality ? { ...previous.location, ...i.location } : previous.location,
     intent: i.intent?.primary ? { primary: i.intent.primary, confidence: Number(i.intent.confidence ?? 0.8) } : previous.intent,
-    entities: { ...previous.entities, ...(i.entities || {}) },
+    entities: { ...DEFAULT_AGENT_STATE.entities, ...previous.entities, ...(i.entities || {}) },
     task: i.task?.type ? { type: i.task.type, status: i.task.status || previous.task.status } : previous.task,
     specialist: i.specialist || previous.specialist,
-    planning: previous.planning,
-    safety: previous.safety,
+    planning: previousPlanning,
+    safety: previousSafety,
     activeProviderId: null,
   };
   if (i.safety?.emergency === true) merged.safety = { emergency: true, reason: i.safety.reason || 'explicit emergency signal' };
