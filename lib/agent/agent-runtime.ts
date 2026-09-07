@@ -96,49 +96,61 @@ const VALID_SPECIALISTS = new Set<AgentState['specialist']>(['food', 'local_disc
 
 function extractJson(text: string): UnifiedAgentResult | null {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
-  try {
-    const value = JSON.parse(cleaned) as Partial<UnifiedAgentResult>;
-    const decision = value.decision;
-    const specialist = value.specialist;
-    if (!decision || !specialist || !decision.intent || !decision.plan || !specialist.plan) return null;
-    if (!VALID_INTENTS.has(decision.intent.primary) || !VALID_SPECIALISTS.has(decision.specialist)) return null;
-    if (!Array.isArray(decision.plan.steps) || !decision.plan.goal || !decision.plan.nextAction) return null;
-    if (!Array.isArray(specialist.missingSlots) || !Array.isArray(specialist.plan.steps) || !specialist.plan.goal || !specialist.plan.nextAction) return null;
-
-    const normalizePlan = (plan: AgentPlan): AgentPlan => ({
-      goal: String(plan.goal).trim(),
-      steps: plan.steps.filter((step): step is string => typeof step === 'string').map((step) => step.trim()).filter(Boolean).slice(0, 8),
-      nextAction: String(plan.nextAction).trim(),
-      searchQuery: typeof plan.searchQuery === 'string' && plan.searchQuery.trim() ? plan.searchQuery.trim() : null,
-    });
-
-    const missingSlots = specialist.missingSlots.filter((slot): slot is AgentSlot => typeof slot === 'string' && VALID_SLOTS.has(slot as AgentSlot));
-    const nextRequiredSlot = specialist.nextRequiredSlot && VALID_SLOTS.has(specialist.nextRequiredSlot) ? specialist.nextRequiredSlot : null;
-    const status = specialist.status === 'ready' ? 'ready' : 'collecting';
-
-    return {
-      decision: {
-        language: decision.language === 'en' ? 'en' : 'nl',
-        location: decision.location || { municipality: 'Uithoorn', postcode: null, source: 'default' },
-        intent: { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) },
-        entities: decision.entities || {},
-        specialist: decision.specialist,
-        task: { type: String(decision.task?.type || 'local_help') },
-        plan: normalizePlan(decision.plan),
-      },
-      specialist: {
-        reply: String(specialist.reply || '').trim(),
-        captured: specialist.captured && typeof specialist.captured === 'object' ? specialist.captured : {},
-        nextRequiredSlot,
-        missingSlots,
-        status,
-        shouldSearch: Boolean(specialist.shouldSearch),
-        plan: normalizePlan(specialist.plan),
-      },
-    };
-  } catch {
-    return null;
+  const candidates = [cleaned];
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace && cleaned.slice(firstBrace, lastBrace + 1) !== cleaned) {
+    candidates.push(cleaned.slice(firstBrace, lastBrace + 1));
   }
+
+  for (const candidate of candidates) {
+    try {
+      const value = JSON.parse(candidate) as Partial<UnifiedAgentResult>;
+      const decision = value.decision;
+      const specialist = value.specialist;
+      if (!decision || !specialist || !decision.intent || !decision.plan || !specialist.plan) continue;
+      if (!VALID_INTENTS.has(decision.intent.primary) || !VALID_SPECIALISTS.has(decision.specialist)) continue;
+      if (!Array.isArray(decision.plan.steps) || !decision.plan.goal || !decision.plan.nextAction) continue;
+      if (!Array.isArray(specialist.missingSlots) || !Array.isArray(specialist.plan.steps) || !specialist.plan.goal || !specialist.plan.nextAction) continue;
+
+      const normalizePlan = (plan: AgentPlan): AgentPlan => ({
+        goal: String(plan.goal).trim(),
+        steps: plan.steps.filter((step): step is string => typeof step === 'string').map((step) => step.trim()).filter(Boolean).slice(0, 8),
+        nextAction: String(plan.nextAction).trim(),
+        searchQuery: typeof plan.searchQuery === 'string' && plan.searchQuery.trim() ? plan.searchQuery.trim() : null,
+      });
+
+      const missingSlots = specialist.missingSlots.filter((slot): slot is AgentSlot => typeof slot === 'string' && VALID_SLOTS.has(slot as AgentSlot));
+      const nextRequiredSlot = specialist.nextRequiredSlot && VALID_SLOTS.has(specialist.nextRequiredSlot) ? specialist.nextRequiredSlot : null;
+      const status = specialist.status === 'ready' ? 'ready' : 'collecting';
+
+      return {
+        decision: {
+          language: decision.language === 'en' ? 'en' : 'nl',
+          location: decision.location || { municipality: 'Uithoorn', postcode: null, source: 'default' },
+          intent: { primary: decision.intent.primary, confidence: Number(decision.intent.confidence ?? 0.8) },
+          entities: decision.entities || {},
+          specialist: decision.specialist,
+          task: { type: String(decision.task?.type || 'local_help') },
+          plan: normalizePlan(decision.plan),
+        },
+        specialist: {
+          reply: String(specialist.reply || '').trim(),
+          captured: specialist.captured && typeof specialist.captured === 'object' ? specialist.captured : {},
+          nextRequiredSlot,
+          missingSlots,
+          status,
+          shouldSearch: Boolean(specialist.shouldSearch),
+          plan: normalizePlan(specialist.plan),
+        },
+      };
+    } catch {
+      // Try the extracted JSON candidate if the model wrapped it in prose/markdown.
+    }
+  }
+
+  console.error('AGENT_INVALID_DECISION_RAW', { raw: cleaned.slice(0, 2000) });
+  return null;
 }
 
 export async function runAgent(
@@ -153,7 +165,7 @@ export async function runAgent(
     { role: 'system', content: `ACTIVE PROVIDER: ${state.activeProviderId || 'none'}` },
     ...history.slice(-8),
     { role: 'user', content: message },
-  ], { maxCompletionTokens: 1100, temperature: 0.1, reasoningEffort: 'low' });
+  ], { maxCompletionTokens: 1600, temperature: 0.1, reasoningEffort: 'low' });
 
   const raw = String(result?.choices?.[0]?.message?.content || '');
   const parsed = extractJson(raw);
