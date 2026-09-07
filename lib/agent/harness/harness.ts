@@ -1,6 +1,7 @@
 import type { AgentProvider } from '../../supabase/agent';
 import type { AgentState } from '../state';
 import type { UnifiedAgentResult } from '../agent-runtime';
+import { applyOrchestratorDecision, applySpecialistResult } from '../state';
 import { buildTaskContract, intentRequiresDiscovery } from './task-contract';
 
 export type HarnessObservation = { id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
@@ -8,22 +9,13 @@ export type HarnessFailure = { type: 'model_output_invalid' | 'tool_failed' | 'v
 export type HarnessResult = { agent: UnifiedAgentResult; state: AgentState; providers: AgentProvider[] };
 export type ProviderSearch = (state: AgentState, query: string) => Promise<AgentProvider[]>;
 
-function observationForProviders(providers: AgentProvider[]): HarnessObservation {
-  return { id: crypto.randomUUID(), capability: 'business.search', status: 'success', summary: `${providers.length} provider result(s) returned`, evidence: providers.slice(0, 5).map((provider) => ({ source: provider.rating_source || provider.agent_metadata?.discovery_source || 'provider-record', detail: `${provider.name}${provider.rating_score != null ? ` rating=${provider.rating_score}/${provider.rating_max || 5}` : ''}` })), retryable: true };
-}
+function observationForProviders(providers: AgentProvider[]): HarnessObservation { return { id: crypto.randomUUID(), capability: 'business.search', status: 'success', summary: `${providers.length} provider result(s) returned`, evidence: providers.slice(0, 5).map((provider) => ({ source: provider.rating_source || provider.agent_metadata?.discovery_source || 'provider-record', detail: `${provider.name}${provider.rating_score != null ? ` rating=${provider.rating_score}/${provider.rating_max || 5}` : ''}` })), retryable: true }; }
 function applyHarnessState(state: AgentState, patch: Partial<AgentState['harness']>): AgentState { return { ...state, harness: { ...state.harness, ...patch } }; }
 
-export async function runHarness(
-  message: string,
-  history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  initialState: AgentState,
-  runAgent: (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, state: AgentState) => Promise<UnifiedAgentResult>,
-  searchProviders: ProviderSearch,
-): Promise<HarnessResult> {
+export async function runHarness(message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, initialState: AgentState, runAgent: (message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, state: AgentState) => Promise<UnifiedAgentResult>, searchProviders: ProviderSearch): Promise<HarnessResult> {
   let state = applyHarnessState(initialState, { runId: initialState.harness?.runId || crypto.randomUUID(), iteration: 0, status: 'running', observations: [], failures: [], decisions: [], nextAction: 'reason' });
   state = applyHarnessState(state, { contract: buildTaskContract(state, message) });
-  let lastAgent: UnifiedAgentResult | null = null;
-  let providers: AgentProvider[] = [];
+  let lastAgent: UnifiedAgentResult | null = null; let providers: AgentProvider[] = [];
 
   for (let iteration = 1; iteration <= 3; iteration += 1) {
     state = applyHarnessState(state, { iteration, nextAction: 'reason' });
@@ -32,15 +24,16 @@ export async function runHarness(
     catch (error) {
       const failure: HarnessFailure = { type: 'model_output_invalid', message: error instanceof Error ? error.message : 'unknown_model_error', iteration, recoverable: iteration < 3 };
       state = applyHarnessState(state, { failures: [...state.harness.failures, failure], nextAction: failure.recoverable ? 'repair_reasoning' : 'escalate' });
-      if (failure.recoverable) continue;
-      throw error;
+      if (failure.recoverable) continue; throw error;
     }
 
     lastAgent = agent;
+    state = applyOrchestratorDecision(agent.decision, state);
+    state = applySpecialistResult(state, agent.specialist);
     state = applyHarnessState(state, { decisions: [...state.harness.decisions, { iteration, nextAction: agent.decision.plan.nextAction, goal: agent.decision.plan.goal }], nextAction: agent.specialist.shouldSearch ? 'business.search' : 'respond' });
+
     if (!agent.specialist.shouldSearch || !intentRequiresDiscovery(agent.decision.intent.primary)) {
-      state = applyHarnessState(state, { status: 'completed', nextAction: 'respond' });
-      return { agent, state, providers };
+      state = applyHarnessState(state, { status: 'completed', nextAction: 'respond' }); return { agent, state, providers };
     }
 
     const query = agent.specialist.plan.searchQuery || agent.decision.plan.searchQuery || '';
@@ -49,7 +42,11 @@ export async function runHarness(
     try {
       providers = await searchProviders(state, query);
       state = applyHarnessState(state, { observations: [...state.harness.observations, observationForProviders(providers)], nextAction: providers.length ? 'verify_results' : 'recover_empty_search' });
-      if (providers.length > 0) { state = applyHarnessState(state, { status: 'completed', nextAction: 'respond' }); return { agent, state, providers }; }
+      if (providers.length > 0) {
+        if (iteration >= 2) { state = applyHarnessState(state, { status: 'completed', nextAction: 'respond' }); return { agent, state, providers }; }
+        // The next LLM turn receives the observation and decides whether the evidence is sufficient.
+        continue;
+      }
     } catch (error) {
       const failure: HarnessFailure = { type: 'tool_failed', message: error instanceof Error ? error.message : 'business_search_failed', iteration, recoverable: iteration < 3 };
       state = applyHarnessState(state, { failures: [...state.harness.failures, failure], nextAction: failure.recoverable ? 'retry_search' : 'escalate' });
