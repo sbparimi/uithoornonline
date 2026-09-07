@@ -119,6 +119,7 @@ export async function POST(request: Request) {
         safety,
         actions: [{ label: 'Bel 112', value: 'Bel 112', kind: 'emergency' }],
         providers: [],
+        render_mode: 'message',
       });
     }
 
@@ -166,14 +167,20 @@ export async function POST(request: Request) {
     await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
 
     const actions = specialistActions(specialistResult, state);
+    // Provider results are a structured UI response. Do not generate a second natural-language
+    // listing of the same businesses; the client renders one dedicated card per provider.
+    const hasProviderResults = providers.length > 0;
     const reply = specialistResult.status === 'collecting'
       ? specialistResult.reply
-      : await renderReadyResponse(message, history, state, specialistResult.reply, providers);
+      : hasProviderResults
+        ? ''
+        : await renderReadyResponse(message, history, state, specialistResult.reply, providers);
 
-    if (!reply) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
+    if (!reply && !hasProviderResults) return NextResponse.json({ error: 'agent_empty_response' }, { status: 502 });
 
     return NextResponse.json({
       reply,
+      render_mode: hasProviderResults ? 'provider_cards' : 'message',
       state,
       safety: state.safety,
       actions,
