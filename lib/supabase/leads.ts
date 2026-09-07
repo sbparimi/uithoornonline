@@ -22,20 +22,15 @@ export async function upsertAgentLead(
   language: AgentLanguage,
   firstIntent: SemanticIntent,
 ): Promise<void> {
-  const { error } = await getLeadClient()
-    .schema('agent_private')
-    .from('agent_leads')
-    .upsert({
-      session_key: sessionKey,
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
-      address: contact.address,
-      consent_status: 'accepted',
-      source: 'uithoorn_ai',
-      first_intent: firstIntent,
-      language,
-    }, { onConflict: 'session_key' });
+  const { error } = await getLeadClient().rpc('upsert_agent_lead', {
+    p_session_key: sessionKey,
+    p_name: contact.name,
+    p_email: contact.email,
+    p_phone: contact.phone,
+    p_address: contact.address,
+    p_language: language,
+    p_first_intent: firstIntent,
+  });
 
   if (error) throw new Error(`AGENT_LEAD_SAVE_FAILED:${error.message}`);
 }
