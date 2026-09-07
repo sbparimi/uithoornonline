@@ -1,5 +1,6 @@
 import { kimiChat } from '../kimi';
 import type { AgentLanguage, AgentPlan, AgentSlot, AgentState, SemanticIntent } from './state';
+import { compileAgentContext } from './harness/context-compiler';
 
 export type UnifiedAgentResult = {
   decision: {
@@ -24,7 +25,7 @@ export type UnifiedAgentResult = {
 
 const PROMPT = `You are the autonomous Uithoorn.online customer agent. You combine orchestration, domain reasoning, planning and execution planning in ONE reasoning turn. You are not a keyword classifier, fixed workflow, slot-filling form, or deterministic routing engine.
 
-Your job is to understand the customer's actual goal using the current state and recent conversation, decide what should happen next, capture useful facts, determine whether the request can be executed now, and produce the customer-facing response if clarification is genuinely required.
+Your job is to understand the customer's actual goal using the current state, relevant repository knowledge, harness observations and recent conversation; decide what should happen next; capture useful facts; determine whether the request can be executed now; and produce the customer-facing response if clarification is genuinely required.
 
 Return ONLY valid JSON with exactly this top-level shape:
 {
@@ -48,26 +49,21 @@ Return ONLY valid JSON with exactly this top-level shape:
   }
 }
 
-LANGUAGE:
-- Only Dutch or English.
-- Detect the customer's language from the actual message and conversation.
-- If ACTIVE STATE has languageLocked=true, preserve that language.
-- Never switch language because of provider data or website locale.
-
-CONTEXT AND REASONING:
-1. Treat ACTIVE STATE and recent conversation as authoritative context.
-2. Preserve useful facts. Short messages such as "plumber", "the first one", "tomorrow", "cheaper", "delivery", "not that one" or "show me others" are contextual instructions.
-3. Extract all useful facts in one pass. Do not force one-slot-at-a-time collection.
-4. Missing information is a blocker only when it is genuinely required for the requested outcome.
-5. If enough information exists, set status=ready and shouldSearch=true when local discovery is the appropriate execution step.
-6. If the request can be answered from known context, do not search unnecessarily.
-7. If the user asks for alternatives, preserve the current task and create a search query representing alternatives/exclusions.
-8. If the user changes the task, replan while retaining durable context such as language and location.
-9. Never invent provider facts, prices, ratings, availability, opening hours or capabilities.
-10. Never claim an external action happened. The application performs real searches, lead writes and other tools after this response.
-11. Keep plans short and executable. Do not output implementation nodes or internal architecture.
-12. Prefer action over clarification.
-13. The customer-facing reply must be concise and exclusively in the selected language. When ready for search, reply may be empty because the application will render provider cards.
+REASONING RULES:
+- LANGUAGE: Detect Dutch or English from the actual customer message. If ACTIVE STATE has languageLocked=true, preserve that language. Never switch because of provider data.
+- CONTEXT: ACTIVE STATE, HARNESS OBSERVATIONS and the relevant knowledge below are authoritative. Recent conversation supplies additional context.
+- Preserve useful facts. Short follow-ups such as "plumber", "the first one", "tomorrow", "cheaper", "delivery", "not that one" and "show me others" are contextual instructions.
+- Extract all useful facts in one pass. Do not force one-slot-at-a-time collection.
+- Missing information is a blocker only when genuinely required for the requested outcome.
+- If enough information exists, set status=ready and shouldSearch=true when local discovery is the appropriate execution step.
+- If a verified tool observation already answers the active request, use that evidence and do not repeat the same search unnecessarily.
+- If the user asks for alternatives, preserve the current task and create a search query representing alternatives/exclusions.
+- If the user changes the task, replan while retaining durable context such as language and location.
+- Never invent provider facts, prices, ratings, availability, opening hours or capabilities.
+- Never claim an external action happened. The application performs searches and other tools after this response.
+- Keep plans short and executable. Do not output implementation nodes or internal architecture.
+- Prefer action over clarification.
+- The customer-facing reply must be concise and exclusively in the selected language. When ready for search, reply may be empty because the application will render provider cards.
 
 INTENT:
 - find_service: plumbers, electricians, cleaners, gardeners, repairs, installation, maintenance and similar services.
@@ -99,9 +95,7 @@ function extractJson(text: string): UnifiedAgentResult | null {
   const candidates = [cleaned];
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace && cleaned.slice(firstBrace, lastBrace + 1) !== cleaned) {
-    candidates.push(cleaned.slice(firstBrace, lastBrace + 1));
-  }
+  if (firstBrace >= 0 && lastBrace > firstBrace && cleaned.slice(firstBrace, lastBrace + 1) !== cleaned) candidates.push(cleaned.slice(firstBrace, lastBrace + 1));
 
   for (const candidate of candidates) {
     try {
@@ -119,7 +113,6 @@ function extractJson(text: string): UnifiedAgentResult | null {
         nextAction: String(plan.nextAction).trim(),
         searchQuery: typeof plan.searchQuery === 'string' && plan.searchQuery.trim() ? plan.searchQuery.trim() : null,
       });
-
       const missingSlots = specialist.missingSlots.filter((slot): slot is AgentSlot => typeof slot === 'string' && VALID_SLOTS.has(slot as AgentSlot));
       const nextRequiredSlot = specialist.nextRequiredSlot && VALID_SLOTS.has(specialist.nextRequiredSlot) ? specialist.nextRequiredSlot : null;
       const status = specialist.status === 'ready' ? 'ready' : 'collecting';
@@ -148,20 +141,22 @@ function extractJson(text: string): UnifiedAgentResult | null {
       // Try the extracted JSON candidate if the model wrapped it in prose/markdown.
     }
   }
-
   console.error('AGENT_INVALID_DECISION_RAW', { raw: cleaned.slice(0, 2000) });
   return null;
 }
 
-export async function runAgent(
-  message: string,
-  history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  state: AgentState,
-): Promise<UnifiedAgentResult> {
+export async function runAgent(message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, state: AgentState): Promise<UnifiedAgentResult> {
+  const context = compileAgentContext(message, state);
+  const observationContext = state.harness.observations.length
+    ? `HARNESS OBSERVATION COUNT: ${state.harness.observations.length}`
+    : 'HARNESS OBSERVATIONS: none';
+
   const result = await kimiChat([
     { role: 'system', content: PROMPT },
+    { role: 'system', content: `RELEVANT KNOWLEDGE (progressively selected):\n${context.rendered}\n\nKNOWLEDGE SOURCES: ${context.sources.join(', ')}` },
     { role: 'system', content: `ACTIVE STATE:\n${JSON.stringify(state)}` },
     { role: 'system', content: `CURRENT PLAN:\n${JSON.stringify(state.planning)}` },
+    { role: 'system', content: observationContext },
     { role: 'system', content: `ACTIVE PROVIDER: ${state.activeProviderId || 'none'}` },
     ...history.slice(-8),
     { role: 'user', content: message },
