@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server';
 import { kimiChat } from '../../../lib/kimi';
 import { discoverGooglePlaces } from '../../../lib/agent/discovery';
 import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
+import { upsertAgentLead } from '../../../lib/supabase/leads';
 import { loadAgentState, saveAgentState } from '../../../lib/agent/session';
-import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentContact, type AgentState } from '../../../lib/agent/state';
+import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, buildProviderQuery, stateContext, type AgentContact, type AgentState, type SemanticIntent } from '../../../lib/agent/state';
 import { emergencyFromMessage } from '../../../lib/agent/planner';
 import { orchestrate } from '../../../lib/agent/orchestrator';
 import { executeSpecialist, specialistActions } from '../../../lib/agent/specialist-runtime';
@@ -39,6 +40,12 @@ CONVERSION / SALES STANDARD:
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type ContactInput = { name?: unknown; email?: unknown; phone?: unknown; address?: unknown };
+
+const BUSINESS_INTENTS = new Set<SemanticIntent>(['find_food', 'order_food', 'find_service', 'find_business', 'find_event']);
+
+function isBusinessIntent(intent: SemanticIntent, confidence: number): boolean {
+  return BUSINESS_INTENTS.has(intent) && confidence >= 0.55;
+}
 
 function normalizeContact(value: unknown): AgentContact | null {
   if (!value || typeof value !== 'object') return null;
@@ -123,6 +130,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const message = String(body.message || '').trim();
+    const contactDecision = body.contact_decision === 'no' ? 'no' : body.contact_decision === 'yes' ? 'yes' : null;
     if (!message || message.length > 4000) return NextResponse.json({ error: 'invalid_message' }, { status: 400 });
 
     const safety = emergencyFromMessage(message);
@@ -147,23 +155,52 @@ export async function POST(request: Request) {
     try { previousState = (await loadAgentState(sessionKey)) || DEFAULT_AGENT_STATE; }
     catch (error) { console.error('AGENT_SESSION_LOAD_ERROR', error instanceof Error ? error.message : 'unknown_error'); }
 
-    const contact = suppliedContact || previousState.contact;
-    if (!contact) {
-      const language = previousState.language;
-      return NextResponse.json({
-        error: 'contact_required',
-        reply: language === 'en' ? 'Please enter your name, email, phone number and address including the house number before I process your request.' : 'Vul eerst je naam, e-mail, telefoonnummer en adres met huisnummer in voordat ik je aanvraag kan verwerken.',
-        contact_required: true,
-      }, { status: 400 });
+    if (previousState.contact && previousState.contactCapture?.status !== 'accepted') {
+      previousState = { ...previousState, contactCapture: { ...previousState.contactCapture, status: 'accepted' } };
     }
-
-    previousState = { ...previousState, contact };
-    await saveAgentState(sessionKey, previousState).catch((error) => console.error('AGENT_CONTACT_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
 
     const decision = await orchestrate(message, history, previousState);
     let state = applyOrchestratorDecision(decision, previousState);
-    state.contact = contact;
     state.safety = safety;
+
+    if (contactDecision === 'no') {
+      state.contactCapture = { status: 'declined', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
+    }
+
+    if (suppliedContact) {
+      state.contact = suppliedContact;
+      state.contactCapture = { status: 'accepted', promptIntent: previousState.contactCapture?.promptIntent || state.intent.primary, pendingMessage: null };
+      try {
+        await upsertAgentLead(sessionKey, suppliedContact, state.language, state.contactCapture.promptIntent || state.intent.primary);
+      } catch (error) {
+        console.error('AGENT_LEAD_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error');
+        const reply = state.language === 'en'
+          ? 'I could not securely save your contact details yet. Please try once more so I can continue.'
+          : 'Ik kon je contactgegevens nog niet veilig opslaan. Probeer het nog één keer, dan ga ik direct verder.';
+        return NextResponse.json({ error: 'lead_save_failed', reply, providers: [], actions: [], state, safety: state.safety, render_mode: 'message' }, { status: 503 });
+      }
+    } else if (isBusinessIntent(state.intent.primary, state.intent.confidence) && !state.contact && state.contactCapture.status === 'unknown') {
+      state.contactCapture = { status: 'offered', promptIntent: state.intent.primary, pendingMessage: message };
+      await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
+      const reply = state.language === 'en'
+        ? 'I can find the right local options for you. To make this quicker, would you like to share your details so I can help you faster?'
+        : 'Ik kan direct de juiste lokale opties voor je zoeken. Wil je je gegevens delen? Dan kan ik je sneller helpen.';
+      return NextResponse.json({
+        reply,
+        render_mode: 'message',
+        contact_offer: true,
+        pending_request: message,
+        state,
+        safety: state.safety,
+        actions: [
+          { label: 'Yes' , value: '__contact_yes', kind: 'contact_yes' },
+          { label: 'No', value: '__contact_no', kind: 'contact_no' },
+        ].map((action) => ({ ...action, label: state.language === 'en' ? action.label : action.value === '__contact_yes' ? 'Ja' : 'Nee' })),
+        providers: [],
+      });
+    }
+
+    await saveAgentState(sessionKey, state).catch((error) => console.error('AGENT_SESSION_SAVE_ERROR', error instanceof Error ? error.message : 'unknown_error'));
 
     const specialistResult = await executeSpecialist(message, history, state);
     state = applySpecialistResult(state, specialistResult);
