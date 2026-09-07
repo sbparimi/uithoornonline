@@ -104,7 +104,7 @@ export default function AgentChat({ onClose }: { onClose: () => void }) {
         {messages.map((message) => <div className={`agent-message-row ${message.role === 'user' ? 'is-user' : ''}`} key={message.id}>
           <div className={`agent-message-avatar ${message.role === 'user' ? 'user-avatar' : ''}`}>{message.role === 'user' ? 'Jij' : <img src="/icon.svg" alt="" />}</div>
           <div className="agent-message"><span>{message.role === 'user' ? 'Jij' : 'Uithoorn AI'}</span><div className="agent-message-bubble">{renderRichText(message.text, providerNames)}</div>{message.role === 'assistant' && message.providers && <ProviderCards providers={message.providers} />}{message.role === 'assistant' && message.quickReplies && !typing && message.id === lastAssistantMessageId && <div className="agent-quick-replies" aria-label="Snelle keuzes">{message.quickReplies.map((reply) => <button className="agent-quick-reply" key={reply} type="button" onClick={() => void sendText(reply)} disabled={typing}>{reply}</button>)}</div>}</div>
-        )}
+        </div>)}
         {typing && <div className="agent-typing"><Loader2 /> Even kijken…</div>}
       </div>
       <div className="agent-composer-wrap"><form className="agent-chat-composer" onSubmit={send}><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Typ je bericht…" aria-label="Bericht" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e); } }} /><button type="submit" disabled={!input.trim() || typing} aria-label="Verstuur"><Send /></button></form><div style={{ fontSize: 8, color: '#9a9d98', textAlign: 'center', marginTop: 7 }}>Enter om te versturen · Shift + Enter voor een nieuwe regel</div></div>
