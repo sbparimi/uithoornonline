@@ -6,14 +6,14 @@ import { buildTaskContract } from './task-contract';
 import { executeTool, hasSuccessfulAction, normalizeActionKey, type ToolRequest, type ToolExecutor } from './tool-gateway';
 import { verifyProviderResults } from './verification';
 
-export type HarnessObservation = { id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
+export type HarnessObservation = { id: string; actionKey: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
 export type HarnessFailure = { type: 'model_output_invalid' | 'tool_failed' | 'verification_failed' | 'policy_denied' | 'missing_context' | 'max_iterations'; message: string; iteration: number; recoverable: boolean };
 export type HarnessResult = { agent: UnifiedAgentResult; state: AgentState; providers: AgentProvider[] };
 
 const MAX_ITERATIONS = 3;
 function applyHarnessState(state: AgentState, patch: Partial<AgentState['harness']>): AgentState { return { ...state, harness: { ...state.harness, ...patch } }; }
 function recordFailure(state: AgentState, failure: HarnessFailure, nextAction: string): AgentState { return applyHarnessState(state, { failures: [...state.harness.failures, failure], nextAction }); }
-function observationForProviders(capability: string, actionKey: string, providers: AgentProvider[], verified: ReturnType<typeof verifyProviderResults>): HarnessObservation { return { id: crypto.randomUUID(), capability, status: verified.passed ? 'success' : 'failed', summary: `ACTION_KEY=${actionKey}; ${verified.reason}`, evidence: verified.evidence, retryable: !verified.passed }; }
+function observationForProviders(capability: string, actionKey: string, providers: AgentProvider[], verified: ReturnType<typeof verifyProviderResults>): HarnessObservation { return { id: crypto.randomUUID(), actionKey, capability, status: verified.passed ? 'success' : 'failed', summary: verified.reason, evidence: verified.evidence, retryable: !verified.passed }; }
 function applyAgentToState(state: AgentState, agent: UnifiedAgentResult): AgentState { let next=applyOrchestratorDecision(agent.decision,state); next=applySpecialistResult(next,agent.specialist); return next; }
 
 export async function runHarness(message:string,history:Array<{role:'user'|'assistant';content:string}>,initialState:AgentState,runAgent:(message:string,history:Array<{role:'user'|'assistant';content:string}>,state:AgentState)=>Promise<UnifiedAgentResult>,toolExecutor:ToolExecutor):Promise<HarnessResult>{
@@ -45,7 +45,7 @@ export async function runHarness(message:string,history:Array<{role:'user'|'assi
     const request:ToolRequest={capability:agent.action.capability,query};
     const actionKey=normalizeActionKey(request);
     if(hasSuccessfulAction(state,request)){
-      state=applyHarnessState(state,{observations:[...state.harness.observations,{id:crypto.randomUUID(),capability:request.capability,status:'success',summary:`ACTION_KEY=${actionKey}; Duplicate action suppressed; prior observation remains authoritative.`,evidence:[],retryable:false}],nextAction:'use_existing_observation'});
+      state=applyHarnessState(state,{observations:[...state.harness.observations,{id:crypto.randomUUID(),actionKey,capability:request.capability,status:'success',summary:'Duplicate action suppressed; prior observation remains authoritative.',evidence:[],retryable:false}],nextAction:'use_existing_observation'});
       return {agent,state:applyHarnessState(state,{status:'completed',nextAction:'respond'}),providers};
     }
 
@@ -54,14 +54,14 @@ export async function runHarness(message:string,history:Array<{role:'user'|'assi
     if(tool.status==='failed'){
       const type:HarnessFailure['type']=tool.error==='capability_not_allowed_by_task_contract'||tool.error==='capability_not_registered'?'policy_denied':'tool_failed';
       const failure:HarnessFailure={type,message:tool.error||'tool_execution_failed',iteration,recoverable:tool.retryable&&iteration<MAX_ITERATIONS};
-      state=applyHarnessState(state,{observations:[...state.harness.observations,{id:crypto.randomUUID(),capability:tool.capability,status:'failed',summary:`ACTION_KEY=${actionKey}; ${failure.message}`,evidence:[],retryable:tool.retryable}]});
+      state=applyHarnessState(state,{observations:[...state.harness.observations,{id:crypto.randomUUID(),actionKey:tool.actionKey,capability:tool.capability,status:'failed',summary:failure.message,evidence:[],retryable:tool.retryable}]});
       state=recordFailure(state,failure,failure.recoverable?'repair_action':'escalate');
       if(failure.recoverable)continue;throw new Error(failure.message);
     }
 
     providers=tool.providers;
     const verification=verifyProviderResults(providers);
-    state=applyHarnessState(state,{observations:[...state.harness.observations,observationForProviders(tool.capability,actionKey,providers,verification)],nextAction:verification.passed?'verify_results':'recover_search'});
+    state=applyHarnessState(state,{observations:[...state.harness.observations,observationForProviders(tool.capability,tool.actionKey,providers,verification)],nextAction:verification.passed?'verify_results':'recover_search'});
     if(verification.passed)continue;
     const failure:HarnessFailure={type:'verification_failed',message:verification.reason,iteration,recoverable:iteration<MAX_ITERATIONS};
     state=recordFailure(state,failure,failure.recoverable?'recover_search':'escalate');
