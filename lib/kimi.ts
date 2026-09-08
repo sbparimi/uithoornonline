@@ -1,4 +1,5 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { startObservation } from '@langfuse/tracing';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gpt-oss';
@@ -148,6 +149,14 @@ async function callBedrock(messages: ChatMessage[], options: NormalizedOptions):
   return { choices: [{ message: { role: 'assistant', content } }], provider: 'bedrock', model: BEDROCK_MODEL };
 }
 
+function modelForProvider(provider: Provider): string {
+  if (provider === 'ollama') return OLLAMA_MODEL;
+  if (provider === 'litellm') return LITELLM_MODEL;
+  if (provider === 'groq') return GROQ_MODEL;
+  if (provider === 'openai') return OPENAI_MODEL;
+  return BEDROCK_MODEL;
+}
+
 export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}): Promise<KimiChatResponse> {
   const options: NormalizedOptions = {
     maxCompletionTokens: inputOptions.maxCompletionTokens ?? 1000,
@@ -162,18 +171,25 @@ export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOp
   let lastError: unknown = null;
   for (let index = 0; index < providers.length; index += 1) {
     const provider = providers[index];
+    const generation = startObservation(`llm.${provider}`, {
+      model: modelForProvider(provider),
+      input: { messageCount: messages.length, structuredOutput: Boolean(options.responseSchema) },
+      metadata: { provider, maxCompletionTokens: String(options.maxCompletionTokens) },
+    }, { asType: 'generation' });
     try {
       const result = provider === 'ollama'
         ? await callOllama(messages, options)
         : provider === 'bedrock'
           ? await callBedrock(messages, options)
           : await callOpenAICompatible(provider, messages, options);
+      generation.update({ output: { status: 'success', provider: result.provider, model: result.model } }).end();
       console.info('LLM_PROVIDER_SELECTED', { provider: result.provider, model: result.model });
       return result;
     } catch (error) {
       lastError = error;
       const status = error instanceof Error ? (error as Error & { status?: number }).status : undefined;
       const retryAfterMs = error instanceof Error ? (error as Error & { retryAfterMs?: number }).retryAfterMs || 0 : 0;
+      generation.update({ output: { status: 'failed', provider, error: error instanceof Error ? error.message : 'unknown_error' } }).end();
       console.error('LLM_PROVIDER_FALLBACK', { provider, error: error instanceof Error ? error.message : 'unknown_error', status });
       if (status === 429 && index < providers.length - 1) continue;
       if (status === 429 && retryAfterMs > 0) await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
