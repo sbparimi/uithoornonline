@@ -1,18 +1,18 @@
 import type { AgentProvider } from '../supabase/agent';
 import { searchVerifiedProviders } from '../supabase/agent';
 
-const MEILI_URL = process.env.MEILISEARCH_URL || '';
-const MEILI_KEY = process.env.MEILISEARCH_API_KEY || '';
-const MEILI_INDEX = process.env.MEILISEARCH_INDEX || 'providers';
+const TYPESENSE_URL = process.env.TYPESENSE_URL || '';
+const TYPESENSE_KEY = process.env.TYPESENSE_API_KEY || '';
+const TYPESENSE_COLLECTION = process.env.TYPESENSE_COLLECTION || 'providers';
 const NOMINATIM_URL = process.env.NOMINATIM_BASE_URL || 'https://nominatim.openstreetmap.org';
 const OVERPASS_URL = process.env.OVERPASS_URL || '';
 
 let lastNominatimRequestAt = 0;
 
-function meiliHeaders(): Record<string, string> {
+function typesenseHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    ...(MEILI_KEY ? { Authorization: `Bearer ${MEILI_KEY}` } : {}),
+    ...(TYPESENSE_KEY ? { 'X-TYPESENSE-API-KEY': TYPESENSE_KEY } : {}),
   };
 }
 
@@ -47,35 +47,106 @@ function asProvider(value: unknown): AgentProvider | null {
   };
 }
 
-export function meilisearchConfigured(): boolean {
-  return Boolean(MEILI_URL && MEILI_KEY);
+export function typesenseConfigured(): boolean {
+  return Boolean(TYPESENSE_URL && TYPESENSE_KEY);
 }
 
-export async function searchMeilisearchProviders(query: string, municipality: string, postcode: string | null, limit = 5): Promise<AgentProvider[]> {
-  if (!meilisearchConfigured() || !query.trim()) return [];
-  const locationTerms = [municipality, postcode || ''].filter(Boolean).join(' ');
-  const response = await fetch(`${MEILI_URL.replace(/\/$/, '')}/indexes/${encodeURIComponent(MEILI_INDEX)}/search`, {
-    method: 'POST',
-    headers: meiliHeaders(),
-    body: JSON.stringify({ q: `${query.trim()} ${locationTerms}`.trim(), limit: Math.min(Math.max(limit, 1), 20) }),
+function typesenseCollectionUrl(): string {
+  return `${TYPESENSE_URL.replace(/\/$/, '')}/collections/${encodeURIComponent(TYPESENSE_COLLECTION)}`;
+}
+
+async function ensureTypesenseCollection(): Promise<void> {
+  if (!typesenseConfigured()) return;
+  const response = await fetch(typesenseCollectionUrl(), {
+    headers: typesenseHeaders(),
     cache: 'no-store',
   });
-  if (!response.ok) throw new Error(`MEILISEARCH_PROVIDER_SEARCH_FAILED:${response.status}`);
-  const payload = await response.json() as { hits?: unknown[] };
-  return (payload.hits || []).map(asProvider).filter((item): item is AgentProvider => Boolean(item && item.verified)).slice(0, limit);
+  if (response.ok) return;
+  if (response.status !== 404) throw new Error(`TYPESENSE_COLLECTION_CHECK_FAILED:${response.status}`);
+
+  const schema = {
+    name: TYPESENSE_COLLECTION,
+    fields: [
+      { name: 'name', type: 'string' },
+      { name: 'category', type: 'string', optional: true },
+      { name: 'description', type: 'string', optional: true },
+      { name: 'postcode', type: 'string', optional: true },
+      { name: 'website', type: 'string', optional: true },
+      { name: 'phone', type: 'string', optional: true },
+      { name: 'service_areas', type: 'string[]', optional: true },
+      { name: 'source_url', type: 'string', optional: true },
+      { name: 'verified_at', type: 'string', optional: true },
+      { name: 'agent_summary', type: 'string', optional: true },
+      { name: 'verified', type: 'bool', facet: true },
+      { name: 'rating_score', type: 'float', optional: true, sort: true },
+      { name: 'rating_max', type: 'float', optional: true },
+      { name: 'rating_review_count', type: 'int32', optional: true, sort: true },
+      { name: 'rating_source', type: 'string', optional: true },
+      { name: 'rating_retrieved_at', type: 'string', optional: true },
+      { name: 'capabilities_json', type: 'string', optional: true },
+      { name: 'availability_json', type: 'string', optional: true },
+      { name: 'pricing_json', type: 'string', optional: true },
+      { name: 'agent_metadata_json', type: 'string', optional: true },
+    ],
+  };
+
+  const createResponse = await fetch(`${TYPESENSE_URL.replace(/\/$/, '')}/collections`, {
+    method: 'POST',
+    headers: typesenseHeaders(),
+    body: JSON.stringify(schema),
+    cache: 'no-store',
+  });
+  if (!createResponse.ok && createResponse.status !== 409) {
+    throw new Error(`TYPESENSE_COLLECTION_CREATE_FAILED:${createResponse.status}`);
+  }
 }
 
-async function indexMeilisearchProviders(providers: AgentProvider[]): Promise<void> {
-  if (!meilisearchConfigured() || providers.length === 0) return;
+function toTypesenseDocument(provider: AgentProvider): Record<string, unknown> {
+  return {
+    ...provider,
+    capabilities_json: JSON.stringify(provider.capabilities || {}),
+    availability_json: JSON.stringify(provider.availability || {}),
+    pricing_json: JSON.stringify(provider.pricing || {}),
+    agent_metadata_json: JSON.stringify(provider.agent_metadata || {}),
+  };
+}
+
+export async function searchTypesenseProviders(query: string, municipality: string, postcode: string | null, limit = 5): Promise<AgentProvider[]> {
+  if (!typesenseConfigured() || !query.trim()) return [];
+  await ensureTypesenseCollection();
+  const locationTerms = [municipality, postcode || ''].filter(Boolean).join(' ');
+  const url = new URL(`${typesenseCollectionUrl()}/documents/search`);
+  url.searchParams.set('q', `${query.trim()} ${locationTerms}`.trim());
+  url.searchParams.set('query_by', 'name,category,description,postcode,service_areas,agent_summary');
+  url.searchParams.set('query_by_weights', '8,5,3,4,2,3');
+  url.searchParams.set('filter_by', 'verified:=true');
+  url.searchParams.set('per_page', String(Math.min(Math.max(limit, 1), 20)));
+  url.searchParams.set('prioritize_exact_match', 'true');
+
+  const response = await fetch(url, {
+    headers: typesenseHeaders(),
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error(`TYPESENSE_PROVIDER_SEARCH_FAILED:${response.status}`);
+  const payload = await response.json() as { hits?: Array<{ document?: unknown }> };
+  return (payload.hits || [])
+    .map((hit) => asProvider(hit.document))
+    .filter((item): item is AgentProvider => Boolean(item && item.verified))
+    .slice(0, limit);
+}
+
+async function indexTypesenseProviders(providers: AgentProvider[]): Promise<void> {
+  if (!typesenseConfigured() || providers.length === 0) return;
   try {
-    await fetch(`${MEILI_URL.replace(/\/$/, '')}/indexes/${encodeURIComponent(MEILI_INDEX)}/documents?primaryKey=id`, {
+    await ensureTypesenseCollection();
+    await fetch(`${typesenseCollectionUrl()}/documents/import?action=upsert`, {
       method: 'POST',
-      headers: meiliHeaders(),
-      body: JSON.stringify(providers),
+      headers: typesenseHeaders(),
+      body: providers.map((provider) => JSON.stringify(toTypesenseDocument(provider))).join('\n'),
       cache: 'no-store',
     });
   } catch (error) {
-    console.warn('MEILISEARCH_PROVIDER_INDEX_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
+    console.warn('TYPESENSE_PROVIDER_INDEX_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
   }
 }
 
@@ -107,17 +178,17 @@ async function normalizePostcodeWithOsm(postcode: string | null, municipality: s
 
 export async function searchProvidersPrimaryFallback(query: string, municipality: string, postcode: string | null, limit = 5): Promise<AgentProvider[]> {
   const normalizedPostcode = await normalizePostcodeWithOsm(postcode, municipality);
-  if (meilisearchConfigured()) {
+  if (typesenseConfigured()) {
     try {
-      const primary = await searchMeilisearchProviders(query, municipality, normalizedPostcode || null, limit);
+      const primary = await searchTypesenseProviders(query, municipality, normalizedPostcode || null, limit);
       if (primary.length > 0) return primary;
     } catch (error) {
-      console.warn('MEILISEARCH_PROVIDER_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
+      console.warn('TYPESENSE_PROVIDER_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
     }
   }
 
   const fallback = await searchVerifiedProviders(query, normalizedPostcode, limit);
-  void indexMeilisearchProviders(fallback);
+  void indexTypesenseProviders(fallback);
   return fallback;
 }
 
