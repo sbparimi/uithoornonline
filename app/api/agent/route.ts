@@ -6,8 +6,7 @@ import { applyOrchestratorDecision, applySpecialistResult, DEFAULT_AGENT_STATE, 
 import { emergencyFromMessage } from '../../../lib/agent/planner';
 import { runAgent, type UnifiedAgentResult } from '../../../lib/agent/agent-runtime';
 import { runHarness } from '../../../lib/agent/harness/harness';
-import { discoverGooglePlaces } from '../../../lib/agent/discovery';
-import { searchVerifiedProviders, type AgentProvider } from '../../../lib/supabase/agent';
+import { searchProvidersWithFallback } from '../../../lib/agent/search-stack';
 
 type ChatMessage={role:'user'|'assistant';content:string}; type ContactInput={name?:unknown;email?:unknown;phone?:unknown;address?:unknown};
 const BUSINESS_INTENTS=new Set<SemanticIntent>(['find_food','order_food','find_service','find_business','find_event']);
@@ -17,25 +16,11 @@ function normalizeContact(value:unknown):AgentContact|null{if(!value||typeof val
 function normalizeHistory(value:unknown,currentMessage:string):ChatMessage[]{if(!Array.isArray(value))return[];const n:ChatMessage[]=value.filter((x):x is {role?:unknown;content?:unknown;text?:unknown}=>Boolean(x&&typeof x==='object')).map(x=>({role:(x.role==='assistant'?'assistant':'user') as ChatMessage['role'],content:String(x.content??x.text??'').trim()})).filter(x=>x.content.length>0);if(n.at(-1)?.role==='user'&&n.at(-1)?.content===currentMessage)n.pop();return n.slice(-8);}
 function detectLanguage(text:string):'nl'|'en'{const w=new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g)||[]);const nl=['ik','zoek','eten','catering','restaurant','bedrijf','loodgieter','elektricien','schoonmaak','vandaag','weekend','wat','nodig','hulp','graag'].reduce((n,x)=>n+(w.has(x)?1:0),0);const en=['i','need','food','catering','restaurant','business','plumber','electrician','cleaning','today','weekend','what','looking','help','please'].reduce((n,x)=>n+(w.has(x)?1:0),0);return en>nl?'en':'nl';}
 function detectEmergencyLanguage(text:string):'nl'|'en'{const w=new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g)||[]);const nl=['ik','hulp','112','brand','ambulance','politie','gevaar','nood','spoed','ongeluk','bloed'].reduce((n,x)=>n+(w.has(x)?1:0),0);const en=['i','help','112','fire','ambulance','police','danger','emergency','urgent','accident','blood'].reduce((n,x)=>n+(w.has(x)?1:0),0);return en>nl?'en':'nl';}
-function mergeProviders(local:AgentProvider[],discovered:AgentProvider[]):AgentProvider[]{const r=[...local];const seen=new Set(local.map(p=>p.name.toLowerCase().trim()));for(const p of discovered){const k=p.name.toLowerCase().trim();if(!seen.has(k)){r.push(p);seen.add(k);}if(r.length>=5)break;}return r;}
-
-async function searchProviders(state:AgentState,query:string):Promise<AgentProvider[]>{
-  let local:AgentProvider[]=[];
-  try {
-    local=await searchVerifiedProviders(query,state.location.postcode || '',5);
-  } catch(error) {
-    console.warn('AGENT_PROVIDER_SEARCH_FALLBACK',error instanceof Error?error.message:'unknown_error');
-  }
-  if(local.length>=5)return local;
-  try {
-    const discovered=await discoverGooglePlaces(query,state.location.municipality,5-local.length);
-    return mergeProviders(local,discovered);
-  } catch(error) {
-    console.warn('AGENT_GOOGLE_DISCOVERY_FAILED',error instanceof Error?error.message:'unknown_error');
-    return local;
-  }
-}
 function applyAgentResult(agent:UnifiedAgentResult,previousState:AgentState,safety:AgentState['safety']){let state=applyOrchestratorDecision(agent.decision,previousState);state.safety=safety;state=applySpecialistResult(state,agent.specialist);return{state,specialist:agent.specialist};}
+
+async function searchProviders(state:AgentState,query:string):Promise<import('../../../lib/supabase/agent').AgentProvider[]>{
+  return searchProvidersWithFallback(state,query);
+}
 
 export async function POST(request:Request){let requestMessage='';try{const body=await request.json();requestMessage=String(body.message||'').trim();const contactDecision=body.contact_decision==='no'?'no':body.contact_decision==='yes'?'yes':null;if(!requestMessage||requestMessage.length>4000)return NextResponse.json({error:'invalid_message'},{status:400});const safety=emergencyFromMessage(requestMessage);if(safety.emergency){const language=detectEmergencyLanguage(requestMessage);const reply=language==='en'?'This sounds like an emergency. **Call 112 now** for police, fire or ambulance.':'Dit klinkt als een noodsituatie. **Bel direct 112** voor politie, brandweer of ambulance.';return NextResponse.json({reply,state:{...DEFAULT_AGENT_STATE,language,languageLocked:true,safety},safety,actions:[{label:language==='en'?'Call 112':'Bel 112',value:'112',kind:'emergency'}],providers:[],render_mode:'message'});}const suppliedContact=normalizeContact(body.contact);const history=normalizeHistory(body.messages,requestMessage);const cookieStore=await cookies();let sessionKey=cookieStore.get('uo_agent_session')?.value;if(!sessionKey){sessionKey=crypto.randomUUID();cookieStore.set('uo_agent_session',sessionKey,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60*60*24*30});}let previousState=DEFAULT_AGENT_STATE;try{previousState=(await loadAgentState(sessionKey))||DEFAULT_AGENT_STATE;}catch(error){console.error('AGENT_SESSION_LOAD_ERROR',error instanceof Error?error.message:'unknown_error');return backendFailureResponse(detectLanguage(requestMessage),DEFAULT_AGENT_STATE,safety);}if(previousState.contact&&previousState.contactCapture?.status!=='accepted')previousState={...previousState,contactCapture:{...previousState.contactCapture,status:'accepted'}};
 
