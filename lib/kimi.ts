@@ -29,11 +29,11 @@ type KimiChatResponse = {
 type Provider = 'llama_cpp' | 'ollama' | 'litellm' | 'groq' | 'openai' | 'bedrock';
 
 function providerOrder(): Provider[] {
-  const configured = (process.env.LLM_PROVIDER_ORDER || 'llama_cpp,litellm,ollama,groq,bedrock,openai')
+  const configured = (process.env.LLM_PROVIDER_ORDER || 'llama_cpp,litellm,groq,bedrock,openai')
     .split(',')
     .map((value) => value.trim().toLowerCase())
     .filter((value): value is Provider => value === 'llama_cpp' || value === 'ollama' || value === 'litellm' || value === 'groq' || value === 'openai' || value === 'bedrock');
-  return configured.length ? [...new Set(configured)] : ['llama_cpp', 'litellm', 'ollama', 'groq', 'bedrock', 'openai'];
+  return configured.length ? [...new Set(configured)] : ['llama_cpp', 'litellm', 'groq', 'bedrock', 'openai'];
 }
 
 function hasCredentials(provider: Provider): boolean {
@@ -62,6 +62,11 @@ function providerHeaders(provider: Provider): Record<string, string> {
   return headers;
 }
 
+function chatCompletionsUrl(baseUrl: string): string {
+  const base = baseUrl.replace(/\/+$/, '');
+  return `${base.endsWith('/v1') ? base : `${base}/v1`}/chat/completions`;
+}
+
 async function callOpenAICompatible(provider: 'llama_cpp' | 'litellm' | 'groq' | 'openai', messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
   const baseUrl = provider === 'llama_cpp' ? LLAMA_CPP_BASE_URL : provider === 'litellm' ? LITELLM_BASE_URL : provider === 'groq' ? GROQ_BASE_URL : OPENAI_BASE_URL;
   const model = provider === 'llama_cpp' ? LLAMA_CPP_MODEL : provider === 'litellm' ? LITELLM_MODEL : provider === 'groq' ? GROQ_MODEL : OPENAI_MODEL;
@@ -85,7 +90,7 @@ async function callOpenAICompatible(provider: 'llama_cpp' | 'litellm' | 'groq' |
     };
   }
 
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/chat/completions`, {
+  const response = await fetch(chatCompletionsUrl(baseUrl), {
     method: 'POST',
     headers: providerHeaders(provider),
     body: JSON.stringify(requestBody),
