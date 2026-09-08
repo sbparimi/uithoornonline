@@ -1,6 +1,7 @@
 import { kimiChat } from '../kimi';
 import type { AgentLanguage, AgentPlan, AgentSlot, AgentState, SemanticIntent } from './state';
 import { compileAgentContext } from './harness/context-compiler';
+import { getCapabilityCatalog } from './harness/tool-gateway';
 
 export type AgentAction = {
   capability: 'business.search' | 'business.discover' | 'conversation.respond' | null;
@@ -72,6 +73,7 @@ export async function runAgent(message:string,history:Array<{role:'user'|'assist
   const context=compileAgentContext(message,state);
   const result=await kimiChat([
     {role:'system',content:PROMPT},
+    {role:'system',content:`AVAILABLE CAPABILITIES:\n${getCapabilityCatalog()}`},
     {role:'system',content:`TASK CONTRACT:\n${JSON.stringify(state.harness.contract)}`},
     {role:'system',content:`RELEVANT KNOWLEDGE:\n${context.rendered}\n\nKNOWLEDGE SOURCES: ${context.sources.join(', ')}`},
     {role:'system',content:`ACTIVE STATE:\n${JSON.stringify(state)}`},
