@@ -4,7 +4,7 @@ import type { AgentProvider } from '../../supabase/agent';
 export type ToolCapability = 'business.search' | 'business.discover';
 export type ActionKind = 'tool' | 'respond' | 'clarify' | 'complete';
 export type ToolRequest = { capability: ToolCapability; query: string };
-export type ToolObservation = { status: 'success' | 'failed'; capability: ToolCapability; retryable: boolean; providers: AgentProvider[]; error?: string };
+export type ToolObservation = { status: 'success' | 'failed'; capability: ToolCapability; actionKey: string; retryable: boolean; providers: AgentProvider[]; error?: string };
 export type ToolExecutor = (state: AgentState, query: string, capability: ToolCapability) => Promise<AgentProvider[]>;
 
 export type CapabilityDefinition = {
@@ -50,7 +50,7 @@ export function authorizeTool(state: AgentState, request: ToolRequest): { allowe
 
 export function hasSuccessfulAction(state: AgentState, request: ToolRequest): boolean {
   const key = normalizeActionKey(request);
-  return state.harness.observations.some((observation) => observation.status === 'success' && observation.summary.startsWith(`ACTION_KEY=${key};`));
+  return state.harness.observations.some((observation) => observation.status === 'success' && observation.actionKey === key);
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -64,12 +64,13 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 export async function executeTool(state: AgentState, request: ToolRequest, executor: ToolExecutor): Promise<ToolObservation> {
   const authorization = authorizeTool(state, request);
-  if (!authorization.allowed) return { status: 'failed', capability: request.capability, retryable: false, providers: [], error: authorization.reason };
+  const actionKey = normalizeActionKey(request);
+  if (!authorization.allowed) return { status: 'failed', capability: request.capability, actionKey, retryable: false, providers: [], error: authorization.reason };
   try {
     const providers = await withTimeout(executor(state, request.query, request.capability), TOOL_TIMEOUT_MS);
-    return { status: 'success', capability: request.capability, retryable: true, providers };
+    return { status: 'success', capability: request.capability, actionKey, retryable: true, providers };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'tool_execution_failed';
-    return { status: 'failed', capability: request.capability, retryable: message === 'tool_timeout' || message.includes('fetch'), providers: [], error: message };
+    return { status: 'failed', capability: request.capability, actionKey, retryable: message === 'tool_timeout' || message.includes('fetch'), providers: [], error: message };
   }
 }
