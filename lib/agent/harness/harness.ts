@@ -3,13 +3,12 @@ import type { AgentState } from '../state';
 import type { UnifiedAgentResult } from '../agent-runtime';
 import { applyOrchestratorDecision, applySpecialistResult } from '../state';
 import { buildTaskContract } from './task-contract';
-import { executeTool, hasSuccessfulAction, normalizeActionKey, type ToolRequest } from './tool-gateway';
+import { executeTool, hasSuccessfulAction, normalizeActionKey, type ToolRequest, type ToolExecutor } from './tool-gateway';
 import { verifyProviderResults } from './verification';
 
 export type HarnessObservation = { id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
 export type HarnessFailure = { type: 'model_output_invalid' | 'tool_failed' | 'verification_failed' | 'policy_denied' | 'missing_context' | 'max_iterations'; message: string; iteration: number; recoverable: boolean };
 export type HarnessResult = { agent: UnifiedAgentResult; state: AgentState; providers: AgentProvider[] };
-export type ProviderSearch = (state: AgentState, query: string) => Promise<AgentProvider[]>;
 
 const MAX_ITERATIONS = 3;
 function applyHarnessState(state: AgentState, patch: Partial<AgentState['harness']>): AgentState { return { ...state, harness: { ...state.harness, ...patch } }; }
@@ -17,7 +16,7 @@ function recordFailure(state: AgentState, failure: HarnessFailure, nextAction: s
 function observationForProviders(capability: string, actionKey: string, providers: AgentProvider[], verified: ReturnType<typeof verifyProviderResults>): HarnessObservation { return { id: crypto.randomUUID(), capability, status: verified.passed ? 'success' : 'failed', summary: `ACTION_KEY=${actionKey}; ${verified.reason}`, evidence: verified.evidence, retryable: !verified.passed }; }
 function applyAgentToState(state: AgentState, agent: UnifiedAgentResult): AgentState { let next=applyOrchestratorDecision(agent.decision,state); next=applySpecialistResult(next,agent.specialist); return next; }
 
-export async function runHarness(message:string,history:Array<{role:'user'|'assistant';content:string}>,initialState:AgentState,runAgent:(message:string,history:Array<{role:'user'|'assistant';content:string}>,state:AgentState)=>Promise<UnifiedAgentResult>,searchProviders:ProviderSearch):Promise<HarnessResult>{
+export async function runHarness(message:string,history:Array<{role:'user'|'assistant';content:string}>,initialState:AgentState,runAgent:(message:string,history:Array<{role:'user'|'assistant';content:string}>,state:AgentState)=>Promise<UnifiedAgentResult>,toolExecutor:ToolExecutor):Promise<HarnessResult>{
   let state=applyHarnessState(initialState,{runId:initialState.harness?.runId||crypto.randomUUID(),iteration:0,status:'running',observations:[],failures:[],decisions:[],nextAction:'reason'});
   let lastAgent:UnifiedAgentResult|null=null; let providers:AgentProvider[]=[];
   for(let iteration=1;iteration<=MAX_ITERATIONS;iteration+=1){
@@ -51,7 +50,7 @@ export async function runHarness(message:string,history:Array<{role:'user'|'assi
     }
 
     state=applyHarnessState(state,{nextAction:`execute:${request.capability}`});
-    const tool=await executeTool(state,request,searchProviders);
+    const tool=await executeTool(state,request,toolExecutor);
     if(tool.status==='failed'){
       const type:HarnessFailure['type']=tool.error==='capability_not_allowed_by_task_contract'||tool.error==='capability_not_registered'?'policy_denied':'tool_failed';
       const failure:HarnessFailure={type,message:tool.error||'tool_execution_failed',iteration,recoverable:tool.retryable&&iteration<MAX_ITERATIONS};
