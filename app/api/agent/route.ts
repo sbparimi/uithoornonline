@@ -14,7 +14,7 @@ const BUSINESS_INTENTS=new Set<SemanticIntent>(['find_food','order_food','find_s
 const BACKEND_FAILURE_MESSAGE='Sorry, our technology is letting us down. Please call +31616270233 for immediate assistance.';
 function backendFailureResponse(language:AgentState['language'],state:AgentState=DEFAULT_AGENT_STATE,safety=state.safety){return NextResponse.json({error:'backend_unavailable',reply:BACKEND_FAILURE_MESSAGE,actions:[],providers:[],render_mode:'message',state:{...state,language},safety},{status:503});}
 function normalizeContact(value:unknown):AgentContact|null{if(!value||typeof value!=='object')return null;const i=value as ContactInput;const name=String(i.name??'').trim().replace(/\s+/g,' ');const email=String(i.email??'').trim().toLowerCase();const phone=String(i.phone??'').trim();const address=String(i.address??'').trim().replace(/\s+/g,' ');if(name.length<2||!/^([^\s@]+)@([^\s@]+)\.([^\s@]+)$/.test(email)||phone.replace(/\D/g,'').length<8||address.length<5||!/\d/.test(address))return null;return{name,email,phone,address};}
-function normalizeHistory(value:unknown,currentMessage:string):ChatMessage[]{if(!Array.isArray(value))return[];const n=value.filter((x):x is {role?:unknown;content?:unknown;text?:unknown}=>Boolean(x&&typeof x==='object')).map(x=>({role:x.role==='assistant'?'assistant':'user',content:String(x.content??x.text??'').trim()})).filter(x=>x.content.length>0);if(n.at(-1)?.role==='user'&&n.at(-1)?.content===currentMessage)n.pop();return n.slice(-8);}
+function normalizeHistory(value:unknown,currentMessage:string):ChatMessage[]{if(!Array.isArray(value))return[];const n:ChatMessage[]=value.filter((x):x is {role?:unknown;content?:unknown;text?:unknown}=>Boolean(x&&typeof x==='object')).map(x=>({role:(x.role==='assistant'?'assistant':'user') as ChatMessage['role'],content:String(x.content??x.text??'').trim()})).filter(x=>x.content.length>0);if(n.at(-1)?.role==='user'&&n.at(-1)?.content===currentMessage)n.pop();return n.slice(-8);}
 function detectLanguage(text:string):'nl'|'en'{const w=new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g)||[]);const nl=['ik','zoek','eten','catering','restaurant','bedrijf','loodgieter','elektricien','schoonmaak','vandaag','weekend','wat','nodig','hulp','graag'].reduce((n,x)=>n+(w.has(x)?1:0),0);const en=['i','need','food','catering','restaurant','business','plumber','electrician','cleaning','today','weekend','what','looking','help','please'].reduce((n,x)=>n+(w.has(x)?1:0),0);return en>nl?'en':'nl';}
 function detectEmergencyLanguage(text:string):'nl'|'en'{const w=new Set(text.toLowerCase().match(/[a-zà-ÿ]+/g)||[]);const nl=['ik','hulp','112','brand','ambulance','politie','gevaar','nood','spoed','ongeluk','bloed'].reduce((n,x)=>n+(w.has(x)?1:0),0);const en=['i','help','112','fire','ambulance','police','danger','emergency','urgent','accident','blood'].reduce((n,x)=>n+(w.has(x)?1:0),0);return en>nl?'en':'nl';}
 function mergeProviders(local:AgentProvider[],discovered:AgentProvider[]):AgentProvider[]{const r=[...local];const seen=new Set(local.map(p=>p.name.toLowerCase().trim()));for(const p of discovered){const k=p.name.toLowerCase().trim();if(!seen.has(k)){r.push(p);seen.add(k);}if(r.length>=5)break;}return r;}
@@ -22,20 +22,16 @@ function mergeProviders(local:AgentProvider[],discovered:AgentProvider[]):AgentP
 async function searchProviders(state:AgentState,query:string):Promise<AgentProvider[]>{
   let local:AgentProvider[]=[];
   try {
-    // searchVerifiedProviders expects a postcode, not a municipality. Passing "Uithoorn"
-    // here caused valid local records to be filtered incorrectly.
     local=await searchVerifiedProviders(query,state.location.postcode || '',5);
   } catch(error) {
     console.warn('AGENT_PROVIDER_SEARCH_FALLBACK',error instanceof Error?error.message:'unknown_error');
   }
   if(local.length>=5)return local;
-
   try {
     const discovered=await discoverGooglePlaces(query,state.location.municipality,5-local.length);
     return mergeProviders(local,discovered);
   } catch(error) {
     console.warn('AGENT_GOOGLE_DISCOVERY_FAILED',error instanceof Error?error.message:'unknown_error');
-    // Preserve verified local results even if external discovery is unavailable.
     return local;
   }
 }
