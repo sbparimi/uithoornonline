@@ -1,6 +1,9 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { startObservation } from '@langfuse/tracing';
 
+const LLAMA_CPP_BASE_URL = process.env.LLAMA_CPP_BASE_URL || '';
+const LLAMA_CPP_MODEL = process.env.LLAMA_CPP_MODEL || 'uithoorn-agent';
+const LLAMA_CPP_API_KEY = process.env.LLAMA_CPP_API_KEY || '';
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gpt-oss';
 const LITELLM_BASE_URL = process.env.LITELLM_BASE_URL || '';
@@ -23,17 +26,18 @@ type KimiChatResponse = {
   model?: string;
 };
 
-type Provider = 'ollama' | 'litellm' | 'groq' | 'openai' | 'bedrock';
+type Provider = 'llama_cpp' | 'ollama' | 'litellm' | 'groq' | 'openai' | 'bedrock';
 
 function providerOrder(): Provider[] {
-  const configured = (process.env.LLM_PROVIDER_ORDER || 'ollama,litellm,groq,bedrock,openai')
+  const configured = (process.env.LLM_PROVIDER_ORDER || 'llama_cpp,litellm,ollama,groq,bedrock,openai')
     .split(',')
     .map((value) => value.trim().toLowerCase())
-    .filter((value): value is Provider => value === 'ollama' || value === 'litellm' || value === 'groq' || value === 'openai' || value === 'bedrock');
-  return configured.length ? [...new Set(configured)] : ['ollama', 'litellm', 'groq', 'bedrock', 'openai'];
+    .filter((value): value is Provider => value === 'llama_cpp' || value === 'ollama' || value === 'litellm' || value === 'groq' || value === 'openai' || value === 'bedrock');
+  return configured.length ? [...new Set(configured)] : ['llama_cpp', 'litellm', 'ollama', 'groq', 'bedrock', 'openai'];
 }
 
 function hasCredentials(provider: Provider): boolean {
+  if (provider === 'llama_cpp') return Boolean(LLAMA_CPP_BASE_URL);
   if (provider === 'ollama') return Boolean(process.env.OLLAMA_BASE_URL);
   if (provider === 'litellm') return Boolean(LITELLM_BASE_URL);
   if (provider === 'groq') return Boolean(process.env.GROQ_API_KEY);
@@ -50,15 +54,17 @@ function parseRetryAfter(response: Response): number {
 
 function providerHeaders(provider: Provider): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (provider === 'litellm' && LITELLM_API_KEY) headers.Authorization = `Bearer ${LITELLM_API_KEY}`;
+  if ((provider === 'llama_cpp' && LLAMA_CPP_API_KEY) || (provider === 'litellm' && LITELLM_API_KEY)) {
+    headers.Authorization = `Bearer ${provider === 'llama_cpp' ? LLAMA_CPP_API_KEY : LITELLM_API_KEY}`;
+  }
   if (provider === 'groq' && process.env.GROQ_API_KEY) headers.Authorization = `Bearer ${process.env.GROQ_API_KEY}`;
   if (provider === 'openai' && process.env.OPENAI_API_KEY) headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
   return headers;
 }
 
-async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
-  const baseUrl = provider === 'litellm' ? LITELLM_BASE_URL : provider === 'groq' ? GROQ_BASE_URL : OPENAI_BASE_URL;
-  const model = provider === 'litellm' ? LITELLM_MODEL : provider === 'groq' ? GROQ_MODEL : OPENAI_MODEL;
+async function callOpenAICompatible(provider: 'llama_cpp' | 'litellm' | 'groq' | 'openai', messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
+  const baseUrl = provider === 'llama_cpp' ? LLAMA_CPP_BASE_URL : provider === 'litellm' ? LITELLM_BASE_URL : provider === 'groq' ? GROQ_BASE_URL : OPENAI_BASE_URL;
+  const model = provider === 'llama_cpp' ? LLAMA_CPP_MODEL : provider === 'litellm' ? LITELLM_MODEL : provider === 'groq' ? GROQ_MODEL : OPENAI_MODEL;
   if (!baseUrl) throw new Error(`${provider.toUpperCase()}_NOT_CONFIGURED`);
   if ((provider === 'groq' || provider === 'openai') && !providerHeaders(provider).Authorization) throw new Error(`${provider.toUpperCase()}_NOT_CONFIGURED`);
 
@@ -66,7 +72,7 @@ async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', mes
     model,
     messages,
     temperature: options.temperature,
-    max_completion_tokens: options.maxCompletionTokens,
+    max_tokens: options.maxCompletionTokens,
   };
   if (provider === 'groq') {
     requestBody.reasoning_effort = options.reasoningEffort;
@@ -79,7 +85,7 @@ async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', mes
     };
   }
 
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/chat/completions`, {
     method: 'POST',
     headers: providerHeaders(provider),
     body: JSON.stringify(requestBody),
@@ -150,6 +156,7 @@ async function callBedrock(messages: ChatMessage[], options: NormalizedOptions):
 }
 
 function modelForProvider(provider: Provider): string {
+  if (provider === 'llama_cpp') return LLAMA_CPP_MODEL;
   if (provider === 'ollama') return OLLAMA_MODEL;
   if (provider === 'litellm') return LITELLM_MODEL;
   if (provider === 'groq') return GROQ_MODEL;
