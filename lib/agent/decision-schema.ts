@@ -1,7 +1,7 @@
-import Ajv, { type JSONSchemaType, type ValidateFunction } from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 import type { UnifiedAgentResult } from './agent-runtime';
 
-const schema: JSONSchemaType<UnifiedAgentResult> = {
+const schema = {
   type: 'object',
   properties: {
     decision: {
@@ -83,10 +83,10 @@ const schema: JSONSchemaType<UnifiedAgentResult> = {
   },
   required: ['decision', 'action', 'specialist'],
   additionalProperties: true,
-};
+} as const;
 
 const ajv = new Ajv({ allErrors: true, strict: false });
-const validator: ValidateFunction<UnifiedAgentResult> = ajv.compile(schema);
+const validator: ValidateFunction = ajv.compile(schema);
 
 export function validateAgentDecision(value: unknown): value is UnifiedAgentResult {
   try {
@@ -97,6 +97,6 @@ export function validateAgentDecision(value: unknown): value is UnifiedAgentResu
   }
 }
 
-export function getAgentDecisionSchema(): JSONSchemaType<UnifiedAgentResult> {
-  return schema;
+export function getAgentDecisionSchema(): Record<string, unknown> {
+  return schema as Record<string, unknown>;
 }
