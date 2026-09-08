@@ -3,6 +3,7 @@ import type { AgentLanguage, AgentPlan, AgentSlot, AgentState, SemanticIntent } 
 import { compileAgentContext } from './harness/context-compiler';
 import { getCapabilityCatalog } from './harness/tool-gateway';
 import type { ActionKind } from './harness/tool-gateway';
+import { getAgentDecisionSchema, validateAgentDecision } from './decision-schema';
 
 export type AgentAction = {
   kind: ActionKind;
@@ -19,8 +20,7 @@ export type UnifiedAgentResult = {
 
 const PROMPT = `You are the autonomous Uithoorn.online customer agent. Combine semantic understanding, domain reasoning, planning and action selection in ONE reasoning turn. You are not a keyword classifier, fixed workflow, slot-filling form, or deterministic routing engine.
 
-Return ONLY valid JSON with exactly this top-level shape:
-{"decision":{"language":"nl|en","location":{"municipality":"Uithoorn|De Kwakel","postcode":string|null,"source":"default|user|postcode"},"intent":{"primary":"find_food|order_food|find_service|find_business|find_event|general_local","confidence":0.0},"entities":{"category":string|null,"cuisine":string|null,"service":string|null,"fulfilment":"pickup|delivery|dine_in"|null,"dish":string|null,"people":number|null,"date":string|null},"specialist":"food|local_discovery|local_service|events|general","task":{"type":string},"plan":{"goal":string,"steps":[string],"nextAction":string,"searchQuery":string|null}},"action":{"kind":"tool|respond|clarify|complete","capability":"business.search|business.discover|null","arguments":{"query":string|null},"rationale":string},"specialist":{"reply":"","captured":{"category":string|null,"cuisine":string|null,"service":string|null,"fulfilment":"pickup|delivery|dine_in"|null,"dish":string|null,"people":number|null,"date":string|null},"nextRequiredSlot":"service|cuisine|category|fulfilment|date|people|location|null","missingSlots":["service|cuisine|category|fulfilment|date|people|location"],"status":"collecting|ready","shouldSearch":true|false,"plan":{"goal":string,"steps":[string],"nextAction":string,"searchQuery":string|null}}}
+Return ONLY valid JSON matching the supplied JSON Schema. Do not wrap it in markdown.
 
 ACTION RULES:
 - Select an action based on the current goal, state and observations; do not mechanically choose from keywords.
@@ -66,8 +66,9 @@ function extractJson(text: string): UnifiedAgentResult | null {
     if (!Array.isArray(decision.plan.steps) || !decision.plan.goal || !decision.plan.nextAction) continue;
     if (!Array.isArray(specialist.missingSlots) || !Array.isArray(specialist.plan.steps) || !specialist.plan.goal || !specialist.plan.nextAction) continue;
 
-    // Mechanical schema repair only. Some compatible models occasionally omit action.kind
-    // while still returning a valid capability/query. Conversation semantics remain LLM-owned.
+    // Compatibility repair is intentionally narrow: if a model omitted action.kind
+    // but supplied an executable capability/query, infer tool. Ajv validates the
+    // repaired contract before the result is admitted to the harness.
     const capability = rawAction.capability && VALID_CAPABILITIES.has(rawAction.capability) ? rawAction.capability : null;
     let kind: ActionKind | null = VALID_KINDS.has(rawAction.kind as ActionKind) ? rawAction.kind as ActionKind : null;
     if (!kind) kind = capability ? 'tool' : (String(specialist.reply || '').trim() ? 'respond' : specialist.nextRequiredSlot ? 'clarify' : 'complete');
@@ -78,7 +79,12 @@ function extractJson(text: string): UnifiedAgentResult | null {
     const normalizePlan=(plan:AgentPlan):AgentPlan=>({goal:String(plan.goal).trim(),steps:plan.steps.filter((s):s is string=>typeof s==='string').map(s=>s.trim()).filter(Boolean).slice(0,6),nextAction:String(plan.nextAction).trim(),searchQuery:typeof plan.searchQuery==='string'&&plan.searchQuery.trim()?plan.searchQuery.trim():null});
     const missingSlots=specialist.missingSlots.filter((s):s is AgentSlot=>typeof s==='string'&&VALID_SLOTS.has(s as AgentSlot));
     const nextRequiredSlot=specialist.nextRequiredSlot&&VALID_SLOTS.has(specialist.nextRequiredSlot)?specialist.nextRequiredSlot:null;
-    return {decision:{language:decision.language==='en'?'en':'nl',location:decision.location||{municipality:'Uithoorn',postcode:null,source:'default'},intent:{primary:decision.intent.primary,confidence:Number(decision.intent.confidence??0.8)},entities:decision.entities||{},specialist:decision.specialist,task:{type:String(decision.task?.type||'local_help')},plan:normalizePlan(decision.plan)},action:{kind,capability,arguments:{query:typeof rawAction.arguments?.query==='string'&&rawAction.arguments.query.trim()?rawAction.arguments.query.trim():undefined},rationale:String(rawAction.rationale||'').trim().slice(0,400)},specialist:{reply:String(specialist.reply||'').trim(),captured:specialist.captured&&typeof specialist.captured==='object'?specialist.captured:{},nextRequiredSlot,missingSlots,status:specialist.status==='ready'?'ready':'collecting',shouldSearch:Boolean(specialist.shouldSearch),plan:normalizePlan(specialist.plan)}};
+    const normalized: UnifiedAgentResult = {decision:{language:decision.language==='en'?'en':'nl',location:decision.location||{municipality:'Uithoorn',postcode:null,source:'default'},intent:{primary:decision.intent.primary,confidence:Number(decision.intent.confidence??0.8)},entities:decision.entities||{},specialist:decision.specialist,task:{type:String(decision.task?.type||'local_help')},plan:normalizePlan(decision.plan)},action:{kind,capability,arguments:{query:typeof rawAction.arguments?.query==='string'&&rawAction.arguments.query.trim()?rawAction.arguments.query.trim():undefined},rationale:String(rawAction.rationale||'').trim().slice(0,400)},specialist:{reply:String(specialist.reply||'').trim(),captured:specialist.captured&&typeof specialist.captured==='object'?specialist.captured:{},nextRequiredSlot,missingSlots,status:specialist.status==='ready'?'ready':'collecting',shouldSearch:Boolean(specialist.shouldSearch),plan:normalizePlan(specialist.plan)}};
+    if (!validateAgentDecision(normalized)) {
+      console.error('AGENT_AJV_CONTRACT_REJECTED');
+      continue;
+    }
+    return normalized;
   } catch { /* try next candidate */ }
   console.error('AGENT_INVALID_DECISION_RAW',{raw:cleaned.slice(0,2000)}); return null;
 }
@@ -87,6 +93,7 @@ export async function runAgent(message:string,history:Array<{role:'user';content
   const context=compileAgentContext(message,state);
   const result=await kimiChat([
     {role:'system',content:PROMPT},
+    {role:'system',content:`RESPONSE JSON SCHEMA:\n${JSON.stringify(getAgentDecisionSchema())}`},
     {role:'system',content:`AVAILABLE CAPABILITIES:\n${getCapabilityCatalog()}`},
     {role:'system',content:`TASK CONTRACT:\n${JSON.stringify(state.harness.contract)}`},
     {role:'system',content:`RELEVANT KNOWLEDGE:\n${context.rendered}\n\nKNOWLEDGE SOURCES: ${context.sources.join(', ')}`},
@@ -95,7 +102,7 @@ export async function runAgent(message:string,history:Array<{role:'user';content
     {role:'system',content:`HARNESS OBSERVATIONS:\n${JSON.stringify(state.harness.observations.slice(-2))}`},
     {role:'system',content:`HARNESS FAILURES:\n${JSON.stringify(state.harness.failures.slice(-2))}`},
     ...history.slice(-6),{role:'user',content:message}
-  ],{maxCompletionTokens:1000,temperature:0.1,reasoningEffort:'low'});
+  ],{maxCompletionTokens:1000,temperature:0.1,reasoningEffort:'low',responseSchema:getAgentDecisionSchema()});
   const parsed=extractJson(String(result?.choices?.[0]?.message?.content||''));
   if(!parsed) throw new Error('AGENT_INVALID_DECISION'); return parsed;
 }
