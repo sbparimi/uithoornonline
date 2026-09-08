@@ -60,24 +60,11 @@ async function callOpenAICompatible(provider: 'groq' | 'openai', messages: ChatM
       : {}),
   });
 
-  let response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: requestBody,
   });
-
-  if (response.status === 429) {
-    const waitMs = parseRetryAfter(response);
-    if (waitMs > 0) {
-      console.warn('LLM_RATE_LIMIT_RETRY', { provider, model, waitMs });
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: requestBody,
-      });
-    }
-  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
@@ -89,10 +76,12 @@ async function callOpenAICompatible(provider: 'groq' | 'openai', messages: ChatM
       remainingTokens: response.headers.get('x-ratelimit-remaining-tokens'),
       resetTokens: response.headers.get('x-ratelimit-reset-tokens'),
       remainingRequests: response.headers.get('x-ratelimit-remaining-requests'),
-      resetRequests: response.headers.get('x-ratelimit-reset-requests'),
       body: body.slice(0, 500),
     });
-    throw new Error(`${provider.toUpperCase()}_REQUEST_FAILED:${response.status}`);
+    const error = new Error(`${provider.toUpperCase()}_REQUEST_FAILED:${response.status}`);
+    (error as Error & { status?: number; retryAfterMs?: number }).status = response.status;
+    (error as Error & { status?: number; retryAfterMs?: number }).retryAfterMs = parseRetryAfter(new Response(null, { status: response.status, headers: response.headers }));
+    throw error;
   }
 
   const payload = await response.json() as KimiChatResponse;
@@ -119,7 +108,7 @@ async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOp
 
 export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}): Promise<KimiChatResponse> {
   const options: Required<KimiChatOptions> = {
-    maxCompletionTokens: inputOptions.maxCompletionTokens ?? 1600,
+    maxCompletionTokens: inputOptions.maxCompletionTokens ?? 1000,
     temperature: inputOptions.temperature ?? 0.1,
     reasoningEffort: inputOptions.reasoningEffort ?? 'low',
   };
@@ -128,7 +117,8 @@ export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOp
   if (!providers.length) throw new Error('LLM_NOT_CONFIGURED');
 
   let lastError: unknown = null;
-  for (const provider of providers) {
+  for (let index = 0; index < providers.length; index += 1) {
+    const provider = providers[index];
     try {
       const result = provider === 'bedrock'
         ? await callBedrock(messages, options)
@@ -137,7 +127,14 @@ export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOp
       return result;
     } catch (error) {
       lastError = error;
-      console.error('LLM_PROVIDER_FALLBACK', { provider, error: error instanceof Error ? error.message : 'unknown_error' });
+      const status = error instanceof Error ? (error as Error & { status?: number }).status : undefined;
+      const retryAfterMs = error instanceof Error ? (error as Error & { retryAfterMs?: number }).retryAfterMs || 0 : 0;
+      console.error('LLM_PROVIDER_FALLBACK', { provider, error: error instanceof Error ? error.message : 'unknown_error', status });
+
+      // Do not burn another Groq request when a downstream provider is available.
+      // A 429 is a provider-capacity problem, not an agent-reasoning problem.
+      if (status === 429 && index < providers.length - 1) continue;
+      if (status === 429 && retryAfterMs > 0) await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
     }
   }
 
