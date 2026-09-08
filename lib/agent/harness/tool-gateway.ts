@@ -38,7 +38,7 @@ export function authorizeTool(state: AgentState, request: ToolRequest): { allowe
 
 export function hasSuccessfulAction(state: AgentState, request: ToolRequest): boolean {
   const key = normalizeActionKey(request);
-  return state.harness.observations.some((observation) => observation.status === 'success' && `${observation.capability}:${observation.summary}` === key);
+  return state.harness.observations.some((observation) => observation.status === 'success' && observation.actionKey === key);
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
