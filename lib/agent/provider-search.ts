@@ -51,12 +51,13 @@ export function meilisearchConfigured(): boolean {
   return Boolean(MEILI_URL && MEILI_KEY);
 }
 
-export async function searchMeilisearchProviders(query: string, municipality: string, limit = 5): Promise<AgentProvider[]> {
+export async function searchMeilisearchProviders(query: string, municipality: string, postcode: string | null, limit = 5): Promise<AgentProvider[]> {
   if (!meilisearchConfigured() || !query.trim()) return [];
+  const locationTerms = [municipality, postcode || ''].filter(Boolean).join(' ');
   const response = await fetch(`${MEILI_URL.replace(/\/$/, '')}/indexes/${encodeURIComponent(MEILI_INDEX)}/search`, {
     method: 'POST',
     headers: meiliHeaders(),
-    body: JSON.stringify({ q: `${query.trim()} ${municipality}`.trim(), limit: Math.min(Math.max(limit, 1), 20) }),
+    body: JSON.stringify({ q: `${query.trim()} ${locationTerms}`.trim(), limit: Math.min(Math.max(limit, 1), 20) }),
     cache: 'no-store',
   });
   if (!response.ok) throw new Error(`MEILISEARCH_PROVIDER_SEARCH_FAILED:${response.status}`);
@@ -78,25 +79,46 @@ async function indexMeilisearchProviders(providers: AgentProvider[]): Promise<vo
   }
 }
 
+async function rateLimitNominatim(): Promise<void> {
+  const elapsed = Date.now() - lastNominatimRequestAt;
+  if (elapsed < 1000) await new Promise((resolve) => setTimeout(resolve, 1000 - elapsed));
+  lastNominatimRequestAt = Date.now();
+}
+
+async function normalizePostcodeWithOsm(postcode: string | null, municipality: string): Promise<string> {
+  if (!postcode) return '';
+  try {
+    await rateLimitNominatim();
+    const url = new URL('/search', NOMINATIM_URL);
+    url.searchParams.set('q', `${postcode}, ${municipality}, Netherlands`);
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('addressdetails', '1');
+    const response = await fetch(url, { headers: { 'User-Agent': 'UithoornOnline/1.0 (https://uithoorn.online)' }, cache: 'no-store' });
+    if (!response.ok) throw new Error(`NOMINATIM_LOCATION_FAILED:${response.status}`);
+    const payload = await response.json() as Array<{ address?: { postcode?: string; town?: string; village?: string; city?: string } }>;
+    const normalized = payload[0]?.address?.postcode?.replace(/\s+/g, '').toUpperCase();
+    return normalized || postcode.replace(/\s+/g, '').toUpperCase();
+  } catch (error) {
+    console.warn('OSM_LOCATION_NORMALIZATION_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
+    return postcode.replace(/\s+/g, '').toUpperCase();
+  }
+}
+
 export async function searchProvidersPrimaryFallback(query: string, municipality: string, postcode: string | null, limit = 5): Promise<AgentProvider[]> {
+  const normalizedPostcode = await normalizePostcodeWithOsm(postcode, municipality);
   if (meilisearchConfigured()) {
     try {
-      const primary = await searchMeilisearchProviders(query, municipality, limit);
+      const primary = await searchMeilisearchProviders(query, municipality, normalizedPostcode || null, limit);
       if (primary.length > 0) return primary;
     } catch (error) {
       console.warn('MEILISEARCH_PROVIDER_FALLBACK', error instanceof Error ? error.message : 'unknown_error');
     }
   }
 
-  const fallback = await searchVerifiedProviders(query, postcode || '', limit);
+  const fallback = await searchVerifiedProviders(query, normalizedPostcode, limit);
   void indexMeilisearchProviders(fallback);
   return fallback;
-}
-
-async function rateLimitNominatim(): Promise<void> {
-  const elapsed = Date.now() - lastNominatimRequestAt;
-  if (elapsed < 1000) await new Promise((resolve) => setTimeout(resolve, 1000 - elapsed));
-  lastNominatimRequestAt = Date.now();
 }
 
 function osmProvider(result: Record<string, unknown>): AgentProvider | null {
@@ -155,7 +177,8 @@ export async function discoverOpenStreetMap(query: string, municipality: string,
 
 export async function discoverOverpass(query: string, municipality: string, limit = 5): Promise<AgentProvider[]> {
   if (!OVERPASS_URL || !query.trim()) return [];
-  const overpassQuery = `[out:json][timeout:10];area["name"="${municipality}"]["boundary"="administrative"]->.searchArea;(nwr["name"~"${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}",i](area.searchArea););out center tags ${Math.min(Math.max(limit, 1), 10)};`;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const overpassQuery = `[out:json][timeout:10];area["name"="${municipality}"]["boundary"="administrative"]->.searchArea;(nwr["name"~"${escaped}",i](area.searchArea););out center tags;`;
   const response = await fetch(OVERPASS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: overpassQuery, cache: 'no-store' });
   if (!response.ok) throw new Error(`OVERPASS_DISCOVERY_FAILED:${response.status}`);
   const payload = await response.json() as { elements?: Array<Record<string, unknown>> };
