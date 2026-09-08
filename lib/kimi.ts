@@ -13,12 +13,8 @@ const BEDROCK_REGION = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION 
 const BEDROCK_MODEL = process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 type ChatMessage = { role: string; content: string };
-export type KimiChatOptions = {
-  maxCompletionTokens?: number;
-  temperature?: number;
-  reasoningEffort?: 'low' | 'medium' | 'high';
-  responseSchema?: Record<string, unknown>;
-};
+type NormalizedOptions = { maxCompletionTokens: number; temperature: number; reasoningEffort: 'low' | 'medium' | 'high'; responseSchema?: Record<string, unknown> };
+export type KimiChatOptions = Partial<NormalizedOptions>;
 
 type KimiChatResponse = {
   choices: Array<{ message: { role: string; content: string } }>;
@@ -59,7 +55,7 @@ function providerHeaders(provider: Provider): Record<string, string> {
   return headers;
 }
 
-async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<KimiChatResponse> {
+async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
   const baseUrl = provider === 'litellm' ? LITELLM_BASE_URL : provider === 'groq' ? GROQ_BASE_URL : OPENAI_BASE_URL;
   const model = provider === 'litellm' ? LITELLM_MODEL : provider === 'groq' ? GROQ_MODEL : OPENAI_MODEL;
   if (!baseUrl) throw new Error(`${provider.toUpperCase()}_NOT_CONFIGURED`);
@@ -110,7 +106,7 @@ async function callOpenAICompatible(provider: 'litellm' | 'groq' | 'openai', mes
   return { ...payload, provider, model };
 }
 
-async function callOllama(messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<KimiChatResponse> {
+async function callOllama(messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
   const response = await fetch(`${OLLAMA_BASE_URL.replace(/\/$/, '')}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -119,7 +115,7 @@ async function callOllama(messages: ChatMessage[], options: Required<KimiChatOpt
       messages,
       stream: false,
       think: options.reasoningEffort === 'low' ? false : options.reasoningEffort,
-      format: options.responseSchema || 'json',
+      ...(options.responseSchema ? { format: options.responseSchema } : { format: 'json' }),
       options: { temperature: options.temperature, num_predict: options.maxCompletionTokens },
     }),
   });
@@ -134,7 +130,7 @@ async function callOllama(messages: ChatMessage[], options: Required<KimiChatOpt
   return { choices: [{ message: { role: payload.message?.role || 'assistant', content } }], provider: 'ollama', model: payload.model || OLLAMA_MODEL };
 }
 
-async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOptions>): Promise<KimiChatResponse> {
+async function callBedrock(messages: ChatMessage[], options: NormalizedOptions): Promise<KimiChatResponse> {
   const client = new BedrockRuntimeClient({ region: BEDROCK_REGION });
   const system = messages.filter((message) => message.role === 'system').map((message) => ({ text: message.content }));
   const conversation = messages
@@ -153,11 +149,11 @@ async function callBedrock(messages: ChatMessage[], options: Required<KimiChatOp
 }
 
 export async function kimiChat(messages: ChatMessage[], inputOptions: KimiChatOptions = {}): Promise<KimiChatResponse> {
-  const options: Required<KimiChatOptions> = {
+  const options: NormalizedOptions = {
     maxCompletionTokens: inputOptions.maxCompletionTokens ?? 1000,
     temperature: inputOptions.temperature ?? 0.1,
     reasoningEffort: inputOptions.reasoningEffort ?? 'low',
-    responseSchema: inputOptions.responseSchema ?? {},
+    responseSchema: inputOptions.responseSchema,
   };
 
   const providers = providerOrder().filter(hasCredentials);
