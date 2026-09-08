@@ -26,16 +26,31 @@ export async function runHarness(message:string,history:Array<{role:'user'|'assi
     try{agent=await runAgent(message,history,state);}catch(error){const failure:HarnessFailure={type:'model_output_invalid',message:error instanceof Error?error.message:'unknown_model_error',iteration,recoverable:iteration<MAX_ITERATIONS};state=recordFailure(state,failure,failure.recoverable?'repair_reasoning':'escalate');if(failure.recoverable)continue;throw error;}
     lastAgent=agent;
     state=applyAgentToState(state,agent);
-    state=applyHarnessState(state,{contract:buildTaskContract(state,message),decisions:[...state.harness.decisions,{iteration,nextAction:agent.action.capability||'respond',goal:agent.decision.plan.goal,rationale:agent.action.rationale}],nextAction:agent.action.capability||'respond'});
-    if(agent.action.capability===null||agent.action.capability==='conversation.respond') return {agent,state:applyHarnessState(state,{status:'completed',nextAction:'respond'}),providers};
-    const query=agent.action.query?.trim();
-    if(!query){state=recordFailure(state,{type:'missing_context',message:`Agent selected ${agent.action.capability} without an executable query`,iteration,recoverable:false},'respond');return {agent,state:applyHarnessState(state,{status:'completed'}),providers};}
+    state=applyHarnessState(state,{contract:buildTaskContract(state,message),decisions:[...state.harness.decisions,{iteration,nextAction:agent.action.kind,goal:agent.decision.plan.goal,rationale:agent.action.rationale}],nextAction:agent.action.kind});
+
+    if(agent.action.kind==='respond'||agent.action.kind==='clarify'||agent.action.kind==='complete'){
+      return {agent,state:applyHarnessState(state,{status:'completed',nextAction:agent.action.kind}),providers};
+    }
+
+    if(agent.action.kind!=='tool'||!agent.action.capability){
+      state=recordFailure(state,{type:'model_output_invalid',message:'Tool action did not include an executable capability',iteration,recoverable:false},'escalate');
+      return {agent,state:applyHarnessState(state,{status:'failed'}),providers};
+    }
+
+    const query=agent.action.arguments.query?.trim();
+    if(!query){
+      state=recordFailure(state,{type:'missing_context',message:`Agent selected ${agent.action.capability} without an executable query`,iteration,recoverable:false},'respond');
+      return {agent,state:applyHarnessState(state,{status:'completed'}),providers};
+    }
+
     const request:ToolRequest={capability:agent.action.capability,query};
     const actionKey=normalizeActionKey(request);
     if(hasSuccessfulAction(state,request)){
       state=applyHarnessState(state,{observations:[...state.harness.observations,{id:crypto.randomUUID(),capability:request.capability,status:'success',summary:`ACTION_KEY=${actionKey}; Duplicate action suppressed; prior observation remains authoritative.`,evidence:[],retryable:false}],nextAction:'use_existing_observation'});
       return {agent,state:applyHarnessState(state,{status:'completed',nextAction:'respond'}),providers};
     }
+
+    state=applyHarnessState(state,{nextAction:`execute:${request.capability}`});
     const tool=await executeTool(state,request,searchProviders);
     if(tool.status==='failed'){
       const type:HarnessFailure['type']=tool.error==='capability_not_allowed_by_task_contract'||tool.error==='capability_not_registered'?'policy_denied':'tool_failed';
@@ -44,6 +59,7 @@ export async function runHarness(message:string,history:Array<{role:'user'|'assi
       state=recordFailure(state,failure,failure.recoverable?'repair_action':'escalate');
       if(failure.recoverable)continue;throw new Error(failure.message);
     }
+
     providers=tool.providers;
     const verification=verifyProviderResults(providers);
     state=applyHarnessState(state,{observations:[...state.harness.observations,observationForProviders(tool.capability,actionKey,providers,verification)],nextAction:verification.passed?'verify_results':'recover_search'});
