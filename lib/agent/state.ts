@@ -7,7 +7,7 @@ export type ContactCaptureStatus = 'unknown' | 'offered' | 'accepted' | 'decline
 
 export type AgentPlan = { goal: string; steps: string[]; nextAction: string; searchQuery: string | null };
 export type HarnessFailureType = 'model_output_invalid' | 'tool_failed' | 'verification_failed' | 'policy_denied' | 'missing_context' | 'max_iterations';
-export type HarnessObservation = { id: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
+export type HarnessObservation = { id: string; actionKey?: string; capability: string; status: 'success' | 'failed'; summary: string; evidence: Array<{ source: string; detail: string }>; retryable: boolean };
 export type HarnessFailure = { type: HarnessFailureType; message: string; iteration: number; recoverable: boolean };
 export type HarnessDecision = { iteration: number; nextAction: string; goal: string; rationale?: string };
 
