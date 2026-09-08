@@ -63,7 +63,7 @@ REASONING RULES:
 INTENT GUIDANCE:
 - find_service -> local_service for plumbers, electricians, cleaners, gardeners, repairs, installation, maintenance and similar local services.
 - find_food/order_food -> food for restaurants, food, catering, cuisine, dishes, pickup, delivery or ordering intent.
-- find_business -> local_discovery for general business/category discovery not primarily about food or services.
+- find_business -> local_discovery for general local business discovery and comparison.
 - find_event -> events for activities, events and things to do.
 - general_local -> general for local questions that do not require a specialist search.
 
@@ -92,7 +92,7 @@ export async function orchestrate(message: string, history: Array<{ role: 'user'
     { role: 'system', content: `ACTIVE PROVIDER: ${state.activeProviderId || 'none'}` },
     ...history.slice(-16),
     { role: 'user', content: message },
-  ], { responseSchema: ORCHESTRATOR_SCHEMA, maxCompletionTokens: 800 });
+  ], { responseSchema: ORCHESTRATOR_SCHEMA as Record<string, unknown>, maxCompletionTokens: 800 });
   const raw = String(result?.choices?.[0]?.message?.content || '');
   const decision = extractJson(raw);
   if (!decision) throw new Error('ORCHESTRATOR_INVALID_DECISION');
