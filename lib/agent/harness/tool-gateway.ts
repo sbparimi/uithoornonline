@@ -5,7 +5,7 @@ export type ToolCapability = 'business.search' | 'business.discover';
 export type ActionKind = 'tool' | 'respond' | 'clarify' | 'complete';
 export type ToolRequest = { capability: ToolCapability; query: string };
 export type ToolObservation = { status: 'success' | 'failed'; capability: ToolCapability; retryable: boolean; providers: AgentProvider[]; error?: string };
-export type ToolExecutor = (state: AgentState, query: string) => Promise<AgentProvider[]>;
+export type ToolExecutor = (state: AgentState, query: string, capability: ToolCapability) => Promise<AgentProvider[]>;
 
 export type CapabilityDefinition = {
   capability: ToolCapability;
@@ -16,8 +16,8 @@ export type CapabilityDefinition = {
 };
 
 export const CAPABILITIES: CapabilityDefinition[] = [
-  { capability: 'business.search', kind: 'tool', description: 'Search verified local provider records for the current Uithoorn/De Kwakel task.', input: { query: 'Concise executable search request preserving explicit constraints.', required: true }, sideEffect: 'read' },
-  { capability: 'business.discover', kind: 'tool', description: 'Broaden local provider discovery when verified records are insufficient for the current task.', input: { query: 'Concise executable discovery request preserving explicit constraints.', required: true }, sideEffect: 'read' },
+  { capability: 'business.search', kind: 'tool', description: 'Search the verified local provider index for the current Uithoorn/De Kwakel task. Prefer this when authoritative local records are expected to satisfy the request.', input: { query: 'Concise executable search request preserving explicit constraints.', required: true }, sideEffect: 'read' },
+  { capability: 'business.discover', kind: 'tool', description: 'Perform broader local discovery when the verified provider index is insufficient or the task explicitly needs wider discovery. Results must remain evidence-backed.', input: { query: 'Concise executable discovery request preserving explicit constraints.', required: true }, sideEffect: 'read' },
 ];
 
 const REGISTERED = new Set<ToolCapability>(CAPABILITIES.map((item) => item.capability));
@@ -66,7 +66,7 @@ export async function executeTool(state: AgentState, request: ToolRequest, execu
   const authorization = authorizeTool(state, request);
   if (!authorization.allowed) return { status: 'failed', capability: request.capability, retryable: false, providers: [], error: authorization.reason };
   try {
-    const providers = await withTimeout(executor(state, request.query), TOOL_TIMEOUT_MS);
+    const providers = await withTimeout(executor(state, request.query, request.capability), TOOL_TIMEOUT_MS);
     return { status: 'success', capability: request.capability, retryable: true, providers };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'tool_execution_failed';
