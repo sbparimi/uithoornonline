@@ -1,3 +1,4 @@
+import Ajv from 'ajv';
 import { kimiChat } from '../kimi';
 import type { AgentAction, AgentPlan, AgentSlot, AgentState } from './state';
 
@@ -11,22 +12,30 @@ export type SpecialistResult = {
   plan: AgentPlan;
 };
 
+const SPECIALIST_SCHEMA = {
+  type: 'object',
+  properties: {
+    reply: { type: 'string' },
+    captured: { type: 'object', additionalProperties: true },
+    nextRequiredSlot: { type: ['string', 'null'] },
+    missingSlots: { type: 'array', items: { type: 'string' } },
+    status: { type: 'string', enum: ['collecting', 'ready'] },
+    shouldSearch: { type: 'boolean' },
+    plan: { type: 'object', properties: { goal: { type: 'string' }, steps: { type: 'array', items: { type: 'string' } }, nextAction: { type: 'string' }, searchQuery: { type: ['string', 'null'] } }, required: ['goal', 'steps', 'nextAction', 'searchQuery'], additionalProperties: true },
+  },
+  required: ['reply', 'captured', 'nextRequiredSlot', 'missingSlots', 'status', 'shouldSearch', 'plan'],
+  additionalProperties: true,
+} as const;
+const ajv = new Ajv({ strict: false });
+const validate = ajv.compile(SPECIALIST_SCHEMA);
+
 const SPECIALIST_PROMPT = `You are a Uithoorn.online SPECIALIST AGENT. You are an autonomous domain reasoning agent, not a deterministic workflow and not a slot-filling form.
 
 The ORCHESTRATOR has already understood the customer's goal and selected your domain. Your job is to inspect the complete conversation context, reason about the domain task, refine the plan if necessary, decide whether more information is genuinely required, and execute the next useful step through the application runtime.
 
 You do not have a predefined graph. Do not follow a fixed sequence such as identify -> ask slot -> search -> present. Different requests may require different steps and different amounts of information.
 
-Return ONLY valid JSON with this shape:
-{
-  "reply": "customer-facing response only when a response is needed before execution; otherwise a concise progress statement",
-  "captured": {"category":string|null,"cuisine":string|null,"service":string|null,"fulfilment":"pickup|delivery|dine_in"|null,"dish":string|null,"people":number|null,"date":string|null},
-  "nextRequiredSlot":"service|cuisine|category|fulfilment|date|people|location|null",
-  "missingSlots":["service|cuisine|category|fulfilment|date|people|location"],
-  "status":"collecting|ready",
-  "shouldSearch":true|false,
-  "plan":{"goal":string,"steps":[string],"nextAction":string,"searchQuery":string|null}
-}
+Return ONLY valid JSON matching the supplied JSON Schema.
 
 REASONING RULES:
 1. Start from the user's goal, not from a fixed list of fields.
@@ -63,6 +72,7 @@ function extractJson(text: string): SpecialistResult | null {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
   try {
     const value = JSON.parse(cleaned) as Partial<SpecialistResult>;
+    if (!validate(value)) return null;
     if (!value || typeof value.reply !== 'string' || !Array.isArray(value.missingSlots) || !value.plan || !Array.isArray(value.plan.steps)) return null;
     const missingSlots = value.missingSlots.filter((slot): slot is AgentSlot => typeof slot === 'string' && VALID_SLOTS.has(slot as AgentSlot));
     const nextRequiredSlot = value.nextRequiredSlot && VALID_SLOTS.has(value.nextRequiredSlot) ? value.nextRequiredSlot : null;
@@ -88,17 +98,17 @@ function extractJson(text: string): SpecialistResult | null {
 export async function executeSpecialist(message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>, state: AgentState): Promise<SpecialistResult> {
   const result = await kimiChat([
     { role: 'system', content: SPECIALIST_PROMPT },
+    { role: 'system', content: `RESPONSE JSON SCHEMA:\n${JSON.stringify(SPECIALIST_SCHEMA)}` },
     { role: 'system', content: `ACTIVE STATE:\n${JSON.stringify(state, null, 2)}` },
     { role: 'system', content: `ORCHESTRATOR PLAN:\n${JSON.stringify(state.planning, null, 2)}` },
     ...history.slice(-12),
     { role: 'user', content: message },
-  ]);
+  ], { responseSchema: SPECIALIST_SCHEMA as Record<string, unknown>, maxCompletionTokens: 800 });
   const parsed = extractJson(String(result?.choices?.[0]?.message?.content || ''));
   if (!parsed) throw new Error('SPECIALIST_INVALID_RESULT');
   return parsed;
 }
 
 export function specialistActions(_result: SpecialistResult, _state: AgentState): AgentAction[] {
-  // No deterministic conversation branches. The LLM decides the next action and customer wording.
   return [];
 }
