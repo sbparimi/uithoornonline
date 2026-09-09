@@ -1,0 +1,3 @@
+.uo-home-chat-open{padding-right:min(454px,38vw)}
+.uo-home-chat-open .uo-home-header,.uo-home-chat-open .uo-home-hero,.uo-home-chat-open .uo-home-cards,.uo-home-chat-open .uo-home-bottom{max-width:100%;}
+@media(max-width:850px){.uo-home-chat-open{padding-right:0}}
