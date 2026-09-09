@@ -13,8 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
       - run: npm install
       - run: npm run build
       - name: Start production server
@@ -29,4 +28,4 @@ jobs:
           done
       - name: Show server log on failure
         if: failure()
-        run: cat /tmp/uithoorn.log
+        run: test ! -f /tmp/uithoorn.log || cat /tmp/uithoorn.log
