@@ -4,8 +4,10 @@ import { FormEvent, useState } from 'react';
 import { ArrowRight, BriefcaseBusiness, UserRound } from 'lucide-react';
 import { createClient } from '../lib/supabase/client';
 
-export default function AccountSignup() {
-  const [role, setRole] = useState<'customer' | 'provider'>('customer');
+type Role = 'customer' | 'provider';
+
+export default function AccountSignup({ initialRole = 'customer' }: { initialRole?: Role }) {
+  const [role, setRole] = useState<Role>(initialRole);
   const [form, setForm] = useState({ name: '', email: '', phone: '', business: '', category: 'Klus & onderhoud', description: '', website: '', postcode: '' });
   const [sent, setSent] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const update = (key: keyof typeof form, value: string) => setForm((v) => ({ ...v, [key]: value }));
