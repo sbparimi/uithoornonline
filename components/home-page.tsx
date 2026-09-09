@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, CalendarDays, ChevronRight, Menu, PencilLine, Search, Store, Tag, X, MessageCircle } from 'lucide-react';
+import { CalendarDays, ChevronRight, Menu, PencilLine, Search, Store, Tag, X, MessageCircle } from 'lucide-react';
 import AgentChat from './agent-chat';
 
 const cards = [
@@ -33,7 +33,7 @@ export function HomePage() {
         <a href="/businesses">Bedrijven</a>
         <a href="/events">Evenementen</a>
         <a href="/deals">Aanbiedingen</a>
-        <a href="/info">Informatie</a>
+        <a href="#about">Informatie</a>
         <a href="#about">Over ons</a>
       </nav>
       <div className="uo-home-actions">
@@ -41,7 +41,7 @@ export function HomePage() {
         <button className="uo-home-search-button" onClick={() => setChatOpen(true)} aria-label="Zoeken"><Search /></button>
         <button className="uo-home-menu" onClick={() => setMobileOpen((open) => !open)} aria-label="Menu">{mobileOpen ? <X /> : <Menu />}</button>
       </div>
-      {mobileOpen && <nav className="uo-home-mobile-nav"><a href="/businesses">Bedrijven</a><a href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a href="/info">Informatie</a><a href="/signup">Bedrijf toevoegen</a></nav>}
+      {mobileOpen && <nav className="uo-home-mobile-nav"><a href="/businesses">Bedrijven</a><a href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a href="#about">Informatie</a><a href="/signup">Bedrijf toevoegen</a></nav>}
     </header>
 
     <section className="uo-home-hero">
