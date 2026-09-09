@@ -9,6 +9,7 @@ import './provider-profile.css';
 import './agentic-home.css';
 import './eci-theme.css';
 import './agent-chat.css';
+import './home-chat-overrides.css';
 import { LocaleProvider } from '../components/locale-provider';
 
 export const metadata: Metadata = {
