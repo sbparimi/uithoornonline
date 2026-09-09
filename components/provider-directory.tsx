@@ -1,10 +1,9 @@
 'use client';
 
-import { ArrowRight, BadgeCheck, Globe, MapPin, Phone, Search, SlidersHorizontal, Sparkles, UserRoundSearch, Wrench, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Clock3, Globe, MapPin, MessageCircle, Phone, Search, SlidersHorizontal, Sparkles, UserRoundSearch, Utensils, Wrench, X } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type ProviderItem = { id: string | null; title: string; meta: string; description: string; postcode: string; website: string | null; phone: string | null; verified: boolean };
-
 type DemandFilter = { value: string; label: string; terms: string };
 
 const demandFilters: DemandFilter[] = [
@@ -87,6 +86,24 @@ export function ProviderDirectory({ items, initialQuery = '', showDemandFilters 
         <button className="directory-search-action" type="button" onClick={() => setShowFilters((value) => !value)}><SlidersHorizontal /> Zoek op dienst</button>
       </div>
     </div></section>
+
+    <section className="uo-feature-ad" aria-label="Uitgelicht lokaal bedrijf">
+      <div className="uo-feature-ad-main">
+        <div className="uo-feature-ad-copy">
+          <div className="uo-feature-ad-label"><span>UITGELICHT LOKAAL</span><span className="uo-feature-ad-verified"><BadgeCheck /> Geverifieerd</span></div>
+          <h2>South Indian home food,<br /><em>vers bereid in Uithoorn.</em></h2>
+          <p className="uo-feature-ad-brand"><Utensils /> <strong>SpiceIndia</strong> · biryani · dosa · idli · vada</p>
+          <p className="uo-feature-ad-description">Authentieke South Indian gerechten, takeaway en catering voor lokale momenten. Bestel vooraf en haal vers bereid op in Uithoorn.</p>
+          <div className="uo-feature-ad-meta"><span><MapPin /> Uithoorn</span><span><Clock3 /> Dagelijks 08:00–23:00</span><span>Catering 10–100+ gasten</span></div>
+        </div>
+        <div className="uo-feature-ad-actions">
+          <a className="uo-feature-ad-primary" href="https://www.spiceindia.nl/" target="_blank" rel="noreferrer">Bekijk menu <ArrowRight /></a>
+          <a className="uo-feature-ad-whatsapp" href="https://wa.me/31645480446" target="_blank" rel="noreferrer"><MessageCircle /> Bestel via WhatsApp</a>
+          <span>Pickup only · geen bezorging</span>
+        </div>
+      </div>
+      <div className="uo-feature-ad-art" aria-hidden="true"><div className="uo-feature-ad-dish"><span>SPICE</span><strong>INDIA</strong><i /></div><div className="uo-feature-ad-orbit orbit-a" /><div className="uo-feature-ad-orbit orbit-b" /></div>
+    </section>
 
     <section className="directory-intent-strip" aria-label="Lokale hulp zoeken">
       <a className="directory-intent-card" href="/request?category=Loodgieter"><span className="directory-intent-icon"><Wrench /></span><span><strong>Ik heb een loodgieter nodig</strong><span>Beschrijf je klus en vraag lokale hulp</span></span></a>
