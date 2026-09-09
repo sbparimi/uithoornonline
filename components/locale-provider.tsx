@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { translations } from '../lib/i18n';
 import { extraTranslations } from '../lib/i18n-extra';
 import { pageTranslations } from '../lib/i18n-extra2';
+import { homeTranslations } from '../lib/i18n-home';
 
 type Locale = 'nl' | 'en';
 const KEY = 'uithoorn-locale';
-const allTranslations = { ...translations, ...extraTranslations, ...pageTranslations };
+const allTranslations = { ...translations, ...extraTranslations, ...pageTranslations, ...homeTranslations };
 
 // The application historically used Dutch as its canonical UI language,
 // while newer screens can be authored in English. Keep a reversible map so
