@@ -5,10 +5,11 @@ import { extraTranslations } from '../lib/i18n-extra';
 import { pageTranslations } from '../lib/i18n-extra2';
 import { homeTranslations } from '../lib/i18n-home';
 import { discoveryTranslations } from '../lib/i18n-discovery';
+import { contributionTranslations } from '../lib/i18n-contribution';
 
 type Locale = 'nl' | 'en';
 const KEY = 'uithoorn-locale';
-const allTranslations = { ...translations, ...extraTranslations, ...pageTranslations, ...homeTranslations, ...discoveryTranslations };
+const allTranslations = { ...translations, ...extraTranslations, ...pageTranslations, ...homeTranslations, ...discoveryTranslations, ...contributionTranslations };
 
 const nlToEn = Object.entries(allTranslations).filter(([nl, en]) => nl.trim() && en.trim() && nl !== en).sort(([a], [b]) => b.length - a.length);
 const enToNl = Object.entries(allTranslations).filter(([nl, en]) => nl.trim() && en.trim() && nl !== en).sort(([nlA, enA], [nlB, enB]) => (enB.length - enA.length) || (nlB.length - nlA.length));
