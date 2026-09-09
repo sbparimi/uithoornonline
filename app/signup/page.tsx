@@ -1,24 +1,12 @@
-'use client';
+import type { Metadata } from 'next';
+import ContributionHub from '../../components/contribution-hub';
 
-import { FormEvent, useState } from 'react';
-import { ArrowRight, BriefcaseBusiness, UserRound } from 'lucide-react';
-import { createClient } from '../../lib/supabase/client';
+export const metadata: Metadata = { title: 'Deel wat je weet — Uithoorn.online', description: 'Voeg een lokaal bedrijf, evenement of handige tip toe aan Uithoorn.online.' };
 
-export default function SignupPage() {
-  const [role, setRole] = useState<'customer' | 'provider'>('customer');
-  const [form, setForm] = useState({ name: '', email: '', phone: '', business: '', category: 'Klus & onderhoud', description: '', website: '', postcode: '' });
-  const [sent, setSent] = useState(false); const [error, setError] = useState('');
-  const update = (key: keyof typeof form, value: string) => setForm(v => ({ ...v, [key]: value }));
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError('');
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: crypto.randomUUID(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${role === 'provider' ? '/provider' : '/account'}`, data: { full_name: form.name, phone: form.phone, role, business_name: form.business, business_category: form.category, business_description: form.description, website: form.website, postcode: form.postcode } },
-    });
-    if (authError) setError(authError.message); else setSent(true);
-  }
-  if (sent) return <main className="platform-shell"><div className="platform-card"><a className="uo-brand" href="/"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>ithoorn<span>.online</span></span></a><span className="uo-kicker">Registratie</span><h1>Check je e-mail.</h1><p>Je account is aangemaakt. Bevestig je e-mailadres om verder te gaan. Je bedrijfsprofiel blijft onzichtbaar totdat Uithoorn.online het heeft geverifieerd.</p><a className="primary platform-button-link" href="/login">Naar inloggen <ArrowRight /></a></div></main>;
-  return <main className="platform-shell"><div className="platform-card wide"><a className="uo-brand" href="/"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>ithoorn<span>.online</span></span></a><span className="uo-kicker">Account</span><h1>Word onderdeel van lokaal.</h1><p>Maak een account als klant of lokale aanbieder.</p><div className="role-switch"><button className={role === 'customer' ? 'active' : ''} onClick={() => setRole('customer')} type="button"><UserRound /> Ik zoek iets</button><button className={role === 'provider' ? 'active' : ''} onClick={() => setRole('provider')} type="button"><BriefcaseBusiness /> Ik bied iets aan</button></div><form className="platform-form" onSubmit={submit}><label>Naam<input required value={form.name} onChange={e => update('name', e.target.value)} /></label><label>E-mailadres<input type="email" required value={form.email} onChange={e => update('email', e.target.value)} /></label><label>Telefoon<input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="Optioneel" /></label>{role === 'provider' && <><label>Bedrijfsnaam<input required value={form.business} onChange={e => update('business', e.target.value)} /></label><label>Categorie<select value={form.category} onChange={e => update('category', e.target.value)}><option>Klus & onderhoud</option><option>Schoonmaak</option><option>Elektricien & installatie</option><option>Tuin & buiten</option><option>Workshop</option><option>Indian food</option></select></label><label>Beschrijving<textarea required minLength={20} value={form.description} onChange={e => update('description', e.target.value)} placeholder="Wat doet je bedrijf en voor welke lokale klanten?" /></label><label>Website<input type="url" value={form.website} onChange={e => update('website', e.target.value)} placeholder="https://" /></label><label>Postcode<input required inputMode="text" value={form.postcode} onChange={e => update('postcode', e.target.value)} placeholder="1421AB" /></label></>}{error && <p className="platform-error">{error}</p>}<button className="primary" type="submit">Account aanmaken <ArrowRight /></button></form><a className="platform-secondary-link" href="/login">Al een account? Inloggen</a></div></main>;
+type Kind = 'business' | 'event' | 'tip';
+
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
+  const params = await searchParams;
+  const initialKind: Kind = params.kind === 'event' || params.kind === 'tip' ? params.kind : 'business';
+  return <main className="contribution-page"><header className="discovery-header"><a href="/" className="discovery-brand"><span className="discovery-brand-mark"><img src="/icon.svg" alt="" /></span>Uithoorn<span>Online</span></a><nav><a href="/businesses">Bedrijven</a><a href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a className="active" href="/signup">Delen</a></nav><a className="discovery-header-cta" href="/signup/account">Account aanmaken</a></header><section className="contribution-hero"><span className="uo-kicker">Deel wat je weet</span><h1>Maak Uithoorn <em>completer.</em></h1><p>Ken je een goed lokaal bedrijf, een evenement of een handige tip? Deel het. We controleren iedere bijdrage voordat deze openbaar wordt.</p></section><section className="contribution-content"><ContributionHub initialKind={initialKind} /><div className="contribution-account-note">Wil je als klant of aanbieder een account gebruiken? <a href="/signup/account">Maak een account aan <span>→</span></a></div></section></main>;
 }
