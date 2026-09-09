@@ -13,6 +13,7 @@ import './home-chat-overrides.css';
 import './discovery-pages.css';
 import './directory-conversion.css';
 import './featured-ad.css';
+import './home-services.css';
 import { LocaleProvider } from '../components/locale-provider';
 
 export const metadata: Metadata = {
