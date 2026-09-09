@@ -4,14 +4,23 @@ import { ProviderDirectory } from '../../components/provider-directory';
 
 export const metadata: Metadata = { title: 'Lokale plekken — Uithoorn.online', description: 'Vind lokale bedrijven, professionals en voorzieningen in Uithoorn en De Kwakel.' };
 
+type Business = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean };
+
 export default async function BusinessesPage({ searchParams }: { searchParams: Promise<{ search?: string }> }) {
   const params = await searchParams;
-  let verifiedBusinesses: Array<{ id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean }> = [];
+  let verifiedBusinesses: Business[] = [];
   const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  if (configured) {
-    const supabase = await createClient();
-    const result = await supabase.from('businesses').select('id,name,category,description,postcode,website,phone,verified').eq('active', true).eq('verified', true).order('name');
-    verifiedBusinesses = result.data || [];
+  if (!configured) {
+    console.error('[businesses] Supabase public environment variables are not configured');
+  } else {
+    try {
+      const supabase = await createClient();
+      const result = await supabase.from('businesses').select('id,name,category,description,postcode,website,phone,verified').eq('active', true).eq('verified', true).order('name');
+      if (result.error) console.error('[businesses] provider query failed', { code: result.error.code, message: result.error.message, details: result.error.details, hint: result.error.hint });
+      verifiedBusinesses = result.data || [];
+    } catch (error) {
+      console.error('[businesses] provider query exception', error instanceof Error ? error.message : error);
+    }
   }
   const items = verifiedBusinesses.map((b) => ({ id: b.id, title: b.name, meta: b.category, description: b.description || 'Lokale aanbieder in Uithoorn en De Kwakel.', postcode: b.postcode || 'Uithoorn', website: b.website, phone: b.phone, verified: true }));
   return <ProviderDirectory items={items} initialQuery={params.search ?? ''} showDemandFilters />;
