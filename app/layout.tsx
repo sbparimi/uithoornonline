@@ -11,6 +11,7 @@ import './eci-theme.css';
 import './agent-chat.css';
 import './home-chat-overrides.css';
 import './discovery-pages.css';
+import './directory-conversion.css';
 import { LocaleProvider } from '../components/locale-provider';
 
 export const metadata: Metadata = {
