@@ -5,10 +5,10 @@ import { CalendarDays, ChevronRight, Menu, PencilLine, Search, Store, Tag, X, Me
 import AgentChat from './agent-chat';
 
 const cards = [
-  { title: 'A place in Uithoorn', text: 'Find a restaurant, shop, school, clinic, sports club or any other place with address and opening hours.', href: '/businesses', icon: Store, tone: 'blue' },
-  { title: "What's happening", text: "Discover local events, activities, classes and initiatives. Never miss what's happening in Uithoorn.", href: '/events', icon: CalendarDays, tone: 'purple' },
-  { title: 'Offers from local businesses', text: 'Check out discounts, special offers, new arrivals and seasonal deals from Uithoorn’s local businesses.', href: '/deals', icon: Tag, tone: 'orange' },
-  { title: 'Share what you know', text: 'Add a business, event or helpful tip and help others discover the best of Uithoorn.', href: '/signup', icon: PencilLine, tone: 'green' },
+  { title: 'Een plek in Uithoorn', text: 'Vind een restaurant, winkel, school, kliniek, sportclub of andere plek met adres en openingstijden.', href: '/businesses', icon: Store, tone: 'blue' },
+  { title: 'Wat gebeurt er?', text: 'Ontdek lokale evenementen, activiteiten, lessen en initiatieven. Mis niets van wat er in Uithoorn gebeurt.', href: '/events', icon: CalendarDays, tone: 'purple' },
+  { title: 'Aanbiedingen van lokale bedrijven', text: 'Bekijk kortingen, speciale aanbiedingen, nieuwe producten en seizoensdeals van lokale bedrijven.', href: '/deals', icon: Tag, tone: 'orange' },
+  { title: 'Deel wat je weet', text: 'Voeg een bedrijf, evenement of handige tip toe en help anderen het beste van Uithoorn te ontdekken.', href: '/signup', icon: PencilLine, tone: 'green' },
 ];
 
 export function HomePage() {
@@ -41,7 +41,7 @@ export function HomePage() {
         <button className="uo-home-search-button" onClick={() => setChatOpen(true)} aria-label="Zoeken"><Search /></button>
         <button className="uo-home-menu" onClick={() => setMobileOpen((open) => !open)} aria-label="Menu">{mobileOpen ? <X /> : <Menu />}</button>
       </div>
-      {mobileOpen && <nav className="uo-home-mobile-nav"><a href="/businesses">Bedrijven</a><a href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a href="#about">Informatie</a><a href="/signup">Bedrijf toevoegen</a></nav>}
+      {mobileOpen && <nav className="uo-home-mobile-nav" aria-label="Mobiele navigatie"><a href="/businesses">Bedrijven</a><a href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a href="#about">Informatie</a><a href="/signup">Bedrijf toevoegen</a></nav>}
     </header>
 
     <section className="uo-home-hero">
@@ -53,15 +53,15 @@ export function HomePage() {
         <div className="uo-home-water" />
       </div>
       <div className="uo-home-hero-inner">
-        <div className="uo-home-kicker">DISCOVER · EXPLORE · SUPPORT LOCAL</div>
-        <h1>Everything in Uithoorn,<br /><em>in one place</em></h1>
-        <p>Find local businesses, events, offers and helpful information.<br />Discover what’s happening in Uithoorn and support your local community.</p>
+        <div className="uo-home-kicker">ONTDEK · VERKEN · STEUN LOKAAL</div>
+        <h1>Alles in Uithoorn,<br /><em>op één plek</em></h1>
+        <p>Vind lokale bedrijven, evenementen, aanbiedingen en handige informatie.<br />Ontdek wat er gebeurt in Uithoorn en steun je lokale gemeenschap.</p>
         <form className="uo-home-search" onSubmit={submitSearch} role="search">
           <Search aria-hidden="true" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for a restaurant, shop, event, service..." aria-label="Search Uithoorn" />
-          <button type="submit">Search</button>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Zoek een restaurant, winkel, evenement, dienst..." aria-label="Zoek in Uithoorn" />
+          <button type="submit">Zoeken</button>
         </form>
-        <div className="uo-home-popular"><span>Popular searches:</span><a href="/businesses?category=restaurant">Restaurants</a><a href="/businesses?category=cafe">Cafés</a><a href="/events">Events</a><a href="/businesses?category=shop">Shops</a><a href="/businesses?category=service">Services</a></div>
+        <div className="uo-home-popular"><span>Populaire zoekopdrachten:</span><a href="/businesses?category=restaurant">Restaurants</a><a href="/businesses?category=cafe">Cafés</a><a href="/events">Evenementen</a><a href="/businesses?category=shop">Winkels</a><a href="/businesses?category=service">Diensten</a></div>
       </div>
       <div className="uo-home-handwriting">Lokaal<br />Verbindt<br />Uithoorn <span>♡</span></div>
     </section>
@@ -74,7 +74,7 @@ export function HomePage() {
       </a>)}
     </section>
 
-    <section className="uo-home-bottom" id="about"><span>Together we make Uithoorn stronger</span><span className="uo-home-heart">♥</span></section>
+    <section className="uo-home-bottom" id="about"><span>Samen maken we Uithoorn sterker</span><span className="uo-home-heart">♥</span></section>
 
     {!chatOpen && <button className="uo-home-chat-launch" onClick={() => setChatOpen(true)} aria-label="Chat met ons"><span>Chat met ons</span><MessageCircle /></button>}
     {chatOpen && <AgentChat onClose={() => setChatOpen(false)} />}
