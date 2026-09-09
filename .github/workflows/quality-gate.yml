@@ -1,0 +1,32 @@
+name: Uithoorn.online quality gate
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run build
+      - name: Start production server
+        run: |
+          npm run start > /tmp/uithoorn.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:3000/ >/dev/null && break; sleep 2; done
+      - name: Smoke test critical destinations
+        run: |
+          for path in / /businesses /events /deals /signup /signup/account /events/open-monumentendag; do
+            echo "Checking $path"
+            curl -fsS "http://127.0.0.1:3000$path" >/dev/null
+          done
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/uithoorn.log
