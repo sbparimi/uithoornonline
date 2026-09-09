@@ -4,15 +4,19 @@ import { ArrowRight, BadgeCheck, Clock3, Globe, MapPin, MessageCircle, Phone, Se
 import { FormEvent, useMemo, useState } from 'react';
 
 type ProviderItem = { id: string | null; title: string; meta: string; description: string; postcode: string; website: string | null; phone: string | null; verified: boolean };
-type DemandFilter = { value: string; label: string; terms: string };
+type DemandFilter = { value: string; label: string; terms: string; pattern: RegExp };
 
 const demandFilters: DemandFilter[] = [
-  { value: 'all', label: 'Alles', terms: '' },
-  { value: 'SpiceIndia', label: 'SpiceIndia', terms: 'spiceindia indian food catering biryani dosa idli vada' },
-  { value: 'garden', label: 'Tuin & buiten', terms: 'garden tuin hovenier landscaping outdoor bestrating tegels schutting' },
-  { value: 'home improvement', label: 'Huis & klus', terms: 'home improvement huis klus handyman renovation renovatie bouw onderhoud schilder timmer' },
-  { value: 'plumber', label: 'Loodgieter', terms: 'plumber loodgieter installatie installateur waterleiding lekkage verwarming' },
-  { value: 'handyman', label: 'Handyman', terms: 'handyman klusjesman klus onderhoud multiservice montage reparatie' },
+  { value: 'all', label: 'Alles', terms: '', pattern: /.*/ },
+  { value: 'garden', label: 'Tuin & groen', terms: 'garden tuin hovenier landscaping outdoor bestrating tegels schutting', pattern: /garden|tuin|landscap|outdoor|hoveni|bestrating|tiling|fenc|schutting/ },
+  { value: 'cleaning', label: 'Schoonmaak', terms: 'cleaning cleaner schoonmaak schoonmaker ramen kantoor huishouding', pattern: /clean|schoon|window|raam|huishoud|office|kantoor/ },
+  { value: 'transport', label: 'Transport & verhuizen', terms: 'transport moving verhuizer verhuizen koerier courier bezorgen delivery', pattern: /transport|moving|verhuiz|koerier|courier|bezorg|delivery/ },
+  { value: 'barber', label: 'Kapper & beauty', terms: 'barber kapper hairdresser beauty salon hair beauty', pattern: /barber|kapper|hairdresser|salon|beauty|kapsel/ },
+  { value: 'home improvement', label: 'Huis & renovatie', terms: 'home improvement huis klus handyman renovation renovatie bouw onderhoud schilder timmer vloer', pattern: /renov|paving|tiling|fenc|klus|onderhoud|bouw|home improvement|schilder|timmer|vloer|floor/ },
+  { value: 'plumber', label: 'Loodgieter & elektra', terms: 'plumber loodgieter electrician elektricien installatie installateur waterleiding lekkage verwarming elektra', pattern: /plumb|loodgiet|elektr|install|water|lekkage|verwarming|cv/ },
+  { value: 'food catering', label: 'Eten & catering', terms: 'food eten restaurant catering cateraar takeaway thuiskeuken bakery taarten indian', pattern: /food|eten|restaurant|cater|takeaway|thuiskeuken|bakker|bakery|taart|indian|spiceindia/ },
+  { value: 'auto', label: 'Auto & vervoer', terms: 'auto garage car fiets bicycle detailing mobiliteit repair', pattern: /auto|garage|car|fiets|bicycle|detail|mobiliteit/ },
+  { value: 'handyman', label: 'Handyman & reparatie', terms: 'handyman klusjesman klus onderhoud multiservice montage reparatie repair', pattern: /handyman|klus|multiservice|montage|reparatie|repair/ },
 ];
 
 function profileHref(item: ProviderItem) {
@@ -22,12 +26,8 @@ function profileHref(item: ProviderItem) {
 function inferDemandFilter(query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return 'all';
-  if (normalized.includes('spiceindia')) return 'SpiceIndia';
-  if (/garden|tuin|hovenier|landschap|bestrating|schutting|buiten/.test(normalized)) return 'garden';
-  if (/home improvement|huis|klus|renov|bouw|onderhoud|schilder|timmer/.test(normalized)) return 'home improvement';
-  if (/plumber|loodgiet|lekkage|waterleiding|verwarming|installateur/.test(normalized)) return 'plumber';
-  if (/handyman|klusjesman|multiservice|montage|reparatie/.test(normalized)) return 'handyman';
-  return 'all';
+  const match = demandFilters.slice(1).find((item) => item.pattern.test(normalized));
+  return match?.value ?? 'all';
 }
 
 export function ProviderDirectory({ items, initialQuery = '', showDemandFilters = false }: { items: ProviderItem[]; initialQuery?: string; showDemandFilters?: boolean }) {
@@ -44,13 +44,9 @@ export function ProviderDirectory({ items, initialQuery = '', showDemandFilters 
     const expandedTerms = selected?.terms ?? '';
     const matchesQuery = !q || (demandQuery !== 'all' ? demandQuery === filter : haystack.includes(q) || expandedTerms.split(' ').some((term) => term.length > 3 && haystack.includes(term)));
     if (filter === 'all') return matchesQuery;
-    if (filter === 'SpiceIndia') return matchesQuery && item.title.toLowerCase().includes('spiceindia');
-    if (filter === 'garden') return matchesQuery && /garden|tuin|landscap|outdoor|hoveni|bestrating|tiling|fenc|schutting/.test(haystack);
-    if (filter === 'home improvement') return matchesQuery && /renov|paving|tiling|fenc|klus|onderhoud|bouw|home improvement|schilder|timmer/.test(haystack);
-    if (filter === 'plumber') return matchesQuery && /plumb|loodgiet|install|water|lekkage|verwarming/.test(haystack);
-    if (filter === 'handyman') return matchesQuery && /handyman|klus|multiservice|montage|reparatie/.test(haystack);
-    return matchesQuery;
-  }), [items, query, filter]);
+    if (filter === 'food catering') return matchesQuery && /food|eten|restaurant|cater|takeaway|thuiskeuken|bakker|bakery|taart|indian|spiceindia/.test(haystack);
+    return matchesQuery && activeFilter.pattern.test(haystack);
+  }), [items, query, filter, activeFilter]);
 
   const requestHref = filter === 'all' && !query.trim() ? '/request' : `/request?category=${encodeURIComponent(activeFilter.label)}${query.trim() ? `&query=${encodeURIComponent(query.trim())}` : ''}`;
 
