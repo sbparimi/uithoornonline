@@ -20,9 +20,10 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
   const [reference, setReference] = useState('');
   const selected = useMemo(() => options.find((option) => option.kind === kind)!, [kind]);
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  function choose(next: Kind) { setKind(next); setState('idle'); setErrorKey(''); }
+  function choose(next: Kind) { if (state === 'sending') return; setKind(next); setState('idle'); setErrorKey(''); }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (state === 'sending') return;
     setState('idle'); setErrorKey('');
     const name = form.name.trim(); const email = form.email.trim(); const title = form.title.trim(); const description = form.description.trim();
     if (name.length < 2) { setState('error'); setErrorKey('Ongeldige bijdrage. Controleer je naam, e-mailadres, titel en beschrijving.'); return; }
@@ -34,12 +35,16 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
     try {
       const response = await fetch('/api/community-submissions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...form, name, email, title, description, kind }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(String(data.error || 'submission_failed'));
-      setReference(String(data.id).slice(0, 8).toUpperCase()); setState('success');
+      if (!response.ok) {
+        const key = String(data.error || 'submission_failed');
+        setErrorKey(key === 'invalid_submission' ? 'Ongeldige bijdrage. Controleer je naam, e-mailadres, titel en beschrijving.' : key === 'invalid_event_date' ? 'De evenementdatum is niet geldig.' : key === 'submission_unavailable' ? 'Bijdragen zijn tijdelijk niet beschikbaar. Probeer het over een minuut opnieuw.' : 'Er ging iets mis bij het opslaan. Probeer het opnieuw.');
+        setState('error');
+        return;
+      }
+      setReference(String(data.id || '').slice(0, 8).toUpperCase()); setState('success');
       setForm(emptyForm);
-    } catch (error) {
-      const key = error instanceof Error ? error.message : 'submission_failed';
-      setErrorKey(key === 'invalid_submission' ? 'Ongeldige bijdrage. Controleer je naam, e-mailadres, titel en beschrijving.' : key === 'invalid_event_date' ? 'De evenementdatum is niet geldig.' : 'Er ging iets mis bij het opslaan. Probeer het opnieuw.');
+    } catch {
+      setErrorKey('Er ging iets mis met de verbinding. Je gegevens zijn niet opgeslagen. Probeer het opnieuw.');
       setState('error');
     }
   }
@@ -48,7 +53,7 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
     <div className="contribution-options" role="tablist" aria-label="Wat wil je delen?">{options.map(({ kind: optionKind, title, text, icon: Icon }) => <button key={optionKind} type="button" role="tab" aria-selected={kind === optionKind} className={kind === optionKind ? 'active' : ''} onClick={() => choose(optionKind)}><Icon /><span><strong>{title}</strong><small>{text}</small></span></button>)}</div>
     <div className="contribution-form-wrap"><div className="contribution-form-intro"><span className="uo-kicker">{selected.title}</span><h2>Help Uithoorn <em>lokaal</em> sterker te maken.</h2><p>{selected.text} Alles wordt eerst gecontroleerd.</p></div><form className="contribution-form" onSubmit={submit}>
       <div className="contribution-two"><label>Je naam<input required autoComplete="name" value={form.name} onChange={(e) => update('name', e.target.value)} /></label><label>E-mailadres<input required type="email" autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></label></div>
-      <div className="contribution-two"><label>Telefoon <span>(optioneel)</span><input autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label><label>Postcode <span>(optioneel)</span><input value={form.postcode} onChange={(e) => update('postcode', e.target.value)} placeholder="1421 AB" /></label></div>
+      <div className="contribution-two"><label>Telefoon <span>(optioneel)</span><input autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label><label>Postcode <span>(optioneel)</span><input autoComplete="postal-code" value={form.postcode} onChange={(e) => update('postcode', e.target.value)} placeholder="1421 AB" /></label></div>
       <label>{kind === 'business' ? 'Bedrijfsnaam' : kind === 'event' ? 'Naam van het evenement' : 'Titel van je tip'}<input required value={form.title} onChange={(e) => update('title', e.target.value)} /></label>
       {kind === 'business' && <div className="contribution-two"><label>Categorie<input value={form.category} onChange={(e) => update('category', e.target.value)} placeholder="Bijv. loodgieter, tuin, restaurant" /></label><label>Website <span>(optioneel)</span><input type="url" value={form.website} onChange={(e) => update('website', e.target.value)} placeholder="https://" /></label></div>}
       {kind === 'event' && <div className="contribution-two"><label>Datum <span>(optioneel)</span><input type="date" value={form.eventDate} onChange={(e) => update('eventDate', e.target.value)} /></label><label>Categorie<input value={form.category} onChange={(e) => update('category', e.target.value)} placeholder="Bijv. muziek, sport, markt" /></label></div>}

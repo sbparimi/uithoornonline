@@ -18,10 +18,14 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
   try {
     const supabase = await createClient();
     const result = await supabase.from('businesses').select('id,name,category,description,postcode,website,phone,verified').eq('active', true).eq('verified', true).order('name');
-    if (result.error) console.error('[businesses] provider query failed', { code: result.error.code, message: result.error.message, details: result.error.details, hint: result.error.hint });
+    if (result.error) {
+      const message = result.error.message || '';
+      if (!/configuration is missing|SUPABASE_/i.test(message)) console.error('[businesses] provider query failed', { code: result.error.code, message: result.error.message });
+    }
     verifiedBusinesses = result.data || [];
   } catch (error) {
-    console.error('[businesses] provider query exception', error instanceof Error ? error.message : error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/configuration is missing|SUPABASE_/i.test(message)) console.error('[businesses] provider query exception', message);
   }
   if (verifiedBusinesses.length === 0) verifiedBusinesses = verifiedSeedBusinesses;
   const items = verifiedBusinesses.map((b) => ({ id: b.id, title: b.name, meta: b.category, description: b.description || 'Lokale aanbieder in Uithoorn en De Kwakel.', postcode: b.postcode || 'Uithoorn', website: b.website, phone: b.phone, verified: true }));

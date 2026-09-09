@@ -23,7 +23,11 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ id, status: 'pending' }, { status: 201 });
   } catch (error) {
-    console.error('[community-submissions] request failed', error instanceof Error ? error.message : error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[community-submissions] request failed', message);
+    if (/supabase.*configuration|configuration.*missing|SUPABASE_/i.test(message)) {
+      return NextResponse.json({ error: 'submission_unavailable' }, { status: 503, headers: { 'Retry-After': '60' } });
+    }
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
 }
