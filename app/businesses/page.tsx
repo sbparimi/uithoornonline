@@ -3,6 +3,8 @@ import { createClient } from '../../lib/supabase/server';
 import { ProviderDirectory } from '../../components/provider-directory';
 
 const siteUrl = 'https://uithoorn.online';
+const spiceIndiaId = '15953249-c000-4521-839d-41bf341b6aa8';
+const foodSearchPattern = /food|eten|restaurant|cater|catering|takeaway|thuiskeuken|bakker|bakery|taart|indian|indiaas|spiceindia|biryani|dosa|idli|vada|lunch|dinner|maaltijd/i;
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ search?: string }> }): Promise<Metadata> {
   const params = await searchParams;
@@ -25,7 +27,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 type Business = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean };
 
 const fallbackBusinesses: Business[] = [
-  { id: '15953249-c000-4521-839d-41bf341b6aa8', name: 'SpiceIndia', category: 'Indian food & catering', description: 'South Indian home kitchen in Uithoorn offering freshly prepared takeaway and catering. Specialities include Andhra-style biryani, dosa, idli and vada. Pickup only; no delivery. Catering available in Uithoorn and Amstelveen.', postcode: '1421', website: 'https://www.spiceindia.nl/', phone: '+31 6 45480446', verified: true },
+  { id: spiceIndiaId, name: 'SpiceIndia', category: 'Indian food & catering', description: 'South Indian home kitchen in Uithoorn offering freshly prepared takeaway and catering. Specialities include Andhra-style biryani, dosa, idli and vada. Pickup only; no delivery. Catering available in Uithoorn and Amstelveen.', postcode: '1421', website: 'https://www.spiceindia.nl/', phone: '+31 6 45480446', verified: true },
   { id: '68efa8f0-6e5f-4ea9-ba5b-94fbff1fba35', name: 'Ruslen', category: 'Garden renovation, paving, tiling & fencing', description: 'Local contractor for garden renovation and outdoor works, including paving, tiles and fencing. Contact Ruslen for project details, scope and quotation.', postcode: '1421', website: null, phone: '+31616270233', verified: true },
 ];
 
@@ -49,6 +51,16 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
     if (!/configuration is missing|SUPABASE_/i.test(message)) console.error('[businesses] provider query exception', message);
   }
   if (businesses.length === 0) businesses = fallbackBusinesses;
+
+  const query = params.search?.trim() ?? '';
+  const isFoodSearch = foodSearchPattern.test(query);
+  if (isFoodSearch) {
+    businesses = [...businesses].sort((a, b) => {
+      if (a.id === spiceIndiaId) return -1;
+      if (b.id === spiceIndiaId) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
 
   const items = businesses.map((b) => ({
     id: b.id,
@@ -74,6 +86,6 @@ export default async function BusinessesPage({ searchParams }: { searchParams: P
 
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-    <ProviderDirectory items={items} initialQuery={params.search ?? ''} showDemandFilters />
+    <ProviderDirectory items={items} initialQuery={query} showDemandFilters />
   </>;
 }
