@@ -6,7 +6,6 @@ function money(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
-
 function validPostcode(value: string) { return /^\d{4}\s?[A-Z]{2}$/i.test(value); }
 
 export async function POST(request: Request) {
@@ -21,9 +20,7 @@ export async function POST(request: Request) {
     const category = String(body.category || '').trim(); const description = String(body.description || '').trim();
     const postcode = String(body.postcode || '').trim().toUpperCase(); const preferredTiming = String(body.preferredTiming || '').trim();
     const urgency = String(body.urgency || '').trim(); const budgetMin = money(body.budgetMin); const budgetMax = money(body.budgetMax);
-    if (!category || description.length < 10 || !validPostcode(postcode) || !preferredTiming || !urgency || (budgetMin !== null && budgetMax !== null && budgetMax < budgetMin)) {
-      return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
-    }
+    if (!category || description.length < 10 || !validPostcode(postcode) || !preferredTiming || !urgency || (budgetMin !== null && budgetMax !== null && budgetMax < budgetMin)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
 
     const { data, error } = await supabase.from('service_requests').insert({ customer_id: user.id, category, description, postcode, preferred_timing: preferredTiming, urgency, budget_min: budgetMin, budget_max: budgetMax }).select('id').single();
     if (error || !data) {
@@ -31,12 +28,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'request_save_failed' }, { status: 500 });
     }
 
+    await supabase.from('analytics_events').insert({ event_name: 'request_submitted', request_id: data.id, metadata: { category, postcode, urgency } });
     const { data: matched, error: matchError } = await supabase.rpc('match_service_request', { p_request_id: data.id });
     if (matchError) {
-      // The customer's request is already saved. Do not report a false failure because matching can be retried later.
       console.error('[requests] matching failed after save', { requestId: data.id, code: matchError.code, message: matchError.message });
       return NextResponse.json({ id: data.id, matched: 0, status: 'open' }, { status: 201 });
     }
+    if (matched) await supabase.from('analytics_events').insert({ event_name: 'lead_created', request_id: data.id, metadata: { matched } });
     return NextResponse.json({ id: data.id, matched: matched ?? 0, status: matched ? 'matched' : 'open' }, { status: 201 });
   } catch (error) {
     console.error('[requests] request failed', error instanceof Error ? error.message : error);
