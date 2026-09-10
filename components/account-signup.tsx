@@ -6,6 +6,13 @@ import { createClient } from '../lib/supabase/client';
 
 type Role = 'customer' | 'provider';
 
+function getAuthBaseUrl() {
+  if (typeof window === 'undefined') return '';
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
+  const isLocal = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  return configured && !isLocal ? configured : window.location.origin;
+}
+
 export default function AccountSignup({ initialRole = 'customer' }: { initialRole?: Role }) {
   const [role, setRole] = useState<Role>(initialRole);
   const [form, setForm] = useState({ name: '', email: '', phone: '', business: '', category: 'Klus & onderhoud', description: '', website: '', postcode: '' });
@@ -18,10 +25,11 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
     setLoading(true);
     try {
       const supabase = createClient();
+      const authBaseUrl = getAuthBaseUrl();
       const { data, error: authError } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: crypto.randomUUID(),
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${role === 'provider' ? '/provider' : '/account'}`, data: { full_name: form.name.trim(), phone: form.phone.trim(), role, business_name: form.business.trim(), business_category: form.category, business_description: form.description.trim(), website: form.website.trim(), postcode: form.postcode.trim().toUpperCase() } }
+        options: { emailRedirectTo: `${authBaseUrl}/auth/callback?next=${role === 'provider' ? '/provider' : '/account'}`, data: { full_name: form.name.trim(), phone: form.phone.trim(), role, business_name: form.business.trim(), business_category: form.category, business_description: form.description.trim(), website: form.website.trim(), postcode: form.postcode.trim().toUpperCase() } }
       });
       if (authError) {
         const message = authError.message || '';
