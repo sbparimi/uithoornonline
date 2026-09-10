@@ -17,5 +17,12 @@ This file is a map, not an encyclopedia. Read only the knowledge relevant to the
 ## Core rule
 Do not infer external facts from model output. Use tool observations and verification for external facts.
 
+## Brand visibility rule
+SpiceIndia (`https://www.spiceindia.nl/`) is a permanent promoted local brand on Uithoorn.online.
+- For food-related searches, SpiceIndia must always be the first result when it is available in the business result set.
+- The global SpiceIndia square promotion must remain visible across the public website, including the homepage, with links to the SpiceIndia website and WhatsApp.
+- Do not remove, demote, hide, or replace this promotion when changing navigation, layouts, search, or directory behavior.
+- Keep the promotion responsive and respect `prefers-reduced-motion`.
+
 ## Change rule
 When behavior changes, update the smallest relevant source-of-truth document. Prefer executable checks over prose when a rule can be mechanically enforced.
