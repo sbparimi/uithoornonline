@@ -40,131 +40,30 @@ export function HomePage() {
           <span className="easy-brand-mark"><img src="/icon.svg" alt="" /></span>
           <span>Uithoorn<span>.online</span></span>
         </a>
-
         <nav className="easy-nav" aria-label="Hoofdnavigatie">
           <a className="active" href="/businesses">Diensten</a>
           <a href="/request">Hulp aanvragen</a>
         </nav>
-
         <div className="easy-header-actions">
-          <a className="easy-provider-link" href="/signup/account?role=provider">Voor bedrijven</a>
+          <a className="easy-provider-link" href="/voor-bedrijven">Voor bedrijven</a>
           <a className="easy-primary-small" href="/request">Hulp aanvragen</a>
-          <button className="easy-menu" onClick={() => setMobileOpen(v => !v)} aria-label="Menu" aria-expanded={mobileOpen}>
-            {mobileOpen ? <X /> : <Menu />}
-          </button>
+          <button className="easy-menu" onClick={() => setMobileOpen(v => !v)} aria-label="Menu" aria-expanded={mobileOpen}>{mobileOpen ? <X /> : <Menu />}</button>
         </div>
-
-        {mobileOpen && (
-          <nav className="easy-mobile-nav" aria-label="Mobiele navigatie">
-            <a href="/businesses">Diensten</a>
-            <a href="/request">Hulp aanvragen</a>
-            <a href="/signup/account?role=provider">Voor bedrijven</a>
-          </nav>
-        )}
+        {mobileOpen && <nav className="easy-mobile-nav" aria-label="Mobiele navigatie"><a href="/businesses">Diensten</a><a href="/request">Hulp aanvragen</a><a href="/voor-bedrijven">Voor bedrijven</a></nav>}
       </header>
 
-      <section className="easy-hero">
-        <div className="easy-hero-inner">
-          <div className="easy-eyebrow"><span />Uithoorn &amp; De Kwakel</div>
-          <h1>Wat heb je nodig?</h1>
-          <p>Vind snel lokale hulp. Of vertel ons wat je nodig hebt.</p>
+      <section className="easy-hero"><div className="easy-hero-inner"><div className="easy-eyebrow"><span />Uithoorn &amp; De Kwakel</div><h1>Wat heb je nodig?</h1><p>Vind snel lokale hulp. Of vertel ons wat je nodig hebt.</p><form className="easy-main-search" onSubmit={submitSearch}><Search aria-hidden="true" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Bijvoorbeeld: lekkage, tuinman, kapper..." aria-label="Zoek een dienst" /><button type="submit">Zoeken</button></form><div className="easy-quick"><span>Populair</span>{quick.map(([label, href]) => <a key={label} href={href}>{label}</a>)}</div></div></section>
 
-          <form className="easy-main-search" onSubmit={submitSearch}>
-            <Search aria-hidden="true" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Bijvoorbeeld: lekkage, tuinman, kapper..."
-              aria-label="Zoek een dienst"
-            />
-            <button type="submit">Zoeken</button>
-          </form>
+      <section className="easy-primary-actions" aria-label="Kies wat je wilt doen"><div className="easy-primary-actions-inner"><a href="/businesses" className="easy-action-card easy-action-services"><div className="easy-action-icon"><Search /></div><div className="easy-action-copy"><span className="easy-label">DIENSTEN</span><h2>Vind een lokaal bedrijf</h2><p>Zoek op dienst, bekijk aanbieders en neem direct contact op.</p></div><ArrowRight className="easy-action-arrow" /></a><a href="/request" className="easy-action-card easy-action-help"><div className="easy-action-icon"><Sparkles /></div><div className="easy-action-copy"><span className="easy-label">HULP NODIG?</span><h2>Vertel wat je nodig hebt</h2><p>Geen idee wie je moet bellen? Beschrijf je vraag. Wij helpen je verder.</p></div><ArrowRight className="easy-action-arrow" /></a></div></section>
 
-          <div className="easy-quick">
-            <span>Populair</span>
-            {quick.map(([label, href]) => <a key={label} href={href}>{label}</a>)}
-          </div>
-        </div>
-      </section>
+      <section className="easy-section easy-services-section" id="diensten"><div className="easy-section-head"><div><span className="easy-label">DIENSTEN IN DE BUURT</span><h2>Kies een dienst</h2></div><a href="/businesses">Alle diensten <ChevronRight /></a></div><div className="easy-service-grid">{services.map(([title, text, href]) => <a key={title} href={href} className="easy-service-card"><span><strong>{title}</strong><small>{text}</small></span><ChevronRight className="easy-chevron" /></a>)}</div></section>
 
-      <section className="easy-primary-actions" aria-label="Kies wat je wilt doen">
-        <div className="easy-primary-actions-inner">
-          <a href="/businesses" className="easy-action-card easy-action-services">
-            <div className="easy-action-icon"><Search /></div>
-            <div className="easy-action-copy">
-              <span className="easy-label">DIENSTEN</span>
-              <h2>Vind een lokaal bedrijf</h2>
-              <p>Zoek op dienst, bekijk aanbieders en neem direct contact op.</p>
-            </div>
-            <ArrowRight className="easy-action-arrow" />
-          </a>
+      <section className="easy-how"><div className="easy-how-inner"><div><span className="easy-label">EENVOUDIG</span><h2>Van vraag naar lokale hulp.</h2></div><div className="easy-how-steps"><div><b>01</b><span>Vertel wat je zoekt</span></div><div><b>02</b><span>Vind een passende aanbieder</span></div><div><b>03</b><span>Neem contact op</span></div></div></div></section>
 
-          <a href="/request" className="easy-action-card easy-action-help">
-            <div className="easy-action-icon"><Sparkles /></div>
-            <div className="easy-action-copy">
-              <span className="easy-label">HULP NODIG?</span>
-              <h2>Vertel wat je nodig hebt</h2>
-              <p>Geen idee wie je moet bellen? Beschrijf je vraag. Wij helpen je verder.</p>
-            </div>
-            <ArrowRight className="easy-action-arrow" />
-          </a>
-        </div>
-      </section>
+      <section className="easy-provider-banner"><div><span className="easy-label">VOOR BEDRIJVEN</span><h2>Krijg lokale klantaanvragen.</h2><p>Word gevonden door bewoners die nu hulp zoeken. Start gratis en groei met echte leads.</p></div><a href="/voor-bedrijven">Voor bedrijven <ArrowRight /></a></section>
 
-      <section className="easy-section easy-services-section" id="diensten">
-        <div className="easy-section-head">
-          <div>
-            <span className="easy-label">DIENSTEN IN DE BUURT</span>
-            <h2>Kies een dienst</h2>
-          </div>
-          <a href="/businesses">Alle diensten <ChevronRight /></a>
-        </div>
-
-        <div className="easy-service-grid">
-          {services.map(([title, text, href]) => (
-            <a key={title} href={href} className="easy-service-card">
-              <span>
-                <strong>{title}</strong>
-                <small>{text}</small>
-              </span>
-              <ChevronRight className="easy-chevron" />
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="easy-how">
-        <div className="easy-how-inner">
-          <div>
-            <span className="easy-label">EENVOUDIG</span>
-            <h2>Van vraag naar lokale hulp.</h2>
-          </div>
-          <div className="easy-how-steps">
-            <div><b>01</b><span>Vertel wat je zoekt</span></div>
-            <div><b>02</b><span>Vind een passende aanbieder</span></div>
-            <div><b>03</b><span>Neem contact op</span></div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="easy-footer">
-        <div className="easy-footer-brand">
-          <span className="easy-brand-mark"><img src="/icon.svg" alt="" /></span>
-          <strong>Uithoorn<span>.online</span></strong>
-        </div>
-        <div className="easy-footer-links">
-          <a href="/businesses">Diensten</a>
-          <a href="/request">Hulp aanvragen</a>
-          <a href="/signup/account?role=provider">Voor bedrijven</a>
-        </div>
-        <small>Uithoorn &amp; De Kwakel · © 2026</small>
-      </footer>
-
-      {!chatOpen && (
-        <button className="easy-chat" onClick={() => setChatOpen(true)} aria-label="Open hulp">
-          <MessageCircle /><span>Hulp nodig?</span>
-        </button>
-      )}
+      <footer className="easy-footer"><div className="easy-footer-brand"><span className="easy-brand-mark"><img src="/icon.svg" alt="" /></span><strong>Uithoorn<span>.online</span></strong></div><div className="easy-footer-links"><a href="/businesses">Diensten</a><a href="/request">Hulp aanvragen</a><a href="/voor-bedrijven">Voor bedrijven</a></div><small>Uithoorn &amp; De Kwakel · © 2026</small></footer>
+      {!chatOpen && <button className="easy-chat" onClick={() => setChatOpen(true)} aria-label="Open hulp"><MessageCircle /><span>Hulp nodig?</span></button>}
       {chatOpen && <AgentChat onClose={() => setChatOpen(false)} />}
     </main>
   );
