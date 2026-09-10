@@ -15,6 +15,8 @@ import './directory-conversion.css';
 import './featured-ad.css';
 import './home-services.css';
 import './directory-marketplace.css';
+import './marketplace-trust.css';
+import './service-landing.css';
 import { LocaleProvider } from '../components/locale-provider';
 
 export const metadata: Metadata = {
