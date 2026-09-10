@@ -22,7 +22,7 @@ export default function EventsHub({ events }: { events: LocalEvent[] }) {
   }).sort((a, b) => a.dateSort.localeCompare(b.dateSort)), [events, filter, query]);
 
   return <main className="discovery-page">
-    <header className="discovery-header"><a href="/" className="discovery-brand"><span className="discovery-brand-mark"><img src="/icon.svg" alt="" /></span>Uithoorn<span>Online</span></a><nav><a href="/businesses">Bedrijven</a><a className="active" href="/events">Evenementen</a><a href="/deals">Aanbiedingen</a><a href="/signup">Delen</a></nav><a className="discovery-header-cta" href="/signup?kind=event">Evenement delen</a></header>
+    <header className="discovery-header"><a href="/" className="discovery-brand"><span className="discovery-brand-mark"><img src="/icon.svg" alt="" /></span>Uithoorn<span>Online</span></a><nav><a href="/businesses">Bedrijven</a><a className="active" href="/events">Evenementen</a><a href="/signup">Delen</a></nav><a className="discovery-header-cta" href="/signup?kind=event">Evenement delen</a></header>
 
     <section className="discovery-hero discovery-hero-purple"><div><span className="uo-kicker">Lokale agenda</span><h1>Wat gebeurt er <em>dichtbij?</em></h1><p>Ontdek evenementen, activiteiten, lessen en initiatieven in Uithoorn en De Kwakel.</p><div className="discovery-search"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Zoek een evenement, activiteit of workshop…" aria-label="Zoek in de agenda" /></div></div><div className="discovery-hero-art"><CalendarDays /></div></section>
 
