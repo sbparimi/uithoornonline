@@ -2,7 +2,7 @@ name: Uithoorn.online quality gate
 
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main, 'feature/**', 'monetization-marketplace']
   pull_request:
     branches: [main]
 
@@ -22,7 +22,7 @@ jobs:
           for i in {1..30}; do curl -fsS http://127.0.0.1:3000/ >/dev/null && break; sleep 2; done
       - name: Smoke test critical destinations
         run: |
-          for path in / /businesses /events /deals /signup /signup/account /events/open-monumentendag; do
+          for path in / /businesses /request /deals /signup /signup/account /voor-bedrijven; do
             echo "Checking $path"
             curl -fsS "http://127.0.0.1:3000$path" >/dev/null
           done
