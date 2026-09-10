@@ -18,6 +18,7 @@ import './directory-marketplace.css';
 import './marketplace-trust.css';
 import './service-landing.css';
 import './easy-redesign.css';
+import './directory-easy.css';
 import { LocaleProvider } from '../components/locale-provider';
 export const metadata: Metadata = { title: 'Uithoorn.online — Vind lokaal wat je nodig hebt.', description: 'Vind lokale bedrijven en diensten in Uithoorn en De Kwakel. Zoek een dienst of vertel wat je nodig hebt.', metadataBase: new URL('https://uithoorn.online'), icons: { icon: '/icon.svg', shortcut: '/icon.svg' } };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { return <html lang="nl"><body><LocaleProvider>{children}</LocaleProvider></body></html>; }
