@@ -1,0 +1,46 @@
+.spiceindia-ad {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 80;
+  width: min(220px, calc(100vw - 32px));
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #fff, #f7f4ef);
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 18px 50px rgba(0,0,0,.16);
+  isolation: isolate;
+  animation: spiceindia-float 5s ease-in-out infinite;
+}
+.spiceindia-ad-pulse {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  top: -55px;
+  right: -45px;
+  border-radius: 50%;
+  background: #e85d04;
+  opacity: .12;
+  animation: spiceindia-pulse 2.8s ease-in-out infinite;
+}
+.spiceindia-ad-content { position: relative; z-index: 2; height: 100%; padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+.spiceindia-ad-kicker { font-size: 9px; font-weight: 800; letter-spacing: .14em; opacity: .6; }
+.spiceindia-ad h2 { margin: 7px 0 4px; font-size: 29px; letter-spacing: -.045em; }
+.spiceindia-ad p { margin: 0; max-width: 155px; font-size: 12px; line-height: 1.45; color: rgba(0,0,0,.64); }
+.spiceindia-ad-actions { display: flex; gap: 7px; margin-top: 16px; flex-wrap: wrap; }
+.spiceindia-ad-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 31px; padding: 0 10px; border-radius: 999px; background: #111; color: #fff; font-size: 11px; font-weight: 700; text-decoration: none; }
+.spiceindia-ad-actions a:hover { transform: translateY(-1px); }
+.spiceindia-ad-whatsapp { gap: 5px; background: #1f7a4d !important; }
+.spiceindia-ad-whatsapp svg { width: 13px; height: 13px; }
+.spiceindia-ad-badge { position: absolute; right: 13px; top: 13px; z-index: 3; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.78); backdrop-filter: blur(8px); font-size: 8px; font-weight: 800; }
+@keyframes spiceindia-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes spiceindia-pulse { 0%,100% { transform: scale(.9); opacity: .08; } 50% { transform: scale(1.15); opacity: .18; } }
+@media (max-width: 700px) {
+  .spiceindia-ad { right: 12px; bottom: 12px; width: 164px; border-radius: 22px; }
+  .spiceindia-ad-content { padding: 18px; }
+  .spiceindia-ad h2 { font-size: 24px; }
+  .spiceindia-ad p { font-size: 11px; }
+  .spiceindia-ad-actions { margin-top: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .spiceindia-ad, .spiceindia-ad-pulse { animation: none; } }
