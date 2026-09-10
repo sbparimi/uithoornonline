@@ -4,6 +4,13 @@ import { FormEvent, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { createClient } from '../../lib/supabase/client';
 
+function getAuthBaseUrl() {
+  if (typeof window === 'undefined') return '';
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
+  const isLocal = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  return configured && !isLocal ? configured : window.location.origin;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState(''); const [sent, setSent] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const next = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') || '/account' : '/account';
@@ -12,7 +19,9 @@ export default function LoginPage() {
     e.preventDefault(); if (loading) return; setError(''); setLoading(true);
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next.startsWith('/') && !next.startsWith('//') ? next : '/account')}` } });
+      const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/account';
+      const authBaseUrl = getAuthBaseUrl();
+      const { error: authError } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${authBaseUrl}/auth/callback?next=${encodeURIComponent(safeNext)}` } });
       if (authError) setError(authError.message || 'De inloglink kon niet worden verstuurd.'); else setSent(true);
     } catch {
       setError('Er ging iets mis met de verbinding. Probeer het opnieuw.');
