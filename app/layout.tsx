@@ -20,7 +20,9 @@ import './service-landing.css';
 import './easy-redesign.css';
 import './directory-easy.css';
 import './apple-redesign.css';
+import './spiceindia-ad.css';
 import { LocaleProvider } from '../components/locale-provider';
+import { SpiceIndiaAd } from '../components/spiceindia-ad';
 
 export const metadata: Metadata = {
   title: 'Uithoorn.online — Lokale hulp, eenvoudig gevonden.',
@@ -30,5 +32,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="nl"><body><LocaleProvider>{children}</LocaleProvider></body></html>;
+  return <html lang="nl"><body><LocaleProvider>{children}<SpiceIndiaAd /></LocaleProvider></body></html>;
 }
