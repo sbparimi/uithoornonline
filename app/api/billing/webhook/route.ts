@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { createClient } from '../../../../lib/supabase/server';
+import { createAdminClient } from '../../../../lib/supabase/admin';
 
 function verifySignature(payload: string, header: string, secret: string) {
   const parts = Object.fromEntries(header.split(',').map(part => part.split('=')));
@@ -9,7 +9,9 @@ function verifySignature(payload: string, header: string, secret: string) {
   if (!timestamp || !signature) return false;
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
   const expected = createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex');
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const signatureBuffer = Buffer.from(signature, 'utf8');
+  return expectedBuffer.length === signatureBuffer.length && timingSafeEqual(expectedBuffer, signatureBuffer);
 }
 
 export async function POST(request: Request) {
@@ -26,19 +28,30 @@ export async function POST(request: Request) {
     const businessId = metadata.business_id;
     if (!businessId) return NextResponse.json({ received: true });
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const planKey = metadata.plan_key || (object.items?.data?.[0]?.price?.metadata?.plan_key ?? 'pro');
     const statusMap: Record<string, string> = {
       active: 'active', trialing: 'trialing', past_due: 'past_due', incomplete: 'incomplete', canceled: 'cancelled', unpaid: 'past_due',
     };
 
-    if (event.type === 'checkout.session.completed' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created') {
+    if (event.type === 'checkout.session.completed') {
+      await supabase.from('business_subscriptions').upsert({
+        business_id: businessId,
+        plan_key: ['free','pro','pro_plus'].includes(planKey) ? planKey : 'pro',
+        status: 'active',
+        stripe_customer_id: object.customer || null,
+        stripe_subscription_id: object.subscription || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'business_id' });
+    }
+
+    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created') {
       await supabase.from('business_subscriptions').upsert({
         business_id: businessId,
         plan_key: ['free','pro','pro_plus'].includes(planKey) ? planKey : 'pro',
         status: statusMap[object.status] || 'active',
         stripe_customer_id: object.customer || null,
-        stripe_subscription_id: object.subscription || object.id || null,
+        stripe_subscription_id: object.id || null,
         current_period_end: object.current_period_end ? new Date(object.current_period_end * 1000).toISOString() : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'business_id' });
