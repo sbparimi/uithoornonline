@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ArrowRight, ChevronRight, Menu, MessageCircle, Search, Sparkles, X } from 'lucide-react';
-import AgentChat from './agent-chat';
 
 const services = [
   ['Tuin & groen', 'Hovenier, onderhoud, snoeien', '/businesses?search=garden'],
@@ -24,7 +23,6 @@ const quick = [
 
 export function HomePage() {
   const [query, setQuery] = useState('');
-  const [chatOpen, setChatOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function submitSearch(e: React.FormEvent) {
@@ -32,6 +30,10 @@ export function HomePage() {
     const q = query.trim();
     window.location.href = q ? `/businesses?search=${encodeURIComponent(q)}` : '/businesses';
   }
+
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '31616270233';
+  const whatsappMessage = encodeURIComponent('Hallo, ik heb hulp nodig bij het vinden van een dienst of bedrijf in Uithoorn.');
+  const whatsappHref = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
   return (
     <main className="uo-easy-home">
@@ -63,8 +65,7 @@ export function HomePage() {
       <section className="easy-provider-banner"><div><span className="easy-label">VOOR BEDRIJVEN</span><h2>Krijg lokale klantaanvragen.</h2><p>Word gevonden door bewoners die nu hulp zoeken. Start gratis en groei met echte leads.</p></div><a href="/voor-bedrijven">Voor bedrijven <ArrowRight /></a></section>
 
       <footer className="easy-footer"><div className="easy-footer-brand"><span className="easy-brand-mark"><img src="/icon.svg" alt="" /></span><strong>Uithoorn<span>.online</span></strong></div><div className="easy-footer-links"><a href="/businesses">Diensten</a><a href="/request">Hulp aanvragen</a><a href="/voor-bedrijven">Voor bedrijven</a></div><small>Uithoorn &amp; De Kwakel · © 2026</small></footer>
-      {!chatOpen && <button className="easy-chat" onClick={() => setChatOpen(true)} aria-label="Open hulp"><MessageCircle /><span>Hulp nodig?</span></button>}
-      {chatOpen && <AgentChat onClose={() => setChatOpen(false)} />}
+      <a className="easy-chat" href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label="Hulp nodig? Stuur ons een WhatsApp-bericht"><MessageCircle /><span>Hulp nodig?</span></a>
     </main>
   );
 }
