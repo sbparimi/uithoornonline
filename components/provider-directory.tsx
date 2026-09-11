@@ -64,7 +64,7 @@ export function ProviderDirectory({ items, initialQuery = '' }: { items: Provide
       <header className="uo-header">
         <div className="uo-header-inner">
           <a href="/" className="uo-brand" aria-label="Uithoorn.online home"><span className="uo-brand-mark"><img src="/icon.svg" alt="" /></span><span>Uithoorn<span>.online</span></span></a>
-          <nav className="uo-nav" aria-label="Hoofdnavigatie"><a className="active" href="/businesses">Bedrijven</a><a href="/events">Agenda</a><a href="/deals">Aanbiedingen</a></nav>
+          <nav className="uo-nav" aria-label="Hoofdnavigatie"><a className="active" href="/businesses">Bedrijven</a><a href="/deals">Aanbiedingen</a></nav>
           <div className="uo-header-actions"><span className="uo-location"><MapPin /> Uithoorn & De Kwakel</span><a className="uo-header-cta" href="/signup/account?role=provider">Ik heb een bedrijf</a></div>
         </div>
       </header>
