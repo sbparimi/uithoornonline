@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { ArrowRight, Building2, CheckCircle2, Lightbulb } from 'lucide-react';
 import { useDict } from './lang-context';
+import { useSpamTrap } from './spam-trap';
 
 type Kind = 'business' | 'tip';
 const icons: Record<Kind, typeof Building2> = { business: Building2, tip: Lightbulb };
@@ -17,6 +18,7 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
   const [state, setState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorText, setErrorText] = useState('');
   const [reference, setReference] = useState('');
+  const { fields: spamFields, trap } = useSpamTrap();
   const [selectedTitle, selectedText] = c.options[kind];
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   function choose(next: Kind) { if (state === 'sending') return; setKind(next); setState('idle'); setErrorText(''); }
@@ -31,7 +33,7 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
     if (description.length < 15) return fail(c.errDesc);
     setState('sending');
     try {
-      const response = await fetch('/api/community-submissions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...form, name, email, title, description, kind }) });
+      const response = await fetch('/api/community-submissions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...form, ...spamFields, name, email, title, description, kind }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const key = String(data.error || 'submission_failed');
@@ -46,7 +48,7 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
   if (state === 'success') return <div className="contribution-success" role="status"><CheckCircle2 aria-hidden="true" /><div><span className="uo-kicker">{c.successKicker}</span><h2>{c.successTitle}</h2><p>{c.successText}</p>{reference && <strong>{c.reference} {reference}</strong>}<button className="discovery-primary" onClick={() => { setState('idle'); setErrorText(''); }}>{c.again} <ArrowRight aria-hidden="true" /></button></div></div>;
   return <div className="contribution-hub">
     <div className="contribution-options" role="tablist" aria-label={c.tablist}>{kinds.map((optionKind) => { const Icon = icons[optionKind]; const [title, text] = c.options[optionKind]; return <button key={optionKind} type="button" role="tab" aria-selected={kind === optionKind} className={kind === optionKind ? 'active' : ''} onClick={() => choose(optionKind)}><Icon aria-hidden="true" /><span><strong>{title}</strong><small>{text}</small></span></button>; })}</div>
-    <div className="contribution-form-wrap"><div className="contribution-form-intro"><span className="uo-kicker">{selectedTitle}</span><h2>{c.formTitle[0]}<em>{c.formTitle[1]}</em>{c.formTitle[2]}</h2><p>{selectedText} {c.checked}</p></div><form className="contribution-form" onSubmit={submit} noValidate>
+    <div className="contribution-form-wrap"><div className="contribution-form-intro"><span className="uo-kicker">{selectedTitle}</span><h2>{c.formTitle[0]}<em>{c.formTitle[1]}</em>{c.formTitle[2]}</h2><p>{selectedText} {c.checked}</p></div><form className="contribution-form" onSubmit={submit} noValidate style={{ position: 'relative' }}>{trap}
       <div className="contribution-two"><label>{c.yourName}<input required autoComplete="name" value={form.name} onChange={(e) => update('name', e.target.value)} /></label><label>{t.common.email}<input required type="email" autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></label></div>
       <div className="contribution-two"><label>{t.common.phone} <span>{t.common.optional}</span><input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label><label>{t.common.postcode} <span>{t.common.optional}</span><input autoComplete="postal-code" value={form.postcode} onChange={(e) => update('postcode', e.target.value)} placeholder="1421 AB" /></label></div>
       <label>{kind === 'business' ? t.common.businessName : c.tipTitle}<input required value={form.title} onChange={(e) => update('title', e.target.value)} /></label>

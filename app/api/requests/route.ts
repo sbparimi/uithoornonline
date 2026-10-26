@@ -1,43 +1,29 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase/server';
-
-function money(value: unknown) {
-  if (value === '' || value === null || value === undefined) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-function validPostcode(value: string) { return /^\d{4}\s?[A-Z]{2}$/i.test(value); }
+import { errorJson, handle, json, readJson, sameOrigin } from '@/lib/http';
+import { requireUser } from '@/lib/auth/session';
+import { clientIp, LIMITS, rateLimit } from '@/lib/security/rate-limit';
+import { looksLikeSpam } from '@/lib/security/spam';
+import { cleanRequestInput, createRequest } from '@/lib/data/requests';
+import { sendEmail } from '@/lib/email/send';
+import { newLeadEmail } from '@/lib/email/templates';
+import { notify } from '@/lib/notify';
 
 export async function POST(request: Request) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'login_required' }, { status: 401 });
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'customer') return NextResponse.json({ error: 'customer_required' }, { status: 403 });
-
-    const body = await request.json();
-    const category = String(body.category || '').trim(); const description = String(body.description || '').trim();
-    const postcode = String(body.postcode || '').trim().toUpperCase(); const preferredTiming = String(body.preferredTiming || '').trim();
-    const urgency = String(body.urgency || '').trim(); const budgetMin = money(body.budgetMin); const budgetMax = money(body.budgetMax);
-    if (!category || description.length < 10 || !validPostcode(postcode) || !preferredTiming || !urgency || (budgetMin !== null && budgetMax !== null && budgetMax < budgetMin)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
-
-    const { data, error } = await supabase.from('service_requests').insert({ customer_id: user.id, category, description, postcode, preferred_timing: preferredTiming, urgency, budget_min: budgetMin, budget_max: budgetMax }).select('id').single();
-    if (error || !data) {
-      console.error('[requests] insert failed', { code: error?.code, message: error?.message });
-      return NextResponse.json({ error: 'request_save_failed' }, { status: 500 });
+  return handle(async () => {
+    if (!sameOrigin(request)) return errorJson('bad_origin', 403);
+    const user = await requireUser();
+    if (user.role !== 'customer' && user.role !== 'admin') return errorJson('customer_required', 403);
+    const body = await readJson(request);
+    if (looksLikeSpam(body)) return errorJson('rejected', 400);
+    const perUser = await rateLimit('request-user', user.id, LIMITS.requestUser);
+    const perIp = await rateLimit('request-ip', clientIp(request), LIMITS.requestIp);
+    if (!perUser.ok || !perIp.ok) return errorJson('rate_limited', 429, { retryAfter: Math.max(perUser.retryAfter, perIp.retryAfter) });
+    const { value, error } = cleanRequestInput(body);
+    if (error) return errorJson(error, 400);
+    const result = await createRequest(user, value);
+    for (const m of result.matched) {
+      void sendEmail({ to: m.ownerEmail, kind: m.locked ? 'lead_locked' : 'new_lead', ...newLeadEmail(m.ownerLocale, m.name, value.category, m.locked) });
     }
-
-    await supabase.from('analytics_events').insert({ event_name: 'request_submitted', request_id: data.id, metadata: { category, postcode, urgency } });
-    const { data: matched, error: matchError } = await supabase.rpc('match_service_request', { p_request_id: data.id });
-    if (matchError) {
-      console.error('[requests] matching failed after save', { requestId: data.id, code: matchError.code, message: matchError.message });
-      return NextResponse.json({ id: data.id, matched: 0, status: 'open' }, { status: 201 });
-    }
-    if (matched) await supabase.from('analytics_events').insert({ event_name: 'lead_created', request_id: data.id, metadata: { matched } });
-    return NextResponse.json({ id: data.id, matched: matched ?? 0, status: matched ? 'matched' : 'open' }, { status: 201 });
-  } catch (error) {
-    console.error('[requests] request failed', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'request_save_failed' }, { status: 500 });
-  }
+    void notify('new_request', `${value.category} (${value.postcode})`, { requestId: result.id, matched: result.matched.length, delivered: result.delivered, overLimit: result.matched.filter((m) => m.locked).map((m) => m.name).join(', ') });
+    return json({ id: result.id, matched: result.delivered, status: result.delivered ? 'matched' : 'open' }, 201);
+  }, 'requests');
 }

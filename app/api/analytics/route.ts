@@ -1,26 +1,16 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase/server';
-
-const allowed = new Set(['page_view','search','search_result_click','business_view','business_contact','phone_click','whatsapp_click','website_click','request_started','request_submitted','lead_created','promotion_impression','promotion_click']);
+import { errorJson, handle, json, readJson } from '@/lib/http';
+import { clientIp, LIMITS, rateLimit } from '@/lib/security/rate-limit';
+import { ANALYTICS_EVENTS, trackEvent } from '@/lib/data/misc';
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const eventName = String(body.eventName || '').trim();
-    if (!allowed.has(eventName)) return NextResponse.json({ error: 'invalid_event' }, { status: 400 });
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('analytics_events').insert({
-      event_name: eventName,
-      business_id: body.businessId || null,
-      request_id: body.requestId || null,
-      promotion_id: body.promotionId || null,
-      session_id: String(body.sessionId || '').slice(0, 120) || null,
-      metadata: typeof body.metadata === 'object' && body.metadata ? body.metadata : {},
-    });
-    if (error) return NextResponse.json({ error: 'analytics_failed' }, { status: 500 });
-    return NextResponse.json({ ok: true, authenticated: Boolean(user) });
-  } catch {
-    return NextResponse.json({ error: 'analytics_failed' }, { status: 400 });
-  }
+  return handle(async () => {
+    const body = await readJson(request);
+    const name = String(body.eventName ?? '').trim();
+    if (!ANALYTICS_EVENTS.has(name)) return errorJson('invalid_event', 400);
+    const limit = await rateLimit('analytics-ip', clientIp(request), LIMITS.analyticsIp);
+    if (!limit.ok) return json({ ok: true, dropped: true });
+    const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata as Record<string, unknown> : {};
+    await trackEvent(name, body.businessId ? String(body.businessId) : null, body.requestId ? String(body.requestId) : null, metadata);
+    return json({ ok: true });
+  }, 'analytics');
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowRight, BadgeCheck, MapPin } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { createClient } from '../../../../lib/supabase/server';
+import { listPublicBusinessesMatching } from '../../../../lib/data/businesses';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
@@ -40,17 +40,7 @@ export default async function ServiceLandingPage({ params }: Props) {
   const service = s.services[slug];
   const config = terms[slug];
   if (!service || !config) notFound();
-  let businesses: PublicBusiness[] = [];
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.from('businesses').select('id,name,category,description,postcode,verified,website,phone').eq('active', true).eq('verified', true).or(config.terms.map((term) => `category.ilike.%${term}%,description.ilike.%${term}%`).join(',')).limit(20);
-    businesses = (data as PublicBusiness[] | null) ?? [];
-  } catch {
-    businesses = [];
-  }
-  if (!businesses.length) {
-    businesses = fallbackBusinesses.filter((b) => config.terms.some((term) => `${b.category} ${b.description}`.toLowerCase().includes(term)));
-  }
+  const businesses: PublicBusiness[] = (await listPublicBusinessesMatching(config.terms)).businesses;
   const requestHref = lp(lang, `/request?category=${config.key}`);
   return <div className="ds-page">
     <SiteHeader active="businesses" />

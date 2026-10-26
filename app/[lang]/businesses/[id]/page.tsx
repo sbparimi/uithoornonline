@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowLeft, ArrowRight, BadgeCheck, Globe, MapPin, Phone, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { createClient } from '../../../../lib/supabase/server';
+import { getPublicBusiness } from '../../../../lib/data/businesses';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
@@ -12,17 +12,9 @@ type Props = { params: Promise<{ lang: string; id: string }> };
 type Review = { rating: number; body: string | null; created_at: string };
 
 async function loadBusiness(id: string): Promise<{ business: PublicBusiness | null; reviews: Review[] }> {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.from('businesses').select('id,name,category,description,postcode,address,website,phone,verified').eq('id', id).eq('active', true).eq('verified', true).maybeSingle();
-    if (data) {
-      const { data: reviews } = await supabase.from('reviews').select('rating,body,created_at').eq('business_id', id).order('created_at', { ascending: false }).limit(10);
-      return { business: data as PublicBusiness, reviews: (reviews as Review[] | null) ?? [] };
-    }
-  } catch {
-    // fall through to the built-in listings
-  }
-  return { business: fallbackBusinesses.find((b) => b.id === id) ?? null, reviews: [] };
+  // Only approved + active listings; hidden reviews are excluded server-side.
+  const found = await getPublicBusiness(id);
+  return { business: found?.business ?? null, reviews: found?.reviews ?? [] };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

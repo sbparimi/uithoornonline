@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { lp } from '../../../lib/i18n/config';
 import { useDict, useLang } from '../../../components/lang-context';
+import { useSpamTrap } from '../../../components/spam-trap';
 
 // Option values are stored in the database as-is; only the labels are translated.
 const categories = ['Home improvement & renovation', 'Garden & outdoor', 'Plumber', 'Handyman', 'Cleaning & household', 'Transport & logistics', 'Property services', 'Automotive', 'Family & personal', 'Events & occasions', 'Food & catering', 'Professional services'];
@@ -45,6 +46,7 @@ export default function RequestForm({ initialCategory = '', initialQuery = '' }:
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const { fields: spamFields, trap } = useSpamTrap();
 
   // Restore what a visitor typed before being sent to the sign-in page.
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function RequestForm({ initialCategory = '', initialQuery = '' }:
     if (!preferredTiming || !urgency) { setError(f.errTiming); return; }
     setLoading(true);
     try {
-      const response = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ category, description: cleanDescription, postcode: cleanPostcode, preferredTiming, budgetMin, budgetMax, urgency }) });
+      const response = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...spamFields, category, description: cleanDescription, postcode: cleanPostcode, preferredTiming, budgetMin, budgetMax, urgency }) });
       const data = await response.json().catch(() => ({}));
       if (response.status === 401) {
         try { window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ category, description, postcode, preferredTiming, budgetMin, budgetMax, urgency })); } catch {}
@@ -99,7 +101,7 @@ export default function RequestForm({ initialCategory = '', initialQuery = '' }:
 
   if (success) return <div className="request-success" role="status"><Check aria-hidden="true" /><div><span className="uo-kicker">{f.successKicker}</span><h2>{f.successTitle}</h2><p>{f.successText} <strong>{success.slice(0, 8).toUpperCase()}</strong>.</p><a className="primary platform-button-link" href={lp(lang, '/account')}>{f.successCta} <ArrowRight aria-hidden="true" /></a></div></div>;
 
-  return <form className="request-form" onSubmit={submit} noValidate>
+  return <form className="request-form" onSubmit={submit} noValidate style={{ position: 'relative' }}>{trap}
     <label>{f.category}<select value={category} onChange={e => setCategory(e.target.value)}>{categories.map(item => <option key={item} value={item}>{f.categories[item] ?? item}</option>)}</select></label>
     <label>{f.description}<textarea required minLength={15} value={description} onChange={e => setDescription(e.target.value)} placeholder={f.descPlaceholder} /></label>
     <label>{t.common.postcode}<input required inputMode="text" autoComplete="postal-code" value={postcode} onChange={e => setPostcode(e.target.value.toUpperCase())} placeholder="1421 AB" /></label>

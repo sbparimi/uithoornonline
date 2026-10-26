@@ -34,6 +34,7 @@ export function SiteFooter({ lang }: { lang: Locale }) {
         <div className="site-footer-col">
           <h2>{f.contact}</h2>
           <a href={whatsappHref(f.whatsappMessage)} target="_blank" rel="noopener noreferrer" className="site-footer-whatsapp"><MessageCircle aria-hidden="true" /> {f.whatsapp}: {formatDutchMobile(WHATSAPP_NUMBER)}</a>
+          <a href={lp(lang, '/contact')}>{lang === 'en' ? 'Contact form' : 'Contactformulier'}</a>
           <span>{t.common.area}</span>
         </div>
       </div>
@@ -42,6 +43,8 @@ export function SiteFooter({ lang }: { lang: Locale }) {
         <nav aria-label={f.contact}>
           <a href={lp(lang, '/privacy')}>{f.privacy}</a>
           <a href={lp(lang, '/cookies')}>{f.cookies}</a>
+          <a href={lp(lang, '/voorwaarden')}>{lang === 'en' ? 'Terms' : 'Algemene voorwaarden'}</a>
+          <a href={lp(lang, '/contact')}>{f.contact}</a>
         </nav>
       </div>
     </footer>

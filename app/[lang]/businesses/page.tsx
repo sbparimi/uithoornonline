@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { createClient } from '../../../lib/supabase/server';
+import { listPublicBusinesses } from '../../../lib/data/businesses';
 import { ProviderDirectory } from '../../../components/provider-directory';
 import { fallbackBusinesses, localizeBusiness, spiceIndiaId, type PublicBusiness } from '../../../lib/business-content';
 import { alternatesFor, isLocale, lp, seo, SITE_URL, type Locale } from '../../../lib/i18n/config';
@@ -25,20 +25,8 @@ export default async function BusinessesPage({ params, searchParams }: Props) {
   const [{ lang: raw }, sp] = await Promise.all([params, searchParams]);
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const t = getDictionary(lang);
-  let businesses: PublicBusiness[] = [];
-  try {
-    const supabase = await createClient();
-    const result = await supabase.from('businesses').select('id,name,category,description,postcode,website,phone,verified').eq('active', true).order('name');
-    if (result.error) {
-      const message = result.error.message || '';
-      if (!/configuration is missing|SUPABASE_|fetch failed/i.test(message)) console.error('[businesses] provider query failed', { code: result.error.code, message: result.error.message });
-    }
-    businesses = (result.data as PublicBusiness[] | null) || [];
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/configuration is missing|SUPABASE_|fetch failed/i.test(message)) console.error('[businesses] provider query exception', message);
-  }
-  if (businesses.length === 0) businesses = fallbackBusinesses;
+  // Approved, active listings from the database; the built-in list only if the database is unreachable.
+  let businesses: PublicBusiness[] = (await listPublicBusinesses()).businesses;
 
   const query = sp.search?.trim() ?? '';
   if (foodSearchPattern.test(query)) {

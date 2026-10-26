@@ -24,7 +24,9 @@ import '../spiceindia-ad.css';
 import '../business-monetization.css';
 import '../monetization-overrides.css';
 import '../design-system.css';
+import '../backend.css';
 import { notFound } from 'next/navigation';
+import { Analytics } from '@vercel/analytics/next';
 import { LangProvider } from '../../components/lang-context';
 import { SpiceIndiaAd } from '../../components/spiceindia-ad';
 import { alternatesFor, isLocale, locales, ogLocale, SITE_URL, type Locale } from '../../lib/i18n/config';
@@ -65,6 +67,8 @@ export default async function RootLayout({ children, params }: Readonly<{ childr
           {children}
           <SpiceIndiaAd />
         </LangProvider>
+        {/* Cookieless page-view analytics (no consent banner needed). */}
+        <Analytics />
       </body>
     </html>
   );

@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
-import { createClient } from '../lib/supabase/client';
 import { useDict } from './lang-context';
 
 type Business = { id: string; name: string; category: string; description: string; postcode: string | null; address: string | null; website: string | null; phone: string | null; verified: boolean };
@@ -19,9 +18,8 @@ export default function ProviderProfileForm({ business }: { business: Business }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (saving) return; setSaving(true); setError(''); setSaved(false);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('businesses').update({ name: form.name.trim(), category: form.category, description: form.description.trim(), postcode: form.postcode.trim().toUpperCase(), address: form.address.trim(), website: form.website.trim(), phone: form.phone.trim() }).eq('id', business.id);
-      if (error) throw error;
+      const res = await fetch('/api/provider/profile', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.name.trim(), category: form.category, description: form.description.trim(), postcode: form.postcode.trim().toUpperCase(), address: form.address.trim(), website: form.website.trim(), phone: form.phone.trim() }) });
+      if (!res.ok) throw new Error('save_failed');
       setSaved(true);
     } catch { setError(p.saveError); } finally { setSaving(false); }
   }

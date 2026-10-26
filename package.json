@@ -6,21 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:seed": "node scripts/db-seed.mjs",
+    "db:make-admin": "node scripts/db-make-admin.mjs",
+    "db:backup": "bash scripts/db-backup.sh",
+    "test:security": "node scripts/security-test.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.864.0",
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.57.0",
+    "@vercel/analytics": "^1.5.0",
     "lucide-react": "^0.468.0",
-    "next": "^15.5.0",
+    "next": "^15.5.28",
+    "pg": "^8.13.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.12"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -1,27 +1,31 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase/server';
+import { consumeAuthToken } from '@/lib/auth/tokens';
+import { createSession } from '@/lib/auth/session';
+import { findUserByEmail, markEmailVerified } from '@/lib/data/users';
 
 function safeNext(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('://')) return '/account';
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('://')) return null;
   return value;
 }
 
+// Magic-link landing: one-time token -> session cookie -> redirect.
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url);
-  const code = requestUrl.searchParams.get('code');
-  const next = safeNext(requestUrl.searchParams.get('next'));
-  const loginPath = next === '/en' || next.startsWith('/en/') ? '/en/login' : '/login';
-  if (!code) return NextResponse.redirect(new URL(`${loginPath}?error=missing_code&next=${encodeURIComponent(next)}`, requestUrl.origin));
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token') || '';
+  const next = safeNext(url.searchParams.get('next'));
+  const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, url.origin));
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      console.error('[auth/callback] code exchange failed', error.message);
-      return NextResponse.redirect(new URL(`${loginPath}?error=callback_failed&next=${encodeURIComponent(next)}`, requestUrl.origin));
-    }
+    const consumed = await consumeAuthToken(token);
+    if (!consumed) return fail('link_invalid');
+    const user = await findUserByEmail(consumed.email);
+    if (!user || user.disabled_at) return fail('link_invalid');
+    await markEmailVerified(user.id);
+    await createSession(user.id, 'email_link');
+    const prefix = user.locale === 'en' ? '/en' : '';
+    const home = user.role === 'admin' ? '/admin' : user.role === 'provider' ? '/provider' : '/account';
+    return NextResponse.redirect(new URL(next ?? `${prefix}${home}`, url.origin));
   } catch (error) {
-    console.error('[auth/callback] request failed', error instanceof Error ? error.message : error);
-    return NextResponse.redirect(new URL(`${loginPath}?error=callback_failed&next=${encodeURIComponent(next)}`, requestUrl.origin));
+    console.error('[auth/callback] failed', error instanceof Error ? error.message : error);
+    return fail('callback_failed');
   }
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
 }
