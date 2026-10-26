@@ -2,6 +2,7 @@
 // Placeholders in [brackets] must be filled in by the owner. No KvK number is shown because none
 // exists yet; add `kvk` and `vat` to COMPANY once registered.
 import type { Locale } from '../i18n/config';
+import { CONTACT_EMAIL } from '../contact';
 
 export const LEGAL_LAST_UPDATED = '2026-10-26';
 
@@ -9,7 +10,8 @@ export const COMPANY = {
   tradeName: 'Uithoorn.online',
   legalName: '[Naam van de onderneming / eigenaar – in te vullen]',
   address: '[Straat en huisnummer, postcode, plaats – in te vullen]',
-  email: '[E-mailadres – in te vullen, bijv. hello@uithoorn.online]',
+  // Public contact address (owner decision 2026-10-26): the Tab-managed operations mailbox.
+  email: CONTACT_EMAIL,
   kvk: null as string | null,
   vat: null as string | null,
 };

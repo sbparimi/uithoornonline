@@ -1,6 +1,7 @@
 import { MessageCircle } from 'lucide-react';
 import { formatDutchMobile, lp, WHATSAPP_NUMBER, whatsappHref, type Locale } from '../lib/i18n/config';
 import { getDictionary } from '../lib/i18n/dictionaries';
+import { CONTACT_EMAIL } from '../lib/contact';
 
 export function SiteFooter({ lang }: { lang: Locale }) {
   const t = getDictionary(lang);
@@ -35,6 +36,7 @@ export function SiteFooter({ lang }: { lang: Locale }) {
           <h2>{f.contact}</h2>
           <a href={whatsappHref(f.whatsappMessage)} target="_blank" rel="noopener noreferrer" className="site-footer-whatsapp"><MessageCircle aria-hidden="true" /> {f.whatsapp}: {formatDutchMobile(WHATSAPP_NUMBER)}</a>
           <a href={lp(lang, '/contact')}>{lang === 'en' ? 'Contact form' : 'Contactformulier'}</a>
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
           <span>{t.common.area}</span>
         </div>
       </div>

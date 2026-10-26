@@ -1,4 +1,5 @@
 import 'server-only';
+import { CONTACT_EMAIL } from '../contact';
 import { query } from '../db';
 
 // Transactional email via Resend's HTTP API (no SDK). Without RESEND_API_KEY nothing is sent:
@@ -43,7 +44,7 @@ export async function sendEmail(email: Email): Promise<'sent' | 'skipped' | 'fai
         subject: email.subject,
         text: email.text,
         html: email.html ?? textToHtml(email.text),
-        reply_to: email.replyTo,
+        reply_to: email.replyTo ?? CONTACT_EMAIL,
       }),
       signal: AbortSignal.timeout(8000),
     });

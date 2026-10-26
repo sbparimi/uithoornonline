@@ -36,6 +36,7 @@ export default async function ContactPage({ params }: Props) {
         <p>{c.whatsappText}</p>
         <a className="primary platform-button-link" href={whatsappHref(c.whatsappMessage)} target="_blank" rel="noopener noreferrer"><MessageCircle aria-hidden="true" /> {formatDutchMobile(WHATSAPP_NUMBER)}</a>
         <h2 style={{ marginTop: 24 }}>{c.companyTitle}</h2>
+        <p><a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a></p>
         <p>{COMPANY.tradeName}<br />{mark(COMPANY.legalName)}<br />{mark(COMPANY.address)}</p>
         {COMPANY.kvk && <p>KvK: {COMPANY.kvk}</p>}
         <p><a href={lp(lang, '/privacy')}>{lang === 'en' ? 'Privacy policy' : 'Privacyverklaring'}</a> · <a href={lp(lang, '/voorwaarden')}>{lang === 'en' ? 'Terms' : 'Algemene voorwaarden'}</a></p>
