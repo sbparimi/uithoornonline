@@ -5,7 +5,7 @@ import { createClient } from '../../../../lib/supabase/server';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
-import { alternatesFor, isLocale, locales, lp, type Locale } from '../../../../lib/i18n/config';
+import { seo, isLocale, locales, lp, type Locale } from '../../../../lib/i18n/config';
 import { getDictionary } from '../../../../lib/i18n/dictionaries';
 
 const terms: Record<string, { key: string; terms: string[] }> = {
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = getDictionary(lang).service;
   const service = s.services[slug];
   if (!service) return { title: s.kicker };
-  return { title: service[0], description: s.metaDescription(service[1]), alternates: alternatesFor(lang, `/diensten/${slug}`) };
+  return { title: service[0], description: s.metaDescription(service[1]), ...seo(lang, `/diensten/${slug}`, service[0], s.metaDescription(service[1])) };
 }
 
 export default async function ServiceLandingPage({ params }: Props) {

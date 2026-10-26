@@ -4,7 +4,7 @@ import { ArrowRight, BarChart3, Check, MessageCircle, MessageSquareText, Search,
 import { WhatsAppPlanButton } from '../../../components/whatsapp-plan-button';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
-import { alternatesFor, isLocale, lp, type Locale } from '../../../lib/i18n/config';
+import { isLocale, seo, lp, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 type Props = { params: Promise<{ lang: string }> };
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const t = getDictionary(lang).business;
-  return { title: { absolute: t.metaTitle }, description: t.metaDescription, alternates: alternatesFor(lang, '/voor-bedrijven'), openGraph: { title: t.metaTitle, description: t.metaDescription } };
+  return { title: { absolute: t.metaTitle }, description: t.metaDescription, ...seo(lang, '/voor-bedrijven', t.metaTitle, t.metaDescription) };
 }
 
 const planKeys = ['free', 'pro', 'pro_plus'] as const;

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowRight, BriefcaseBusiness, MessageCircle } from 'lucide-react';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
-import { alternatesFor, isLocale, lp, whatsappHref, type Locale } from '../../../lib/i18n/config';
+import { isLocale, seo, lp, whatsappHref, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 type Props = { params: Promise<{ lang: string }> };
@@ -15,7 +15,7 @@ async function langOf(params: Props['params']): Promise<Locale> {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const lang = await langOf(params);
   const t = getDictionary(lang).jobs;
-  return { title: t.metaTitle, description: t.metaDescription, alternates: alternatesFor(lang, '/jobs') };
+  return { title: t.metaTitle, description: t.metaDescription, ...seo(lang, '/jobs', t.metaTitle, t.metaDescription) };
 }
 
 // The old page listed three example vacancies ("Voorbeeldvacature"). Until real vacancies exist, show an honest empty state.

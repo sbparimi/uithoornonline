@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { AlertTriangle } from 'lucide-react';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
-import { alternatesFor, formatDutchMobile, isLocale, lp, WHATSAPP_NUMBER, type Locale } from '../../../lib/i18n/config';
+import { seo, formatDutchMobile, isLocale, lp, WHATSAPP_NUMBER, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 type Props = { params: Promise<{ lang: string }> };
@@ -75,7 +75,7 @@ const OTHER: string = '/cookies';
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
-  return { title: content[lang].title, description: content[lang].description, alternates: alternatesFor(lang, PATH) };
+  return { title: content[lang].title, description: content[lang].description, ...seo(lang, PATH, content[lang].title, content[lang].description) };
 }
 
 export default async function LegalPage({ params }: Props) {

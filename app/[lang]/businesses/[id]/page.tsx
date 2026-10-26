@@ -5,7 +5,7 @@ import { createClient } from '../../../../lib/supabase/server';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
-import { alternatesFor, dateLocale, isLocale, lp, type Locale } from '../../../../lib/i18n/config';
+import { seo, dateLocale, isLocale, lp, type Locale } from '../../../../lib/i18n/config';
 import { getDictionary } from '../../../../lib/i18n/dictionaries';
 
 type Props = { params: Promise<{ lang: string; id: string }> };
@@ -32,7 +32,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { business } = await loadBusiness(id);
   if (!business) return { title: t.profile.metaFallback, robots: { index: false } };
   const b = localizeBusiness(business, lang);
-  return { title: `${b.name} · ${b.category}`, description: b.description || t.profile.metaDescription(b.name), alternates: alternatesFor(lang, `/businesses/${id}`) };
+  const title = `${b.name} · ${b.category}`;
+  const description = b.description || t.profile.metaDescription(b.name);
+  return { title, description, ...seo(lang, `/businesses/${id}`, title, description) };
 }
 
 export default async function BusinessProfilePage({ params }: Props) {

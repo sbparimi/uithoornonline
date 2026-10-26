@@ -3,7 +3,7 @@ import { ArrowLeft, Check, MessageCircle, Sparkles } from 'lucide-react';
 import RequestForm from './RequestForm';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
-import { alternatesFor, isLocale, lp, type Locale } from '../../../lib/i18n/config';
+import { isLocale, seo, lp, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 type Props = { params: Promise<{ lang: string }>; searchParams: Promise<{ category?: string; query?: string }> };
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const t = getDictionary(lang).request;
-  return { title: t.metaTitle, description: t.metaDescription, alternates: alternatesFor(lang, '/request') };
+  return { title: t.metaTitle, description: t.metaDescription, ...seo(lang, '/request', t.metaTitle, t.metaDescription) };
 }
 
 export default async function RequestPage({ params, searchParams }: Props) {

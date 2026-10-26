@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import ContributionHub from '../../../components/contribution-hub';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
-import { alternatesFor, isLocale, lp, type Locale } from '../../../lib/i18n/config';
+import { isLocale, seo, lp, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 type Kind = 'business' | 'tip';
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const t = getDictionary(lang).contribution;
-  return { title: t.metaTitle, description: t.metaDescription, alternates: alternatesFor(lang, '/signup') };
+  return { title: t.metaTitle, description: t.metaDescription, ...seo(lang, '/signup', t.metaTitle, t.metaDescription) };
 }
 
 export default async function SignupPage({ params, searchParams }: Props) {

@@ -34,6 +34,18 @@ export function alternatesFor(lang: Locale, path: string) {
   };
 }
 
+/** Canonical, hreflang, Open Graph and Twitter tags for a page. */
+export function seo(lang: Locale, path: string, title: string, description: string) {
+  const alternates = alternatesFor(lang, path);
+  const image = lang === 'nl' ? '/og-image.png' : '/og-image-en.png';
+  const fullTitle = title.includes('Uithoorn.online') ? title : `${title} — Uithoorn.online`;
+  return {
+    alternates,
+    openGraph: { type: 'website' as const, siteName: 'Uithoorn.online', locale: ogLocale(lang), alternateLocale: [ogLocale(lang === 'nl' ? 'en' : 'nl')], title: fullTitle, description, url: alternates.canonical, images: [{ url: image, width: 1200, height: 630, alt: 'Uithoorn.online' }] },
+    twitter: { card: 'summary_large_image' as const, title: fullTitle, description, images: [image] },
+  };
+}
+
 export function ogLocale(lang: Locale) {
   return lang === 'nl' ? 'nl_NL' : 'en_GB';
 }

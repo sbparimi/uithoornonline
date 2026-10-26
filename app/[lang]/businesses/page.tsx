@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { createClient } from '../../../lib/supabase/server';
 import { ProviderDirectory } from '../../../components/provider-directory';
 import { fallbackBusinesses, localizeBusiness, spiceIndiaId, type PublicBusiness } from '../../../lib/business-content';
-import { alternatesFor, isLocale, lp, SITE_URL, type Locale } from '../../../lib/i18n/config';
+import { alternatesFor, isLocale, lp, seo, SITE_URL, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 
 const foodSearchPattern = /food|eten|restaurant|cater|catering|takeaway|thuiskeuken|bakker|bakery|taart|indian|indiaas|spiceindia|biryani|dosa|idli|vada|lunch|dinner|maaltijd/i;
@@ -18,7 +18,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (query) {
     return { title: t.queryTitle(query), description: t.queryDescription(query), alternates: { ...alternates, canonical: `${SITE_URL}${lp(lang, '/businesses')}?search=${encodeURIComponent(query)}` }, robots: { index: false, follow: true } };
   }
-  return { title: t.metaTitle, description: t.metaDescription, alternates, openGraph: { title: t.metaTitle, description: t.metaDescription } };
+  return { title: t.metaTitle, description: t.metaDescription, ...seo(lang, '/businesses', t.metaTitle, t.metaDescription) };
 }
 
 export default async function BusinessesPage({ params, searchParams }: Props) {

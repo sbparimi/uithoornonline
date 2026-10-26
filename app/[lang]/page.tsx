@@ -2,14 +2,14 @@ import type { Metadata } from 'next';
 import { ArrowRight, BadgeCheck, ChevronRight, HeartHandshake, MapPin, MessageCircle, Search, Sparkles } from 'lucide-react';
 import { SiteHeader } from '../../components/site-header';
 import { SiteFooter } from '../../components/site-footer';
-import { alternatesFor, isLocale, lp, SITE_URL, whatsappHref, type Locale } from '../../lib/i18n/config';
+import { isLocale, lp, seo, SITE_URL, whatsappHref, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const t = getDictionary(lang);
-  return { title: { absolute: t.meta.homeTitle }, description: t.meta.homeDescription, alternates: alternatesFor(lang, '/') };
+  return { title: { absolute: t.meta.homeTitle }, description: t.meta.homeDescription, ...seo(lang, '/', t.meta.homeTitle, t.meta.homeDescription) };
 }
 
 const trustIcons = [MapPin, BadgeCheck, HeartHandshake];
