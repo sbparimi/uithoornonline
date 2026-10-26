@@ -33,3 +33,5 @@
 .ds-page .admin-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .ds-page .admin-stats span { text-transform: capitalize; }
 @media (min-width: 900px) { .ds-page .admin-row { grid-template-columns: minmax(0, 1fr) auto; align-items: start; } .ds-page .admin-row-actions { justify-content: flex-end; max-width: 520px; } }
+.ds-page .business-growth-card a { background: #fff !important; color: var(--ds-green) !important; display: inline-flex; gap: 8px; align-items: center; font-weight: 700; }
+.ds-page .business-growth-card a svg { color: var(--ds-green) !important; }
