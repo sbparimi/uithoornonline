@@ -1,7 +1,8 @@
 # Backend
 
 Everything server-side lives in `lib/` and `app/api/`. The database is Postgres on Neon (project `uithoornonline`,
-region aws-eu-central-1 / Frankfurt). There is no Supabase dependency any more.
+region aws-eu-central-1 / Frankfurt). Serverless functions are pinned to Vercel's `fra1` region in `vercel.json`, next to
+the database (lower latency, personal data processed in the EU). There is no Supabase dependency any more.
 
 ## Database and migrations
 - Migrations: `db/migrations/NNNN_name.sql`, applied in order by `npm run db:migrate` (uses `DATABASE_URL_UNPOOLED`

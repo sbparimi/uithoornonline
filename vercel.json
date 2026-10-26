@@ -1,1 +1,1 @@
-{"framework": "nextjs", "crons": [{"path": "/api/cron/retention", "schedule": "30 3 * * *"}]}
+{"framework": "nextjs", "regions": ["fra1"], "crons": [{"path": "/api/cron/retention", "schedule": "30 3 * * *"}]}
