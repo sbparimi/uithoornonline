@@ -1,11 +1,10 @@
 'use client';
 
 import { MessageCircle, ArrowRight } from 'lucide-react';
+import { whatsappHref } from '../lib/i18n/config';
+import { useDict } from './lang-context';
 
-const whatsappNumber = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '31616270233').replace(/\D/g, '');
-
-export function WhatsAppPlanButton({ plan, price }: { plan: 'Pro' | 'Pro+'; price: string }) {
-  const message = encodeURIComponent(`Hallo Uithoorn.online, ik wil het ${plan}-plan (€${price}/maand) activeren voor mijn bedrijf. Kunnen jullie mij de betaalgegevens sturen?`);
-  const href = `https://wa.me/${whatsappNumber}?text=${message}`;
-  return <a className="pricing-button whatsapp-pricing-button" href={href} target="_blank" rel="noreferrer"><MessageCircle /> Betalen via WhatsApp <ArrowRight /></a>;
+export function WhatsAppPlanButton({ plan, price }: { plan: string; price: string }) {
+  const t = useDict().business;
+  return <a className="pricing-button whatsapp-pricing-button" href={whatsappHref(t.planMessage(plan, price))} target="_blank" rel="noopener noreferrer"><MessageCircle aria-hidden="true" /> {t.payWhatsapp} <ArrowRight aria-hidden="true" /></a>;
 }

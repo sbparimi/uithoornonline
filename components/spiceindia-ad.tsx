@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
+import { useDict } from './lang-context';
 
 const DISMISS_KEY = 'spiceindia-exit-ad-dismissed';
 
 export function SpiceIndiaAd() {
+  const t = useDict().ad;
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -48,16 +50,16 @@ export function SpiceIndiaAd() {
       if (event.target === event.currentTarget) dismiss();
     }}>
       <aside className="spiceindia-ad" role="dialog" aria-modal="true" aria-labelledby="spiceindia-ad-title">
-        <button className="spiceindia-ad-close" type="button" aria-label="Sluiten" onClick={dismiss}>
-          <X />
+        <button className="spiceindia-ad-close" type="button" aria-label={t.close} onClick={dismiss}>
+          <X aria-hidden="true" />
         </button>
         <div className="spiceindia-ad-pulse" aria-hidden="true" />
         <div className="spiceindia-ad-content">
-          <span className="spiceindia-ad-kicker">EEN LOKALE TIP UIT UITHOORN</span>
+          <span className="spiceindia-ad-kicker">{t.kicker}</span>
           <h2 id="spiceindia-ad-title">SpiceIndia</h2>
-          <p>Vers Indiaas eten, thuisgemaakt in Uithoorn.</p>
+          <p>{t.text}</p>
           <div className="spiceindia-ad-actions">
-            <a href="https://www.spiceindia.nl/" target="_blank" rel="noreferrer">Bekijk SpiceIndia.nl</a>
+            <a href="https://www.spiceindia.nl/" target="_blank" rel="noopener noreferrer">{t.visit}</a>
             <a className="spiceindia-ad-whatsapp" href="https://wa.me/31645480446" target="_blank" rel="noreferrer">
               <MessageCircle /> WhatsApp
             </a>

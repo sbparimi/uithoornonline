@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useDict } from './lang-context';
 
 export function AdminVerifyButton({ businessId }: { businessId: string }) {
+  const a = useDict().admin;
   const [loading, setLoading] = useState(false);
   async function verify() {
     setLoading(true);
@@ -10,5 +12,5 @@ export function AdminVerifyButton({ businessId }: { businessId: string }) {
     setLoading(false);
     if (response.ok) window.location.reload();
   }
-  return <button className="compact-button" onClick={verify} disabled={loading}>{loading ? 'Bezig…' : 'Verifiëren'}</button>;
+  return <button className="compact-button" onClick={verify} disabled={loading}>{loading ? a.busy : a.verify}</button>;
 }
