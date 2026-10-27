@@ -259,6 +259,51 @@ a.f-card:hover .f-card-cta svg { transform: translateX(3px); }
   @keyframes f-rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
 }
 
+
+/* ==========================================================================
+   Sitewide: older page CSS harmonised to the folk look
+   ========================================================================== */
+.folk .ds-page, .folk .ds-page :is(div, section, article, aside, ul, ol, form, fieldset, nav, header, footer, p, li, span, a, label, small, strong, b, em, dd, dt, td, th, input, textarea, select, button, legend, figcaption, blockquote, h1, h2, h3, h4, h5, h6) { font-family: var(--f-serif) !important; }
+.folk .ds-page .f-phone-screen, .folk .ds-page .f-phone-screen *, .folk .ds-page .f-bubble { font-family: var(--f-sans) !important; }
+.folk .ds-page .ds-kicker, .folk .ds-page .uo-kicker, .folk .ds-page .easy-label, .folk .ds-page .business-kicker, .folk .ds-page .f-sticker-hand, .folk .ds-page .f-mock-note, .folk .ds-page .f-plans-note { font-family: var(--f-hand) !important; }
+.folk .ds-page .uo-kicker::before, .folk .ds-page .business-kicker::before, .folk .ds-page .easy-label::before { display: none !important; }
+.folk .ds-page :is(p, li, span, small, a, label, dd, dt, strong, b) { letter-spacing: normal; }
+.folk .ds-page h1 { letter-spacing: -.035em; font-weight: 700; }
+.folk .ds-page h2 { letter-spacing: -.025em; }
+
+/* page heroes: no tinted bands, folk's white glow on cool grey */
+.folk .ds-page :is(.uo-directory-hero, .business-hero, .discovery-hero, .contribution-hero, .request-intro, .ds-simple-hero, .uo-provider-hero, .food-hero) { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.folk .ds-page :is(.uo-directory, .discovery-page, .contribution-page, .business-page, .uo-easy-home, .request-page, .platform-shell) { background: transparent !important; }
+
+/* cards & panels */
+.folk .ds-page :is(.directory-provider-card, .pricing-card, .platform-card, .request-form-shell, .uo-provider-profile-card, .business-benefit-grid article, .ds-empty-card, .contact-card, .legal, .settings-stack > section, .admin-row-card, .discovery-card, .deal-card, .job-card) { background: #fff !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--f-shadow-sm), 0 18px 40px -28px rgba(20,40,90,.35) !important; }
+.folk .ds-page a.directory-provider-card:hover, .folk .ds-page .directory-provider-card:hover { transform: translateY(-2px); box-shadow: var(--f-shadow-lg) !important; }
+.folk .ds-page .pricing-card.featured { background: var(--f-card) !important; box-shadow: 0 0 0 2px var(--f-blue), var(--f-shadow-lg) !important; }
+.folk .ds-page .pricing-badge { background: linear-gradient(180deg, var(--f-blue-top), var(--f-blue-bot)) !important; color: #fff !important; border-radius: 9999px; border: 0 !important; }
+.folk .ds-page .pricing-price strong { font-size: 44px; letter-spacing: -.04em; color: var(--f-ink); }
+.folk .ds-page .pricing-card li svg, .folk .ds-page .business-benefit-grid svg, .folk .ds-page .business-lead-flow svg, .folk .ds-page .request-form-icon svg { color: var(--f-blue) !important; }
+.folk .ds-page .whatsapp-payment-note, .folk .ds-page .uo-provider-trust { background: var(--f-card) !important; border: 0 !important; border-radius: 22px !important; color: var(--f-ink) !important; }
+.folk .ds-page .business-final-cta, .folk .ds-page .business-lead-engine { background: #fff !important; border-radius: 36px !important; border: 0 !important; box-shadow: var(--f-shadow-lg) !important; color: var(--f-ink) !important; }
+.folk .ds-page .business-final-cta :is(h2, p, span), .folk .ds-page .business-lead-engine :is(h2, p, strong, span) { color: inherit; }
+.folk .ds-page .business-final-cta p, .folk .ds-page .business-lead-engine p { color: var(--f-grey) !important; }
+.folk .ds-page .directory-provider-avatar { background: var(--f-card) !important; color: var(--f-blue) !important; border-radius: 18px !important; box-shadow: inset 0 0 0 1px #fff, var(--f-shadow-sm); }
+.folk .ds-page .directory-provider-verified { color: var(--f-blue) !important; background: #eef3fe !important; border-radius: 9999px; }
+
+/* forms */
+.folk .ds-page :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="search"], input[type="url"], input[type="number"], input:not([type]), select, textarea) { border: 1px solid rgba(3,0,3,.1) !important; border-radius: 14px !important; background: #fff !important; box-shadow: inset 0 1px 2px rgba(3,0,3,.04) !important; color: var(--f-ink) !important; font-size: 16px !important; }
+.folk .ds-page .f-search input { border: 0 !important; box-shadow: none !important; background: transparent !important; }
+.folk .ds-page :is(input, select, textarea):focus { outline: none !important; border-color: #8fb0ff !important; box-shadow: 0 0 0 3px rgba(50,98,232,.18) !important; }
+.folk .ds-page label { color: var(--f-ink); font-weight: 700; }
+.folk .ds-page .uo-directory-search { border-radius: 18px !important; border: 0 !important; box-shadow: var(--f-shadow-lg) !important; background: #fff !important; }
+.folk .ds-page .uo-directory-search input { border: 0 !important; box-shadow: none !important; }
+.folk .ds-page :is(.discovery-secondary, a.secondary, .business-secondary-cta) { background: #fff !important; color: var(--f-ink) !important; border: 0 !important; border-radius: 14px !important; box-shadow: var(--f-shadow-sm), inset 0 -3px 0 rgba(3,0,3,.07) !important; }
+.folk .ds-page :is(button.primary, a.primary, .discovery-primary, .directory-search-submit, .business-main-cta, .pricing-button) { border-radius: 14px !important; font-weight: 700 !important; }
+.folk .ds-page .admin-tabs a { border: 0; background: rgba(120,120,128,.12); color: var(--f-grey); font-family: var(--f-serif); }
+.folk .ds-page .admin-tabs a.active { background: #fff; color: var(--f-ink); box-shadow: var(--f-shadow-sm); }
+.folk .ds-page .platform-shell { max-width: 1100px; }
+.folk .ds-page .legal-draft { background: #fff8db !important; border: 0 !important; border-radius: 20px !important; }
+.folk .ds-page .discovery-hero-art.orange { color: var(--f-blue) !important; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 1080px) {
   .f-s2, .f-s6 { display: none; }
