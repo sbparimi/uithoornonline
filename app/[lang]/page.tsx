@@ -72,24 +72,6 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       <SiteHeader />
       <main id="main">
         <section className="f-hero">
-          <div className="f-hero-copy">
-            <p className="f-hero-place"><i aria-hidden="true" />{h.eyebrow}</p>
-            <h1>{h.h1a} <span>{h.h1b}</span></h1>
-            <p className="f-hero-intro">{h.intro}</p>
-            <form className="f-search" action={lp(lang, '/businesses')} method="get" role="search">
-              <Search aria-hidden="true" />
-              <input name="search" type="search" placeholder={h.searchPlaceholder} aria-label={h.searchLabel} autoComplete="off" enterKeyHint="search" />
-              <button type="submit" className="btn btn-primary">{h.searchButton}</button>
-            </form>
-            <div className="f-quick">
-              {h.quick.map(([label, q]) => <a key={label} href={search(q)}>{label}</a>)}
-            </div>
-            <div className="f-hero-ctas">
-              <a className="f-btn f-btn-dark" href={lp(lang, '/request')}>{h.orDescribeLink} <ArrowRight aria-hidden="true" /></a>
-              <a className="f-btn f-btn-white" href={lp(lang, '/voor-bedrijven')}>{h.bizKicker}</a>
-            </div>
-          </div>
-
           <div className="f-stage" aria-hidden="true">
             <div className="f-sticker f-sticker-emoji f-s1">🔧</div>
             <div className="f-sticker f-sticker-yellow f-s2"><small>{m.leadKicker}</small><strong>{m.leadTitle}</strong><span>{m.leadText}</span></div>
@@ -118,6 +100,25 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
             </div>
             <p className="f-mock-note">{m.note}</p>
           </div>
+
+          <div className="f-hero-copy">
+            <p className="f-hero-place"><i aria-hidden="true" />{h.eyebrow}</p>
+            <h1>{h.h1a} <span>{h.h1b}</span></h1>
+            <p className="f-hero-intro">{h.intro}</p>
+            <form className="f-search" action={lp(lang, '/businesses')} method="get" role="search">
+              <Search aria-hidden="true" />
+              <input name="search" type="search" placeholder={h.searchPlaceholder} aria-label={h.searchLabel} autoComplete="off" enterKeyHint="search" />
+              <button type="submit" className="btn btn-primary">{h.searchButton}</button>
+            </form>
+            <div className="f-quick">
+              {h.quick.map(([label, q]) => <a key={label} href={search(q)}>{label}</a>)}
+            </div>
+            <div className="f-hero-ctas">
+              <a className="f-btn f-btn-dark" href={lp(lang, '/request')}>{h.orDescribeLink} <ArrowRight aria-hidden="true" /></a>
+              <a className="f-btn f-btn-white" href={lp(lang, '/voor-bedrijven')}>{h.bizKicker}</a>
+            </div>
+          </div>
+
         </section>
 
         <section className="f-section-tight" aria-label={h.actionsLabel}>
