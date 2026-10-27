@@ -1,21 +1,22 @@
 # Uithoorn.online
 
-Uithoorn.online is a modern local marketplace and community platform for Uithoorn and De Kwakel.
-
-## Product areas
-- Local businesses and services
-- Local requests and lead generation
-- Jobs and opportunities
-- Events and local agenda
-- Deals and promotions
-- Community discovery
+Local marketplace and community platform for Uithoorn and De Kwakel: local businesses, requests and leads, jobs, events, deals.
 
 ## Stack
-Next.js, React, TypeScript, responsive CSS, Vercel and GitHub.
+Next.js 15 (App Router), React, TypeScript, Postgres on Neon (EU, Frankfurt), Vercel, Resend for email, Vercel Analytics (cookieless).
 
-## Agent architecture
-The local agent uses an LLM orchestrator to understand intent and route to a specialist, followed by specialist flow-graph execution, slot filling, grounded tool/search execution and response rendering.
+## Getting started
+```bash
+cp .env.example .env.local        # fill DATABASE_URL / DATABASE_URL_UNPOOLED
+npm install
+npm run db:migrate                # applies db/migrations/*.sql in order (tracked in schema_migrations)
+npm run db:seed                   # the two real businesses (SpiceIndia, Ruslen); safe to re-run
+npm run dev
+```
+Create the first admin: sign up on the site, then `DATABASE_URL=... npm run db:make-admin -- you@example.com`.
+There is deliberately no web path to become admin.
 
-Before non-emergency agent processing, the chat collects the user's name, email, phone number and address including house number. The API enforces this requirement server-side; genuine emergencies bypass contact collection so safety guidance is never delayed.
-
-The application is intentionally database-ready; transactional data and authentication can be connected as the product model matures.
+## Docs
+- `docs/BACKEND.md`: auth, roles, authorization rules, rate limits, lead limits, email, cron, payments seam
+- `docs/BACKUPS.md`: Neon point-in-time restore and pg_dump backups
+- `npm run test:security`: end-to-end authorization test against a running server (see the script header)

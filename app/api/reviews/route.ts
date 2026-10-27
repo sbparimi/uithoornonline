@@ -1,23 +1,22 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase/server';
+import { errorJson, handle, json, readJson, sameOrigin, str } from '@/lib/http';
+import { requireUser } from '@/lib/auth/session';
+import { LIMITS, rateLimit } from '@/lib/security/rate-limit';
+import { createReview } from '@/lib/data/reviews';
+import { notify } from '@/lib/notify';
 
 export async function POST(request: Request) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'login_required' }, { status: 401 });
-    const body = await request.json();
-    const conversationId = String(body.conversationId || '').trim();
+  return handle(async () => {
+    if (!sameOrigin(request)) return errorJson('bad_origin', 403);
+    const user = await requireUser();
+    const limit = await rateLimit('review-user', user.id, LIMITS.reviewUser);
+    if (!limit.ok) return errorJson('rate_limited', 429);
+    const body = await readJson(request);
     const rating = Number(body.rating);
-    const reviewBody = String(body.body || '').trim();
-    if (!conversationId || !Number.isInteger(rating) || rating < 1 || rating > 5 || reviewBody.length > 1000) return NextResponse.json({ error: 'invalid_review' }, { status: 400 });
-    const { data: conversation } = await supabase.from('conversations').select('id,request_id,customer_id,business_id,status').eq('id', conversationId).eq('customer_id', user.id).eq('status', 'completed').maybeSingle();
-    if (!conversation) return NextResponse.json({ error: 'review_not_allowed' }, { status: 403 });
-    const { data, error } = await supabase.from('reviews').insert({ conversation_id: conversation.id, request_id: conversation.request_id, business_id: conversation.business_id, customer_id: user.id, rating, body: reviewBody }).select('id').single();
-    if (error) return NextResponse.json({ error: error.code === '23505' ? 'already_reviewed' : 'review_save_failed' }, { status: error.code === '23505' ? 409 : 500 });
-    return NextResponse.json({ id: data.id }, { status: 201 });
-  } catch (error) {
-    console.error('[reviews] request failed', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'review_save_failed' }, { status: 500 });
-  }
+    const text = str(body.body, 1000);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return errorJson('invalid_review', 400);
+    const result = await createReview(user, str(body.conversationId, 40), rating, text);
+    if ('error' in result) return errorJson(result.error!, result.error === 'already_reviewed' ? 409 : 403);
+    void notify('new_review', `${rating}/5 voor ${result.businessName}`, { reviewId: result.id, text });
+    return json({ id: result.id }, 201);
+  }, 'reviews');
 }

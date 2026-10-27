@@ -1,0 +1,37 @@
+/* Styles for screens added in tab/backend-hardening (admin, settings, legal placeholders). */
+.ds-page .legal-placeholder { background: #fff3c4; color: #5c4210; padding: 0 4px; border-radius: 4px; font-weight: 600; }
+.ds-page .platform-note { font-size: 14px; color: var(--ds-muted); margin: 6px 0; }
+.ds-page .platform-notice { margin: 16px 0; padding: 14px 16px; border-radius: var(--ds-radius); background: #fff7e6; border: 1px solid #f1d39a; color: #5c4210; }
+.ds-page .platform-notice p { margin: 4px 0 0; }
+.ds-page .platform-usage { margin: 8px 0 18px; font-weight: 600; color: var(--ds-ink-2); }
+.ds-page .platform-head-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.ds-page .checkbox-row { display: flex !important; flex-direction: row !important; gap: 10px; align-items: flex-start; font-weight: 400; }
+.ds-page .checkbox-row input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+.ds-page .link-button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font: inherit; color: var(--ds-green); text-decoration: underline; }
+.ds-page .lead-locked { opacity: .9; border-style: dashed !important; }
+.ds-page .settings-stack { display: grid; gap: 20px; max-width: 720px; }
+.ds-page .danger-zone { border-color: #f0c2c2 !important; }
+.ds-page .danger-button { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 46px; padding: 0 18px; border-radius: 999px; border: 1px solid #b42318; background: #fff; color: #b42318; font-weight: 700; cursor: pointer; }
+.ds-page .danger-button:hover { background: #fef3f2; }
+.ds-page .danger-button svg { width: 18px; height: 18px; }
+.ds-page .admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.ds-page .admin-tabs a { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--ds-line); color: var(--ds-ink); text-decoration: none; font-weight: 600; font-size: 14px; }
+.ds-page .admin-tabs a.active { background: var(--ds-green); border-color: var(--ds-green); color: #fff; }
+.ds-page .admin-section h2 { margin: 18px 0 10px; font-size: 18px; }
+.ds-page .admin-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--ds-line); }
+.ds-page .admin-row.is-hidden { opacity: .55; }
+.ds-page .admin-row h3 { margin: 6px 0 4px; font-size: 16px; }
+.ds-page .admin-row p { margin: 2px 0; font-size: 14px; color: var(--ds-muted); overflow-wrap: anywhere; }
+.ds-page .admin-row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ds-page .admin-inline-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+.ds-page .admin-inline-form input, .ds-page .admin-inline-form select { min-height: 36px; padding: 4px 10px; border: 1px solid var(--ds-line); border-radius: 8px; font: inherit; font-size: 14px; max-width: 220px; }
+.ds-page .admin-btn { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ds-line); background: #fff; color: var(--ds-ink); font-weight: 600; font-size: 13px; cursor: pointer; }
+.ds-page .admin-btn:hover { border-color: var(--ds-green); }
+.ds-page .admin-btn.danger { color: #b42318; border-color: #f0c2c2; }
+.ds-page .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; display: block; overflow-x: auto; }
+.ds-page .admin-table th, .ds-page .admin-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ds-line); white-space: nowrap; }
+.ds-page .admin-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ds-page .admin-stats span { text-transform: capitalize; }
+@media (min-width: 900px) { .ds-page .admin-row { grid-template-columns: minmax(0, 1fr) auto; align-items: start; } .ds-page .admin-row-actions { justify-content: flex-end; max-width: 520px; } }
+.ds-page .business-growth-card a { background: #fff !important; color: var(--ds-green) !important; display: inline-flex; gap: 8px; align-items: center; font-weight: 700; }
+.ds-page .business-growth-card a svg { color: var(--ds-green) !important; }
