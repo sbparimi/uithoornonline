@@ -49,6 +49,7 @@ export function SiteFooter({ lang }: { lang: Locale }) {
           <a href={lp(lang, '/contact')}>{f.contact}</a>
         </nav>
       </div>
+      <span className="f-wordmark" aria-hidden="true">uithoorn.online</span>
     </footer>
   );
 }

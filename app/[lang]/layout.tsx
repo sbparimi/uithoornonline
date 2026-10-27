@@ -25,6 +25,8 @@ import '../business-monetization.css';
 import '../monetization-overrides.css';
 import '../design-system.css';
 import '../backend.css';
+import '../folk.css';
+import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/next';
 import { LangProvider } from '../../components/lang-context';
@@ -32,11 +34,22 @@ import { SpiceIndiaAd } from '../../components/spiceindia-ad';
 import { alternatesFor, isLocale, locales, ogLocale, SITE_URL, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 
+const folkSerif = localFont({
+  src: [
+    { path: '../fonts/averia-serif-libre-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/averia-serif-libre-700.woff2', weight: '700', style: 'normal' },
+  ],
+  variable: '--font-serif',
+  display: 'swap',
+  fallback: ['Georgia', 'serif'],
+});
+const folkHand = localFont({ src: '../fonts/caveat-600.woff2', weight: '600', variable: '--font-hand', display: 'swap', fallback: ['cursive'] });
+
 export function generateStaticParams() {
   return locales.map((lang) => ({ lang }));
 }
 
-export const viewport: Viewport = { themeColor: '#0b6e3f', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#f5f6f8', width: 'device-width', initialScale: 1 };
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: raw } = await params;
@@ -60,8 +73,8 @@ export default async function RootLayout({ children, params }: Readonly<{ childr
   if (!isLocale(lang)) notFound();
   const t = getDictionary(lang);
   return (
-    <html lang={lang === 'nl' ? 'nl-NL' : 'en'}>
-      <body className="ds">
+    <html lang={lang === 'nl' ? 'nl-NL' : 'en'} className={`${folkSerif.variable} ${folkHand.variable}`}>
+      <body className="ds folk">
         <a className="skip-link" href="#main">{t.common.skip}</a>
         <LangProvider lang={lang}>
           {children}
