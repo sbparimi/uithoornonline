@@ -157,15 +157,14 @@ body.folk ::selection { background: #cfe0ff; }
 .f-phone-head small { font: 400 10px/1 var(--f-sans); color: #8e8e93; }
 .f-chat { flex: 1; display: flex; flex-direction: column; gap: 7px; padding: 12px 11px; overflow: hidden; }
 .f-chat-day { align-self: center; font: 600 10px/1 var(--f-sans); color: #8e8e93; margin: 2px 0 4px; }
-.f-b { max-width: 82%; padding: 8px 12px; border-radius: 18px; font: 400 13px/1.3 var(--f-sans); opacity: 0; transform: translateY(8px) scale(.98); animation: f-pop .45s var(--f-ease) forwards; }
+.f-b { max-width: 82%; padding: 8px 12px; border-radius: 18px; font: 400 13px/1.3 var(--f-sans); animation: f-bub .42s var(--f-ease) both; }
 .f-b-in { align-self: flex-start; background: #e9e9eb; color: #111; border-bottom-left-radius: 6px; }
 .f-b-out { align-self: flex-end; color: #fff; background: linear-gradient(180deg, #4f86ff, #2f62e0); border-bottom-right-radius: 6px; }
 .f-b-card { align-self: flex-start; width: 86%; background: #fff; color: #111; border: 1px solid #ececf0; border-radius: 16px; box-shadow: 0 6px 16px -10px rgba(20,40,90,.35); padding: 10px 12px; }
 .f-b-card b { display: block; font: 700 12px/1.2 var(--f-sans); margin-bottom: 3px; }
 .f-b-card span { display: block; color: #6b6b72; font-size: 11.5px; }
 .f-b-card em { font-size: 10.5px !important; display: inline-flex; margin-top: 7px; font-style: normal; font: 700 11px/1 var(--f-sans); color: #fff; background: #22a35a; padding: 5px 8px; border-radius: 9999px; }
-.f-b:nth-child(2) { animation-delay: .25s; } .f-b:nth-child(3) { animation-delay: .9s; } .f-b:nth-child(4) { animation-delay: 1.6s; } .f-b:nth-child(5) { animation-delay: 2.3s; } .f-b:nth-child(6) { animation-delay: 3s; }
-.f-typing { align-self: flex-start; display: inline-flex; gap: 4px; padding: 10px 12px; background: #e9e9eb; border-radius: 18px; opacity: 0; animation: f-pop .4s var(--f-ease) 3.6s forwards; }
+.f-typing { align-self: flex-start; display: inline-flex; gap: 4px; padding: 10px 12px; background: #e9e9eb; border-radius: 18px; animation: f-pop .3s var(--f-ease) both; }
 .f-typing i { width: 6px; height: 6px; border-radius: 50%; background: #9a9aa0; animation: f-dot 1.2s infinite; }
 .f-typing i:nth-child(2) { animation-delay: .15s; } .f-typing i:nth-child(3) { animation-delay: .3s; }
 .f-phone-input { margin: 0 10px 14px; display: flex; align-items: center; gap: 8px; border: 1px solid #e3e3e8; border-radius: 9999px; padding: 7px 7px 7px 13px; font: 400 12px/1 var(--f-sans); color: #a0a0a8; }
@@ -359,4 +358,90 @@ a.f-card:hover .f-card-cta svg { transform: translateX(3px); }
   .f-sticker, .f-typing i { animation: none !important; }
   .f-b, .f-typing { animation: none !important; opacity: 1 !important; transform: none !important; }
   .f-reveal { animation: none !important; }
+}
+
+/* ---------- v2 hero: live example chat, app feel, real-people photo stickers ---------- */
+@keyframes f-bub { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes f-grow { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
+.f-chatwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.f-chat { flex: 1; min-height: 0; display: block; position: relative; gap: 0; padding: 0; transition: opacity .38s var(--f-ease), transform .38s var(--f-ease); }
+.f-chat.leaving { opacity: 0; transform: translateY(-14px); }
+.f-chat-list { display: flex; flex-direction: column; padding: 10px 11px 10px; will-change: transform; }
+.f-chat-day { margin: 0 0 4px; }
+.f-m { display: grid; grid-template-rows: 1fr; animation: f-grow .38s var(--f-ease) both; flex-shrink: 0; }
+.f-m-in { min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding-top: 7px; }
+.f-b-in small { display: block; font: 700 10px/1.2 var(--f-sans); color: #2f62e0; margin-bottom: 2px; }
+.f-b-ok { align-self: center; max-width: 92%; background: #e6f6ec; color: #18794e; font: 700 11.5px/1.2 var(--f-sans); border-radius: 9999px; padding: 6px 11px; white-space: nowrap; }
+.f-b-card em { margin-top: 6px; }
+/* app-style header */
+.f-phone-head { flex-direction: row; align-items: center; gap: 8px; padding: 12px 12px 9px; }
+.f-phone-back { font: 400 26px/1 var(--f-sans); color: #2f62e0; margin: -3px 0 0 -2px; }
+.f-appicon { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(160deg, #6a93f5 0%, #2f62e0 55%, #2448b8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px -2px rgba(30,60,160,.5); flex-shrink: 0; }
+.f-appicon svg { width: 62%; height: 62%; }
+.f-phone-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+.f-phone-titles strong { font: 700 13px/1.1 var(--f-sans); color: #111; }
+.f-phone-titles small { font: 400 10px/1.1 var(--f-sans); color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-phone-sig { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.f-phone-sig i { width: 3px; background: #000; border-radius: 1px; } .f-phone-sig i:nth-child(1) { height: 5px; } .f-phone-sig i:nth-child(2) { height: 8px; } .f-phone-sig i:nth-child(3) { height: 11px; }
+.f-phone-sig b { width: 20px; height: 10px; margin-left: 5px; border-radius: 3px; border: 1.5px solid #000; background: linear-gradient(90deg, #000 70%, transparent 70%); background-clip: content-box; padding: 1px; box-sizing: border-box; }
+.f-phone-input { margin-bottom: 6px; }
+.f-phone-home { display: block; width: 92px; height: 4px; border-radius: 4px; background: #111; margin: 2px auto 7px; flex-shrink: 0; }
+/* push notification banner (business side gets the lead) */
+.f-push { position: absolute; z-index: 5; top: 40px; left: 7px; right: 7px; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 16px; background: rgba(246,246,248,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 10px 24px -10px rgba(10,20,60,.45); transform: translateY(-160%) scale(.96); opacity: 0; transition: transform .5s var(--f-ease), opacity .35s; pointer-events: none; }
+.f-push.on { transform: translateY(0); opacity: 1; }
+.f-push .f-appicon { width: 28px; height: 28px; border-radius: 8px; }
+.f-push div { min-width: 0; }
+.f-push small { display: block; font: 600 9px/1.2 var(--f-sans); color: #8e8e93; letter-spacing: .02em; }
+.f-push span { display: block; font: 600 11.5px/1.25 var(--f-sans); color: #111; }
+/* home-screen app icon among the stickers */
+.f-homeicon { position: absolute; z-index: 2; left: 27.5%; top: 52px; display: flex; flex-direction: column; align-items: center; gap: 6px; transform: rotate(-6deg); animation: f-float 7s ease-in-out infinite; animation-delay: -3.5s; }
+.f-homeicon .f-appicon { width: 64px; height: 64px; border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 4px #fff, 0 14px 26px -10px rgba(20,40,90,.45); }
+.f-homeicon span { font: 600 11px/1 var(--f-sans); color: var(--f-grey); white-space: nowrap; }
+/* die-cut photo stickers of real people */
+.f-photo { margin: 0; width: 148px; padding: 6px 6px 0; border-radius: 20px; }
+.f-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 15px; background: #e9eaee; }
+.f-photo figcaption { font: 600 21px/1 var(--f-hand); color: var(--f-ink); text-align: center; padding: 6px 4px 8px; white-space: nowrap; }
+.f-p-plumber { left: 3%; top: 4px; --r: -7deg; --d: -1s; }
+.f-p-gardener { left: 0.5%; top: 330px; --r: 5deg; --d: -5s; }
+.f-p-painter { left: 21%; top: 404px; --r: -4deg; --d: -2s; width: 134px; }
+.f-p-electrician { right: 21%; top: 92px; --r: 6deg; --d: -6s; width: 138px; }
+.f-p-cleaner { right: 1.5%; top: 104px; --r: -5deg; --d: -3s; }
+.f-p-cook { right: 23.5%; top: 392px; --r: -6deg; --d: -4.5s; width: 134px; }
+.f-s2 { left: 15.5%; top: 236px; }
+.f-s7 { right: 2%; top: 360px; }
+@media (max-width: 1080px) {
+  .f-p-painter, .f-p-cook, .f-homeicon { display: none; }
+  .f-s2 { display: none; }
+  .f-p-plumber { left: 1%; } .f-p-gardener { left: 3%; top: 300px; } .f-p-electrician { right: 1%; top: 110px; } .f-p-cleaner { display: none; }
+  .f-s7 { right: 1%; top: 380px; }
+}
+@media (max-width: 760px) {
+  .f-chat-list { padding: 8px 9px 8px; }
+  .f-m-in { padding-top: 6px; }
+  .f-b-in small { font-size: 9px; }
+  .f-b-ok { font-size: 9.5px; padding: 5px 8px; max-width: 100%; }
+  .f-phone-head { padding: 10px 10px 7px; gap: 6px; }
+  .f-phone-head .f-appicon { width: 28px; height: 28px; border-radius: 8px; }
+  .f-phone-titles strong { font-size: 11.5px; } .f-phone-titles small { font-size: 9px; }
+  .f-phone-back { font-size: 22px; }
+  .f-push { top: 33px; left: 5px; right: 5px; padding: 7px 8px; gap: 6px; border-radius: 13px; }
+  .f-push .f-appicon { width: 22px; height: 22px; border-radius: 6px; }
+  .f-push small { font-size: 8px; } .f-push span { font-size: 10px; }
+  .f-phone-input { margin: 0 8px 5px; }
+  .f-phone-home { width: 76px; margin-bottom: 6px; }
+  .f-stage { padding-top: 46px; }
+  .f-phone { width: 226px; height: 470px; }
+  .f-sticker.f-photo { width: 66px; padding: 3px 3px 0; border-radius: 12px; box-shadow: 0 0 0 3px #fff, 0 10px 20px -10px rgba(20,40,90,.45); transform: rotate(var(--r)); }
+  .f-photo img { border-radius: 9px; }
+  .f-photo figcaption { font-size: 11px; letter-spacing: -.02em; padding: 4px 0 5px; overflow: visible; }
+  .f-p-plumber { left: 6px; top: 96px; right: auto; display: block; }
+  .f-p-gardener { left: 5px; top: 352px; right: auto; display: block; }
+  .f-p-electrician { right: 6px; left: auto; top: 176px; display: block; }
+  .f-p-painter { right: 5px; left: auto; top: 420px; display: block; }
+  .f-sticker.f-s5 { top: 4px; right: 10px; transform: rotate(var(--r)) scale(.78); transform-origin: right top; }
+  .f-p-cleaner, .f-p-cook, .f-homeicon { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f-m, .f-b, .f-typing, .f-homeicon { animation: none !important; }
+  .f-chat, .f-push { transition: none !important; }
 }

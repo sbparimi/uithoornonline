@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
-import { ArrowRight, ChevronRight, MapPin, MessageCircle, Search } from 'lucide-react';
+import { ArrowRight, ChevronRight, MessageCircle, Search } from 'lucide-react';
 import { SiteHeader } from '../../components/site-header';
 import { SiteFooter } from '../../components/site-footer';
 import { isLocale, lp, seo, SITE_URL, whatsappHref, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
+import { AppIcon, HeroChat, type ChatScript } from '../../components/hero-chat';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: raw } = await params;
@@ -23,6 +24,31 @@ const mock = {
     leadKicker: 'Nieuwe lead', leadTitle: 'Loodgieter gezocht', leadText: 'Uithoorn · deze week',
     free: 'gratis voor bewoners!', bizKicker: 'Voor bedrijven', bizTitle: '3 leads per maand gratis', bizText: 'Pro €29 · Pro+ €59',
     bubbles: ['Loodgieter in de buurt?', 'Mijn heg moet gesnoeid worden 🌿', 'Alleen uit de buurt 📍', 'Eerst bekeken ✓'],
+    appName: 'uithoorn.online', appSub: 'Voorbeeld · Uithoorn & De Kwakel', pushNow: 'nu',
+    pros: { plumber: 'Loodgieter', gardener: 'Hovenier', electrician: 'Elektricien', painter: 'Schilder', cleaner: 'Schoonmaak', handyman: 'Klusjesman', cook: 'Thuiskok' },
+    scripts: [
+      { push: 'Nieuwe lead: loodgieter in Uithoorn', msgs: [
+        { k: 'out', text: 'Hoi! Mijn kraan lekt. Wie kan deze week langskomen in Uithoorn?' },
+        { k: 'card', title: 'Hulpvraag geplaatst', text: 'Loodgieter · Uithoorn · deze week', badge: 'Gedeeld met lokale bedrijven' },
+        { k: 'in', from: 'Loodgieter · Uithoorn', text: 'Hoi! Ik zit hier in de buurt. Donderdag om 10:00 kan ik langskomen.' },
+        { k: 'out', text: 'Top, tot donderdag! 👍' },
+        { k: 'ok', text: '✓ Afspraak bevestigd · do 10:00' },
+      ] },
+      { push: 'Nieuwe lead: hovenier in De Kwakel', msgs: [
+        { k: 'out', text: 'Wie kan mijn heg snoeien in De Kwakel? Liefst zaterdag.' },
+        { k: 'card', title: 'Hulpvraag geplaatst', text: 'Hovenier · De Kwakel · zaterdag', badge: 'Gedeeld met lokale bedrijven' },
+        { k: 'in', from: 'Hovenier · De Kwakel', text: 'Goedemorgen! Zaterdag om 9:00 past. Stuur je even een foto van de heg? 🌿' },
+        { k: 'out', text: 'Zeker, komt eraan 📷' },
+        { k: 'ok', text: '✓ Afspraak bevestigd · za 9:00' },
+      ] },
+      { push: 'Nieuwe lead: schilder in Uithoorn', msgs: [
+        { k: 'out', text: 'Ik zoek een schilder voor mijn kozijnen, ergens in november.' },
+        { k: 'card', title: 'Hulpvraag geplaatst', text: 'Schilder · Uithoorn · november', badge: 'Gedeeld met lokale bedrijven' },
+        { k: 'in', from: 'Schilder · Uithoorn', text: 'Hoi! Ik kom dinsdag graag vrijblijvend kijken voor een offerte.' },
+        { k: 'out', text: 'Prima, dinsdag is goed!' },
+        { k: 'ok', text: '✓ Afspraak bevestigd · di 16:00' },
+      ] },
+    ] as ChatScript[],
     plansKicker: 'Abonnementen', single: 'Losse lead €10', viaWa: 'alles via WhatsApp, geen checkout',
   },
   en: {
@@ -34,9 +60,38 @@ const mock = {
     leadKicker: 'New lead', leadTitle: 'Plumber wanted', leadText: 'Uithoorn · this week',
     free: 'free for residents!', bizKicker: 'For businesses', bizTitle: '3 leads a month free', bizText: 'Pro €29 · Pro+ €59',
     bubbles: ['A plumber nearby?', 'My hedge needs trimming 🌿', 'Only from around here 📍', 'Checked first ✓'],
+    appName: 'uithoorn.online', appSub: 'Example · Uithoorn & De Kwakel', pushNow: 'now',
+    pros: { plumber: 'Plumber', gardener: 'Gardener', electrician: 'Electrician', painter: 'Painter', cleaner: 'Cleaner', handyman: 'Handyman', cook: 'Home cook' },
+    scripts: [
+      { push: 'New lead: plumber in Uithoorn', msgs: [
+        { k: 'out', text: 'Hi! My tap is leaking. Who can come by in Uithoorn this week?' },
+        { k: 'card', title: 'Request posted', text: 'Plumber · Uithoorn · this week', badge: 'Shared with local businesses' },
+        { k: 'in', from: 'Plumber · Uithoorn', text: 'Hi! I’m nearby. I can come by on Thursday at 10:00.' },
+        { k: 'out', text: 'Great, see you Thursday! 👍' },
+        { k: 'ok', text: '✓ Appointment confirmed · Thu 10:00' },
+      ] },
+      { push: 'New lead: gardener in De Kwakel', msgs: [
+        { k: 'out', text: 'Who can trim my hedge in De Kwakel? Saturday if possible.' },
+        { k: 'card', title: 'Request posted', text: 'Gardener · De Kwakel · Saturday', badge: 'Shared with local businesses' },
+        { k: 'in', from: 'Gardener · De Kwakel', text: 'Morning! Saturday at 9:00 works. Could you send a photo of the hedge? 🌿' },
+        { k: 'out', text: 'Sure, sending one now 📷' },
+        { k: 'ok', text: '✓ Appointment confirmed · Sat 9:00' },
+      ] },
+      { push: 'New lead: painter in Uithoorn', msgs: [
+        { k: 'out', text: 'Looking for a painter for my window frames, sometime in November.' },
+        { k: 'card', title: 'Request posted', text: 'Painter · Uithoorn · November', badge: 'Shared with local businesses' },
+        { k: 'in', from: 'Painter · Uithoorn', text: 'Hi! Happy to come by on Tuesday for a free quote.' },
+        { k: 'out', text: 'Perfect, Tuesday works!' },
+        { k: 'ok', text: '✓ Appointment confirmed · Tue 16:00' },
+      ] },
+    ] as ChatScript[],
     plansKicker: 'Plans', single: 'Single lead €10', viaWa: 'all via WhatsApp, no checkout',
   },
 } as const;
+
+const photos = [
+  { key: 'plumber' }, { key: 'gardener' }, { key: 'painter' }, { key: 'electrician' }, { key: 'cleaner' }, { key: 'cook' },
+] as const;
 
 const serviceEmoji = ['🌿', '🧽', '🚚', '💇', '🔨', '🔧', '🍛', '🚲'];
 const planKeys = ['free', 'pro', 'pro_plus'] as const;
@@ -73,29 +128,29 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       <main id="main">
         <section className="f-hero">
           <div className="f-stage" aria-hidden="true">
-            <div className="f-sticker f-sticker-emoji f-s1">🔧</div>
+            {photos.map((ph) => (
+              <figure key={ph.key} className={`f-sticker f-photo f-p-${ph.key}`}>
+                <img src={`/img/pros/${ph.key}.webp`} alt="" width={360} height={450} loading="lazy" decoding="async" />
+                <figcaption>{m.pros[ph.key]}</figcaption>
+              </figure>
+            ))}
             <div className="f-sticker f-sticker-yellow f-s2"><small>{m.leadKicker}</small><strong>{m.leadTitle}</strong><span>{m.leadText}</span></div>
-            <div className="f-sticker f-sticker-round f-pin f-s3"><MapPin /><strong>De Kwakel</strong></div>
-            <div className="f-sticker f-sticker-emoji f-s4">🌷</div>
             <div className="f-sticker f-sticker-hand f-s5">{m.free}</div>
-            <div className="f-sticker f-sticker-emoji f-s6">🍛</div>
             <div className="f-sticker f-sticker-blue f-s7"><small>{m.bizKicker}</small><strong>{m.bizTitle}</strong><span>{m.bizText}</span></div>
-            <div className="f-sticker f-sticker-round f-pin f-s8"><MapPin /><strong>Uithoorn</strong></div>
+            <div className="f-homeicon"><AppIcon /><span>{m.appName}</span></div>
 
             <div className="f-phone">
               <div className="f-phone-screen">
                 <span className="f-phone-island" />
-                <div className="f-phone-status"><span>{m.status}</span><span>●●● ▮</span></div>
-                <div className="f-phone-head"><span className="f-phone-avatar">U</span><strong>{m.title}</strong><small>{m.sub}</small></div>
-                <div className="f-chat">
-                  <span className="f-chat-day">{m.day}</span>
-                  <div className="f-b f-b-out">{m.ask}</div>
-                  <div className="f-b f-b-card"><b>✓ {m.cardTitle}</b><span>{m.cardText}</span><em>{m.cardBadge}</em></div>
-                  <div className="f-b f-b-in">{m.reply}</div>
-                  <div className="f-b f-b-out">{m.thanks}</div>
-                  <div className="f-typing"><i /><i /><i /></div>
+                <div className="f-phone-status"><span>{m.status}</span><span className="f-phone-sig"><i /><i /><i /><b /></span></div>
+                <div className="f-phone-head">
+                  <span className="f-phone-back">‹</span>
+                  <AppIcon className="f-phone-appicon" />
+                  <span className="f-phone-titles"><strong>{m.appName}</strong><small>{m.appSub}</small></span>
                 </div>
+                <HeroChat scripts={m.scripts} day={m.day} pushLabel={m.appName.toUpperCase()} pushNow={m.pushNow} />
                 <div className="f-phone-input">{m.input}<b>↑</b></div>
+                <span className="f-phone-home" />
               </div>
             </div>
             <p className="f-mock-note">{m.note}</p>
