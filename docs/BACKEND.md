@@ -50,6 +50,7 @@ No online checkout. Plans are arranged through "Neem contact op" / WhatsApp and 
 implement `PaymentProvider`, add a webhook route, and set `payment_provider = 'mollie'`.
 
 ## Email and notifications
+See docs/ADMIN.md for the admin console, the Resend setup, inbound email and the DNS records.
 - `lib/email/send.ts` sends through Resend's HTTP API and logs every attempt in `email_outbox` (status `sent`,
   `failed` or `skipped` when no key is set).
 - `notify(event, summary, details)` in `lib/notify.ts` emails uithoorn.online@mail.tab.bot (and `OWNER_NOTIFY_EMAIL`

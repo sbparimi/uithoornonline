@@ -84,7 +84,7 @@ export async function sendEmailDetailed(email: Email): Promise<SendResult> {
         from: fromAddress(),
         to: recipients,
         ...(bcc ? { bcc: [bcc] } : {}),
-        subject: email.subject,
+        subject: `${process.env.EMAIL_SUBJECT_PREFIX || ''}${email.subject}`,
         text: email.text,
         html: email.html ?? textToHtml(email.text),
         reply_to: email.replyTo ?? CONTACT_EMAIL,
