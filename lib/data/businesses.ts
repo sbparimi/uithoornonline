@@ -104,3 +104,13 @@ export async function createBusinessForOwner(ownerId: string, input: Required<Pi
     return rows[0].id;
   });
 }
+
+/** Photos an admin added to a business (table business_photos, migration 0002). Empty when none or not migrated. */
+export async function getPublicBusinessPhotos(id: string): Promise<{ url: string; alt: string }[]> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return [];
+  try {
+    return await query<{ url: string; alt: string }>('select url, alt from business_photos where business_id = $1 order by sort, created_at limit 12', [id]);
+  } catch {
+    return [];
+  }
+}

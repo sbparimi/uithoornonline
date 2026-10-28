@@ -11,7 +11,8 @@
     "db:seed": "node scripts/db-seed.mjs",
     "db:make-admin": "node scripts/db-make-admin.mjs",
     "db:backup": "bash scripts/db-backup.sh",
-    "test:security": "node scripts/security-test.mjs"
+    "test:security": "node scripts/security-test.mjs",
+    "test:admin": "node scripts/admin-test.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^1.5.0",

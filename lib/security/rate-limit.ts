@@ -18,6 +18,9 @@ export const LIMITS = {
   reviewUser: { limit: 10, windowSeconds: 86400 },
   analyticsIp: { limit: 120, windowSeconds: 60 },
   accountAction: { limit: 10, windowSeconds: 3600 },
+  resetIp: { limit: 10, windowSeconds: 3600 },
+  resetEmail: { limit: 4, windowSeconds: 3600 },
+  resetConfirmIp: { limit: 20, windowSeconds: 3600 },
 } satisfies Record<string, Limit>;
 
 export function clientIp(request: Request) {

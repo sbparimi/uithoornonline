@@ -57,6 +57,7 @@ export default function LoginForm() {
       <button className="primary" disabled={loading} type="submit">{mode === 'link' ? (loading ? l.sending : b.sendLink) : (loading ? b.loggingIn : b.login)} <ArrowRight aria-hidden="true" /></button>
     </form>}
     {!linkSent && <button type="button" className="platform-secondary-link link-button" onClick={() => { setError(''); if (!magicAvailable) { setError(b.linkUnavailable); return; } setMode(mode === 'password' ? 'link' : 'password'); }}>{mode === 'password' ? b.orLink : b.login}</button>}
+    {!linkSent && mode === 'password' && <a className="platform-secondary-link" href={lp(lang, '/forgot-password')}>{lang === 'en' ? 'Forgot your password?' : 'Wachtwoord vergeten?'}</a>}
     <a className="platform-secondary-link" href={lp(lang, '/signup/account')}>{l.noAccount}</a>
   </div>;
 }

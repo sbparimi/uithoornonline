@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth/session';
 import { LIMITS, rateLimit } from '@/lib/security/rate-limit';
 import { createReview } from '@/lib/data/reviews';
 import { notify } from '@/lib/notify';
+import { after } from 'next/server';
 
 export async function POST(request: Request) {
   return handle(async () => {
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) return errorJson('invalid_review', 400);
     const result = await createReview(user, str(body.conversationId, 40), rating, text);
     if ('error' in result) return errorJson(result.error!, result.error === 'already_reviewed' ? 409 : 403);
-    void notify('new_review', `${rating}/5 voor ${result.businessName}`, { reviewId: result.id, text });
+    after(() => notify('new_review', `${rating}/5 voor ${result.businessName}`, { reviewId: result.id, text }));
     return json({ id: result.id }, 201);
   }, 'reviews');
 }

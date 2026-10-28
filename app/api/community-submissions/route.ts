@@ -4,6 +4,7 @@ import { looksLikeSpam } from '@/lib/security/spam';
 import { normalizeEmail } from '@/lib/data/users';
 import { createCommunitySubmission } from '@/lib/data/misc';
 import { notify } from '@/lib/notify';
+import { after } from 'next/server';
 
 const kinds = new Set(['business', 'tip', 'event']);
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     const title = str(body.title, 180); const description = str(body.description, 3000);
     if (!kinds.has(kind) || name.length < 2 || !email || title.length < 3 || description.length < 15) return errorJson('invalid_submission', 400);
     const row = await createCommunitySubmission({ kind, name, email, phone: str(body.phone, 40) || null, title, description, category: str(body.category, 120) || null, postcode: str(body.postcode, 20).toUpperCase() || null, website: str(body.website, 500) || null });
-    void notify('new_submission', `${kind}: ${title}`, { name, email });
+    after(() => notify('new_submission', `${kind}: ${title}`, { name, email }));
     return json({ id: row?.id, status: 'pending' }, 201);
   }, 'community-submissions');
 }

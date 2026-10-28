@@ -8,6 +8,7 @@ import { cleanBusinessInput, createBusinessForOwner } from '@/lib/data/businesse
 import { sendEmail } from '@/lib/email/send';
 import { welcomeEmail } from '@/lib/email/templates';
 import { notify } from '@/lib/notify';
+import { after } from 'next/server';
 
 export async function POST(request: Request) {
   return handle(async () => {
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
     await createSession(created.id, 'password');
 
     const mail = welcomeEmail(locale, fullName, role === 'provider');
-    void sendEmail({ to: email, kind: 'welcome', ...mail });
-    void notify(role === 'provider' ? 'new_business' : 'new_signup', role === 'provider' ? `${business!.name} (${business!.category})` : `${fullName} (bewoner)`, { email, role, businessId });
+    after(() => sendEmail({ to: email, kind: 'welcome', lang: locale, ...mail }));
+    after(() => notify(role === 'provider' ? 'new_business' : 'new_signup', role === 'provider' ? `${business!.name} (${business!.category})` : `${fullName} (bewoner)`, { email, role, businessId }));
     return json({ ok: true, role, redirect: locale === 'en' ? (role === 'provider' ? '/en/provider' : '/en/account') : (role === 'provider' ? '/provider' : '/account') }, 201);
   }, 'auth/signup');
 }

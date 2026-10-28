@@ -1,12 +1,13 @@
 import 'server-only';
-import { sendEmail } from './email/send';
+import { adminEmail, sendEmail } from './email/send';
+import { adminAlertEmail, siteUrl } from './email/templates';
 
-// Owner notifications. Every new request, signup, review, contact message and payment event is
-// emailed to the site's operations inbox (Tab, the site's digital assistant, reads it) and to the
-// owner's own address when OWNER_NOTIFY_EMAIL is set.
+// Admin alerts. Every new signup, business, request, contact message, inbound email, issue, review
+// and payment event is emailed to the admin (ADMIN_EMAIL, default reachparimi@gmail.com), to the
+// site's operations inbox (uithoorn.online@mail.tab.bot) and to OWNER_NOTIFY_EMAIL when set.
 const OPS_INBOX = 'uithoorn.online@mail.tab.bot';
 
-export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted';
+export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted' | 'new_issue' | 'new_inbound_email';
 
 const titles: Record<NotifyEvent, string> = {
   new_request: 'Nieuwe hulpvraag',
@@ -17,24 +18,29 @@ const titles: Record<NotifyEvent, string> = {
   new_submission: 'Nieuwe inzending',
   payment: 'Betaling',
   account_deleted: 'Account verwijderd',
+  new_issue: 'Nieuw issue',
+  new_inbound_email: 'Nieuwe e-mail ontvangen',
 };
 
-function recipients() {
+const adminTab: Partial<Record<NotifyEvent, string>> = {
+  new_request: 'requests', new_signup: 'users', new_business: 'businesses', new_contact: 'contacts', new_submission: 'contacts',
+  payment: 'payments', new_issue: 'issues', new_inbound_email: 'contacts', new_review: 'reviews', account_deleted: 'users',
+};
+
+export function notifyRecipients() {
   const extra = (process.env.OWNER_NOTIFY_EMAIL || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return [...new Set([process.env.OPS_NOTIFY_EMAIL || OPS_INBOX, ...extra])];
+  return [...new Set([adminEmail(), process.env.OPS_NOTIFY_EMAIL || OPS_INBOX, ...extra].map((s) => s.toLowerCase()))];
 }
 
-/** Fire-and-forget owner notification. Never throws; never blocks the user's request on email. */
+/** Admin alert. Never throws; never blocks the user's request on email. */
 export async function notify(event: NotifyEvent, summary: string, details: Record<string, unknown> = {}) {
   try {
-    const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://uithoorn.online').replace(/\/$/, '');
-    const lines = Object.entries(details).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`);
-    await sendEmail({
-      to: recipients(),
-      kind: `notify:${event}`,
-      subject: `[Uithoorn.online] ${titles[event]}: ${summary}`.slice(0, 200),
-      text: `${titles[event]}\n\n${summary}\n\n${lines.join('\n')}\n\nAdmin: ${site}/admin\n`,
-    });
+    const rows = Object.entries(details)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => [k, (typeof v === 'object' ? JSON.stringify(v) : String(v)).slice(0, 600)] as [string, string]);
+    const link = `${siteUrl()}/admin${adminTab[event] ? `?tab=${adminTab[event]}` : ''}`;
+    const mail = adminAlertEmail(titles[event], summary, rows, link);
+    await sendEmail({ to: notifyRecipients(), kind: `notify:${event}`, adminCopy: false, lang: 'nl', ...mail });
   } catch (error) {
     console.error('[notify] failed', event, error instanceof Error ? error.message : error);
   }

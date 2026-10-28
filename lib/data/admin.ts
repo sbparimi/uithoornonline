@@ -182,3 +182,14 @@ export async function adminSetContactStatus(user: SessionUser, id: string, statu
   if (!isId(id) || !['new', 'handled', 'spam'].includes(status)) return false;
   return Boolean(await queryOne('update contact_messages set status = $2 where id = $1 returning id', [id, status]));
 }
+
+/** Audit entry for actions that live outside this file (admin console). */
+export async function auditRaw(actor: SessionUser, action: string, targetType: string, targetId: string, details: Record<string, unknown> = {}) {
+  assertAdmin(actor);
+  await audit(actor, action, targetType, targetId, { actor_email: actor.email, ...details });
+}
+
+export async function ownerOf(businessId: string) {
+  if (!isId(businessId)) return null;
+  return queryOne<{ email: string; locale: 'nl' | 'en' }>('select u.email, u.locale from businesses b join users u on u.id = b.owner_id where b.id = $1', [businessId]);
+}
