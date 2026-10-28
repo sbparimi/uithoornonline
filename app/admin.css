@@ -128,3 +128,8 @@
 /* Public business page: admin-managed photos */
 .adm-public-photos { display: grid; grid-auto-flow: column; grid-auto-columns: min(78%, 320px); gap: 12px; overflow-x: auto; margin: 18px 0; padding-bottom: 6px; }
 .adm-public-photos img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 18px; border: 5px solid #fff; box-shadow: var(--f-shadow-sm), 0 18px 40px -28px rgba(20,40,90,.35); }
+
+/* the section wrapper is not a card itself (cards live inside it) */
+.folk .ds-page .adm-section, .ds-page .adm-section.dashboard-section { background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; }
+.adm-filters select, .adm-filters input[type=month] { flex: 1 1 calc(50% - 4px); min-width: 0; }
+.adm-filters .adm-btn { flex: 0 0 auto; }
