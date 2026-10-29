@@ -3,6 +3,9 @@ import { requireUser, destroyAllSessions, createSession } from '@/lib/auth/sessi
 import { hashPassword, passwordProblem, verifyPassword } from '@/lib/auth/password';
 import { findUserByEmail, setPassword } from '@/lib/data/users';
 import { LIMITS, rateLimit } from '@/lib/security/rate-limit';
+import { after } from 'next/server';
+import { sendEmail } from '@/lib/email/send';
+import { passwordChangedEmail } from '@/lib/email/templates';
 
 export async function POST(request: Request) {
   return handle(async () => {
@@ -21,6 +24,8 @@ export async function POST(request: Request) {
     await setPassword(user.id, await hashPassword(next));
     await destroyAllSessions(user.id);
     await createSession(user.id, 'password');
+    const lang = row?.locale ?? 'nl';
+    after(() => sendEmail({ to: user.email, kind: 'password_changed', lang, ...passwordChangedEmail(lang) }));
     return json({ ok: true });
   }, 'account/password');
 }

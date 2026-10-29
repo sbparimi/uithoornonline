@@ -20,3 +20,19 @@ export async function consumeAuthToken(token: string) {
     [sha256(token)],
   );
 }
+
+/** Consumes a token only if it has the expected purpose (single use, not expired). */
+export async function consumeAuthTokenFor(token: string, purpose: TokenPurpose) {
+  if (!token || token.length > 200) return null;
+  return queryOne<{ email: string }>(
+    'update auth_tokens set used_at = now() where token_hash = $1 and purpose = $2 and used_at is null and expires_at > now() returning email',
+    [sha256(token), purpose],
+  );
+}
+
+/** Invalidates every outstanding token of a purpose for an email (e.g. after a successful reset). */
+export async function revokeAuthTokens(email: string, purpose: TokenPurpose) {
+  await query('update auth_tokens set used_at = now() where email = $1 and purpose = $2 and used_at is null', [email.toLowerCase(), purpose]);
+}
+
+export const RESET_TOKEN_MINUTES = 60;

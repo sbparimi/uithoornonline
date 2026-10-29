@@ -2,93 +2,72 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { AppHeader } from '../../../components/app-header';
 import { getCurrentUser } from '../../../lib/auth/session';
-import * as admin from '../../../lib/data/admin';
-import { dateLocale, isLocale, lp, type Locale } from '../../../lib/i18n/config';
-import { getBackendDict } from '../../../lib/i18n/backend';
+import { isLocale, lp, type Locale } from '../../../lib/i18n/config';
+import { tr, type Ctx } from './_ui';
+import Dashboard from './_sections/dashboard';
+import Businesses from './_sections/businesses';
+import Users from './_sections/users';
+import Requests from './_sections/requests';
+import Payments from './_sections/payments';
+import Contacts from './_sections/contacts';
+import Issues from './_sections/issues';
+import Emails from './_sections/emails';
+import Audit from './_sections/audit';
+import Settings from './_sections/settings';
+import Reviews from './_sections/reviews';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: 'Admin · Uithoorn.online', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
-const TABS = ['stats', 'businesses', 'requests', 'reviews', 'users', 'leads', 'inbox'] as const;
+const TABS = ['dashboard', 'businesses', 'users', 'requests', 'payments', 'contacts', 'issues', 'reviews', 'emails', 'audit', 'settings'] as const;
 type Tab = (typeof TABS)[number];
+// Old tab names keep working.
+const ALIASES: Record<string, Tab> = { stats: 'dashboard', inbox: 'contacts', leads: 'requests' };
 
-function Action({ action, id, label, extra, danger }: { action: string; id: string; label: string; extra?: Record<string, string>; danger?: boolean }) {
-  return <form method="post" action="/api/admin" className="admin-inline-form">
-    <input type="hidden" name="action" value={action} /><input type="hidden" name="id" value={id} />
-    {extra && Object.entries(extra).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-    <button type="submit" className={danger ? 'admin-btn danger' : 'admin-btn'}>{label}</button>
-  </form>;
-}
+const FLASH: Record<string, [string, string]> = {
+  saved: ['Opgeslagen.', 'Saved.'], created: ['Aangemaakt.', 'Created.'], deleted: ['Verwijderd.', 'Deleted.'], approved: ['Goedgekeurd. De eigenaar krijgt een e-mail.', 'Approved. The owner gets an email.'],
+  rejected: ['Afgewezen. De eigenaar krijgt een e-mail.', 'Rejected. The owner gets an email.'], assigned: ['Lead doorgestuurd.', 'Lead sent.'], payment_applied: ['Betaling verwerkt: pakket/credits bijgewerkt.', 'Payment applied: plan/credits updated.'],
+  receipt_sent: ['Betaalbewijs verstuurd.', 'Receipt sent.'], reply_sent: ['Antwoord verstuurd.', 'Reply sent.'], reset_sent: ['Resetlink verstuurd.', 'Reset link sent.'], email_skipped: ['Opgeslagen, maar e-mail is niet ingesteld (RESEND_API_KEY ontbreekt).', 'Saved, but email is not configured (RESEND_API_KEY missing).'],
+};
+const ERRORS: Record<string, [string, string]> = {
+  migration_pending: ['Dit onderdeel heeft database-migratie 0002 nodig.', 'This needs database migration 0002.'], confirm_required: ['Typ ter bevestiging precies wat er staat.', 'Type the confirmation exactly as shown.'],
+  confirm_mismatch: ['De bevestiging klopt niet.', 'The confirmation does not match.'], cannot_demote_self: ['Je kunt je eigen adminrol niet weghalen.', "You can't remove your own admin role."],
+  cannot_suspend_self: ['Je kunt jezelf niet blokkeren.', "You can't suspend yourself."], cannot_delete_self: ['Je kunt je eigen account hier niet verwijderen.', "You can't delete your own account here."],
+  owner_not_found: ['Geen account met dat e-mailadres.', 'No account with that email.'], email_exists: ['Dat e-mailadres is al in gebruik.', 'That email is already in use.'],
+  email_failed: ['De e-mail kon niet worden verstuurd (zie E-mails).', 'The email could not be sent (see Emails).'], already_assigned: ['Dit bedrijf heeft deze aanvraag al.', 'This business already has this request.'],
+  invalid_amount: ['Ongeldig bedrag.', 'Invalid amount.'], business_required: ['Kies een bedrijf.', 'Choose a business.'], plan_required: ['Kies een pakket.', 'Choose a plan.'], no_recipient: ['Geen eigenaar-e-mail of niet betaald.', 'No owner email, or not paid.'],
+  not_found: ['Niet gevonden.', 'Not found.'], invalid_photo_url: ['Gebruik een https-link of een pad dat met / begint.', 'Use an https link or a path starting with /.'],
+};
 
-export default async function AdminPage({ params, searchParams }: { params: Promise<{ lang: string }>; searchParams: Promise<{ tab?: string; q?: string }> }) {
+export default async function AdminPage({ params, searchParams }: { params: Promise<{ lang: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { lang: raw } = await params;
   const sp = await searchParams;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
-  const a = getBackendDict(lang).admin;
+  const t = tr(lang);
   const user = await getCurrentUser();
   if (!user) redirect(`${lp(lang, '/login')}?next=${encodeURIComponent(lp(lang, '/admin'))}`);
   if (user.role !== 'admin') redirect(lp(lang, '/'));
-  const tab: Tab = (TABS as readonly string[]).includes(sp.tab ?? '') ? sp.tab as Tab : 'stats';
-  const date = (v: string | null) => (v ? new Date(v).toLocaleString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–');
-  const label: Record<Tab, string> = { stats: a.stats, businesses: a.businesses, requests: a.requests, reviews: a.reviews, users: a.users, leads: a.leads, inbox: a.inbox };
-  const href = (t: Tab) => `${lp(lang, '/admin')}?tab=${t}`;
+  const requested = sp.tab ?? 'dashboard';
+  const tab: Tab = (TABS as readonly string[]).includes(requested) ? requested as Tab : ALIASES[requested] ?? 'dashboard';
+  const base = lp(lang, '/admin');
+  const keep = new URLSearchParams(); for (const [k, v] of Object.entries(sp)) if (v && k !== 'ok' && k !== 'err') keep.set(k, v); keep.set('tab', tab);
+  const ctx: Ctx = { lang, base, sp: { ...sp, tab }, ret: `${base}?${keep}` };
+  const labels: Record<Tab, string> = {
+    dashboard: t('Overzicht', 'Overview'), businesses: t('Bedrijven', 'Businesses'), users: t('Accounts', 'Accounts'), requests: t('Aanvragen', 'Requests'), payments: t('Betalingen', 'Payments'),
+    contacts: t('Contact', 'Contacts'), issues: t('Issues', 'Issues'), reviews: t('Reviews', 'Reviews'), emails: t('E-mails', 'Emails'), audit: t('Logboek', 'Audit log'), settings: t('Instellingen', 'Settings'),
+  };
+  const flash = sp.ok ? FLASH[sp.ok]?.[lang === 'en' ? 1 : 0] ?? t('Gelukt.', 'Done.') : null;
+  const error = sp.err ? ERRORS[sp.err]?.[lang === 'en' ? 1 : 0] ?? `${t('Fout', 'Error')}: ${sp.err}` : null;
+  const Section = { dashboard: Dashboard, businesses: Businesses, users: Users, requests: Requests, payments: Payments, contacts: Contacts, issues: Issues, reviews: Reviews, emails: Emails, audit: Audit, settings: Settings }[tab];
 
-  let body: React.ReactNode = null;
-  if (tab === 'stats') {
-    const s = await admin.adminStats(user);
-    body = <div className="monetization-metrics admin-stats">{Object.entries(s ?? {}).map(([k, v]) => <div key={k}><span>{k.replace(/_/g, ' ')}</span><strong>{v}</strong></div>)}</div>;
-  } else if (tab === 'businesses') {
-    const rows = await admin.adminListBusinesses(user);
-    body = rows.length ? rows.map((b) => <article className="admin-row" key={b.id}>
-      <div className="admin-row-main"><span className={`lead-pill lead-${b.moderation_status}`}>{b.moderation_status}</span><h3>{b.name}</h3><p>{b.category} · {b.postcode || '–'} · {b.phone || '–'} · {b.owner_email || '(geen eigenaar / no owner)'} · {a.plan}: {b.plan_key} · leads {b.leads_month} · {date(b.created_at)}</p></div>
-      <div className="admin-row-actions">
-        {b.moderation_status !== 'approved' && <Action action="business.approve" id={b.id} label={a.approve} />}
-        {b.moderation_status !== 'rejected' && <Action action="business.reject" id={b.id} label={a.reject} danger />}
-        <Action action="business.flags" id={b.id} label={`${a.verified}: ${b.verified ? '✓' : '✗'}`} extra={{ verified: String(!b.verified) }} />
-        <Action action="business.flags" id={b.id} label={`${a.featured}: ${b.featured ? '✓' : '✗'}`} extra={{ featured: String(!b.featured) }} />
-        <Action action="business.flags" id={b.id} label={`${a.active}: ${b.active ? '✓' : '✗'}`} extra={{ active: String(!b.active) }} />
-        <form method="post" action="/api/admin" className="admin-inline-form"><input type="hidden" name="action" value="business.plan" /><input type="hidden" name="id" value={b.id} /><select name="plan" defaultValue={b.plan_key} aria-label={a.plan}><option value="free">Gratis</option><option value="pro">Pro</option><option value="pro_plus">Pro+</option></select><input name="note" placeholder="notitie / note" maxLength={200} /><button className="admin-btn" type="submit">{a.save}</button></form>
-        <form method="post" action="/api/admin" className="admin-inline-form"><input type="hidden" name="action" value="business.owner" /><input type="hidden" name="id" value={b.id} /><input name="email" type="email" placeholder={a.owner} defaultValue={b.owner_email ?? ''} /><button className="admin-btn" type="submit">{a.save}</button></form>
-      </div></article>) : <p>{a.none}</p>;
-  } else if (tab === 'requests') {
-    const rows = await admin.adminListRequests(user);
-    body = rows.length ? rows.map((r) => <article className={`admin-row ${r.hidden ? 'is-hidden' : ''}`} key={r.id}>
-      <div className="admin-row-main"><span className="lead-pill">{r.status}</span><h3>{r.category} · {r.postcode}</h3><p>{r.description}</p><p>{r.customer_email} · leads {r.leads} · {date(r.created_at)}</p></div>
-      <div className="admin-row-actions">{r.hidden ? <Action action="request.unhide" id={r.id} label={a.unhide} /> : <Action action="request.hide" id={r.id} label={a.hide} danger />}</div></article>) : <p>{a.none}</p>;
-  } else if (tab === 'reviews') {
-    const rows = await admin.adminListReviews(user);
-    body = rows.length ? rows.map((r) => <article className={`admin-row ${r.hidden ? 'is-hidden' : ''}`} key={r.id}>
-      <div className="admin-row-main"><span className="lead-pill">{'★'.repeat(r.rating)}</span><h3>{r.business_name}</h3><p>{r.body || '–'}</p><p>{r.customer_email} · {date(r.created_at)}</p></div>
-      <div className="admin-row-actions">{r.hidden ? <Action action="review.unhide" id={r.id} label={a.unhide} /> : <Action action="review.hide" id={r.id} label={a.hide} danger />}</div></article>) : <p>{a.none}</p>;
-  } else if (tab === 'users') {
-    const rows = await admin.adminListUsers(user, sp.q ?? '');
-    body = <>
-      <form method="get" className="admin-inline-form"><input type="hidden" name="tab" value="users" /><input name="q" defaultValue={sp.q ?? ''} placeholder="e-mail / naam" /><button className="admin-btn" type="submit">Zoek</button></form>
-      {rows.map((u) => <article className={`admin-row ${u.disabled_at ? 'is-hidden' : ''}`} key={u.id}>
-        <div className="admin-row-main"><span className="lead-pill">{u.role}</span><h3>{u.full_name || '–'}</h3><p>{u.email} · {u.phone || '–'} · {date(u.created_at)} · login {date(u.last_login_at)}</p></div>
-        <div className="admin-row-actions">
-          <form method="post" action="/api/admin" className="admin-inline-form"><input type="hidden" name="action" value="user.role" /><input type="hidden" name="id" value={u.id} /><select name="role" defaultValue={u.role} aria-label={a.role}><option value="customer">bewoner / resident</option><option value="provider">bedrijf / business</option><option value="admin">admin</option></select><button className="admin-btn" type="submit">{a.save}</button></form>
-          {u.id !== user.id && (u.disabled_at ? <Action action="user.enable" id={u.id} label={a.enable} /> : <Action action="user.disable" id={u.id} label={a.disable} danger />)}
-        </div></article>)}
-    </>;
-  } else if (tab === 'leads') {
-    const rows = await admin.adminListLeads(user);
-    body = rows.length ? <table className="admin-table"><thead><tr><th>Datum</th><th>Bedrijf</th><th>Categorie</th><th>Postcode</th><th>Status</th></tr></thead><tbody>{rows.map((l) => <tr key={l.id}><td>{date(l.created_at)}</td><td>{l.business_name}</td><td>{l.category}</td><td>{l.postcode}</td><td>{l.status}</td></tr>)}</tbody></table> : <p>{a.none}</p>;
-  } else if (tab === 'inbox') {
-    const { contact, submissions, emails } = await admin.adminListInbox(user);
-    body = <>
-      <h2>Contact</h2>
-      {contact.length ? contact.map((c) => <article className={`admin-row ${c.status !== 'new' ? 'is-hidden' : ''}`} key={c.id}><div className="admin-row-main"><span className="lead-pill">{c.status}</span><h3>{c.subject || '(geen onderwerp)'}</h3><p>{c.body}</p><p>{c.name} · <a href={`mailto:${c.email}`}>{c.email}</a> · {date(c.created_at)}</p></div><div className="admin-row-actions">{c.status === 'new' && <Action action="contact.status" id={c.id} label={a.handled} extra={{ status: 'handled' }} />}</div></article>) : <p>{a.none}</p>}
-      <h2>Inzendingen / submissions</h2>
-      {submissions.length ? submissions.map((s) => <article className="admin-row" key={s.id}><div className="admin-row-main"><span className="lead-pill">{s.kind}</span><h3>{s.title}</h3><p>{s.description}</p><p>{s.name} · {s.email} · {date(s.created_at)}</p></div></article>) : <p>{a.none}</p>}
-      <h2>{a.emailLog}</h2>
-      <table className="admin-table"><thead><tr><th>Datum</th><th>Aan</th><th>Soort</th><th>Status</th></tr></thead><tbody>{emails.map((e, i) => <tr key={i}><td>{date(e.created_at)}</td><td>{e.to_address}</td><td>{e.kind}</td><td title={e.error ?? ''}>{e.status}</td></tr>)}</tbody></table>
-    </>;
-  }
-
-  return <div className="ds-page"><AppHeader /><main id="main" className="platform-shell ds-platform"><div className="platform-dashboard admin-dashboard">
-    <span className="uo-kicker">Uithoorn.online</span><h1>{a.title}</h1>
-    <nav className="admin-tabs" aria-label={a.title}>{TABS.map((t) => <a key={t} href={href(t)} aria-current={t === tab ? 'page' : undefined} className={t === tab ? 'active' : ''}>{label[t]}</a>)}</nav>
-    <section className="dashboard-section admin-section">{body}</section>
+  return <div className="ds-page adm-page"><AppHeader /><main id="main" className="platform-shell ds-platform adm-main"><div className="platform-dashboard admin-dashboard adm-shell">
+    <header className="adm-head">
+      <div><span className="uo-kicker">Uithoorn.online</span><h1>{t('Beheer', 'Admin')}</h1></div>
+      <a className="adm-me" href={lp(lang, '/account/settings')} title={t('Account & wachtwoord', 'Account & password')}>{user.email}</a>
+    </header>
+    <nav className="admin-tabs adm-tabs" aria-label={t('Beheer', 'Admin')}>{TABS.map((k) => <a key={k} href={`${base}?tab=${k}`} aria-current={k === tab ? 'page' : undefined} className={k === tab ? 'active' : ''}>{labels[k]}</a>)}</nav>
+    {flash ? <p className="adm-flash adm-flash-ok" role="status">{flash}</p> : null}
+    {error ? <p className="adm-flash adm-flash-err" role="alert">{error}</p> : null}
+    <section className="dashboard-section admin-section adm-section"><Section ctx={ctx} user={user} /></section>
   </div></main></div>;
 }

@@ -26,6 +26,7 @@ import '../monetization-overrides.css';
 import '../design-system.css';
 import '../backend.css';
 import '../folk.css';
+import '../admin.css';
 import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/next';

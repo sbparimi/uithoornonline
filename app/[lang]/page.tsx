@@ -22,7 +22,7 @@ const mock = {
     reply: 'Hoi! Ik ben loodgieter hier in de buurt. Donderdag om 10:00 kan ik langskomen.',
     thanks: 'Top, tot donderdag! 👍', input: 'Bericht', note: 'zo werkt een hulpvraag ↑',
     leadKicker: 'Nieuwe lead', leadTitle: 'Loodgieter gezocht', leadText: 'Uithoorn · deze week',
-    free: 'gratis voor bewoners!', bizKicker: 'Voor bedrijven', bizTitle: '3 leads per maand gratis', bizText: 'Pro €29 · Pro+ €59',
+    free: 'gratis voor bewoners!', bizKicker: 'Voor bedrijven', bizTitle: 'Gratis je bedrijf vermelden', bizText: '',
     bubbles: ['Loodgieter in de buurt?', 'Mijn heg moet gesnoeid worden 🌿', 'Alleen uit de buurt 📍', 'Eerst bekeken ✓'],
     appName: 'uithoorn.online', appSub: 'Voorbeeld · Uithoorn & De Kwakel', pushNow: 'nu',
     pros: { plumber: 'Loodgieter', gardener: 'Hovenier', electrician: 'Elektricien', painter: 'Schilder', cleaner: 'Schoonmaak', handyman: 'Klusjesman', cook: 'Thuiskok' },
@@ -58,7 +58,7 @@ const mock = {
     reply: 'Hi! I’m a plumber nearby. I can come by on Thursday at 10:00.',
     thanks: 'Great, see you Thursday! 👍', input: 'Message', note: 'this is how a request works ↑',
     leadKicker: 'New lead', leadTitle: 'Plumber wanted', leadText: 'Uithoorn · this week',
-    free: 'free for residents!', bizKicker: 'For businesses', bizTitle: '3 leads a month free', bizText: 'Pro €29 · Pro+ €59',
+    free: 'free for residents!', bizKicker: 'For businesses', bizTitle: 'Free to list your business', bizText: '',
     bubbles: ['A plumber nearby?', 'My hedge needs trimming 🌿', 'Only from around here 📍', 'Checked first ✓'],
     appName: 'uithoorn.online', appSub: 'Example · Uithoorn & De Kwakel', pushNow: 'now',
     pros: { plumber: 'Plumber', gardener: 'Gardener', electrician: 'Electrician', painter: 'Painter', cleaner: 'Cleaner', handyman: 'Handyman', cook: 'Home cook' },
@@ -136,7 +136,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
             ))}
             <div className="f-sticker f-sticker-yellow f-s2"><small>{m.leadKicker}</small><strong>{m.leadTitle}</strong><span>{m.leadText}</span></div>
             <div className="f-sticker f-sticker-hand f-s5">{m.free}</div>
-            <div className="f-sticker f-sticker-blue f-s7"><small>{m.bizKicker}</small><strong>{m.bizTitle}</strong><span>{m.bizText}</span></div>
+            <div className="f-sticker f-sticker-blue f-s7"><small>{m.bizKicker}</small><strong>{m.bizTitle}</strong>{m.bizText ? <span>{m.bizText}</span> : null}</div>
             <div className="f-homeicon"><AppIcon /><span>{m.appName}</span></div>
 
             <div className="f-phone">

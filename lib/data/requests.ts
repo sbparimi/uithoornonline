@@ -2,6 +2,7 @@ import 'server-only';
 import { query, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { planUsage } from './plans';
+import { consumeCredit } from './credits';
 
 export type RequestInput = { category: string; description: string; postcode: string; preferredTiming: string; urgency: string; budgetMin: number | null; budgetMax: number | null };
 
@@ -76,9 +77,11 @@ export async function createRequest(user: SessionUser, input: RequestInput) {
       // Serialize lead creation per business so two simultaneous requests cannot exceed the limit.
       await client.query('select id from business_subscriptions where business_id = $1 for update', [b.id]);
       const usage = await planUsage(b.id, client);
-      const locked = usage.remaining <= 0;
+      // Over the monthly allowance: use an extra (purchased) lead credit if the business has one.
+      const viaCredit = usage.remaining <= 0 ? await consumeCredit(client, b.id) : false;
+      const locked = usage.remaining <= 0 && !viaCredit;
       await client.query('insert into request_providers(request_id, business_id) values ($1, $2) on conflict do nothing', [request.id, b.id]);
-      await client.query(`insert into leads(request_id, business_id, status) values ($1, $2, $3) on conflict (request_id, business_id) do nothing`, [request.id, b.id, locked ? 'locked' : 'new']);
+      await client.query(`insert into leads(request_id, business_id, status, counts_toward_limit) values ($1, $2, $3, $4) on conflict (request_id, business_id) do nothing`, [request.id, b.id, locked ? 'locked' : 'new', !viaCredit]);
       await client.query(
         `insert into notifications(user_id, type, title, body, request_id) values ($1, 'new_request', $2, $3, $4)`,
         [b.owner_id, locked ? 'Nieuwe aanvraag (limiet bereikt)' : 'Nieuwe lokale aanvraag', locked ? 'Er is een nieuwe aanvraag voor jouw bedrijf. Upgrade je pakket om hem te bekijken.' : 'Er is een nieuwe aanvraag die past bij jouw bedrijf.', request.id]);

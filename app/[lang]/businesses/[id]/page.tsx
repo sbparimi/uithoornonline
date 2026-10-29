@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowLeft, ArrowRight, BadgeCheck, Globe, MapPin, Phone, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { getPublicBusiness } from '../../../../lib/data/businesses';
+import { getPublicBusiness, getPublicBusinessPhotos } from '../../../../lib/data/businesses';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
@@ -40,6 +40,7 @@ export default async function BusinessProfilePage({ params }: Props) {
   const reviewCount = reviews.length;
   const average = reviewCount ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1) : null;
   const tel = business.phone?.replace(/\s/g, '');
+  const photos = await getPublicBusinessPhotos(id);
 
   return <div className="ds-page">
     <SiteHeader active="businesses" />
@@ -50,6 +51,7 @@ export default async function BusinessProfilePage({ params }: Props) {
           <div><span className="uo-kicker">{business.category}</span><h1>{business.name}</h1><p className="uo-provider-profile-intro">{business.description || t.common.localProviderDesc}</p>{business.verified && <div className="uo-provider-trust"><BadgeCheck aria-hidden="true" /> {p.verified}</div>}{average && <div className="provider-profile-rating"><Star size={18} fill="currentColor" aria-hidden="true" /><strong>{average}</strong><span>{p.ratingOf(reviewCount)}</span></div>}</div>
           <aside className="uo-provider-profile-card"><h2>{p.contact}</h2>{(business.address || business.postcode) && <div className="uo-provider-detail"><MapPin aria-hidden="true" /><span>{business.address || business.postcode}<br />{t.common.area}</span></div>}{business.phone && <div className="uo-provider-detail"><Phone aria-hidden="true" /><a href={`tel:${tel}`}>{business.phone}</a></div>}{business.website && <div className="uo-provider-detail"><Globe aria-hidden="true" /><a href={business.website} target="_blank" rel="noopener noreferrer">{business.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></div>}<div className="uo-provider-profile-actions"><a className="primary" href={lp(lang, '/request')}>{p.requestHelp} <ArrowRight aria-hidden="true" /></a>{business.phone && <a className="secondary" href={`tel:${tel}`}><Phone aria-hidden="true" /> {p.callProvider}</a>}</div><p className="uo-provider-note">{p.reviewNote}</p></aside>
         </div>
+        {photos.length ? <div className="adm-public-photos" aria-label={lang === 'en' ? 'Photos' : 'Foto’s'}>{photos.map((ph, i) => <img key={i} src={ph.url} alt={ph.alt || business.name} loading="lazy" decoding="async" />)}</div> : null}
         <section className="provider-profile-reviews" aria-labelledby="reviews-title"><div className="provider-profile-section-head"><div><span className="uo-kicker">{p.trustKicker}</span><h2 id="reviews-title">{p.reviewsTitle}</h2></div>{average && <span className="provider-profile-rating"><Star size={16} fill="currentColor" aria-hidden="true" /> {average} · {reviewCount}</span>}</div>{reviewCount ? <div className="provider-review-list">{reviews.map((review) => <article className="provider-review" key={review.created_at}><div className="provider-review-stars" role="img" aria-label={p.stars(review.rating)}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={15} fill={star <= review.rating ? 'currentColor' : 'none'} aria-hidden="true" />)}</div>{review.body && <p>{review.body}</p>}<small>{new Date(review.created_at).toLocaleDateString(dateLocale(lang))}</small></article>)}</div> : <div className="provider-review-empty">{p.noReviews}</div>}</section>
       </section>
     </main>
