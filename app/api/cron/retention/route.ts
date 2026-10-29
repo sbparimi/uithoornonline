@@ -1,5 +1,11 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { runRetention } from '@/lib/data/retention';
+
+function safeEqual(a: string, b: string) {
+  const x = Buffer.from(a); const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: 'cron_not_configured' }, { status: 503 });
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!safeEqual(request.headers.get('authorization') || '', `Bearer ${secret}`)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   try {
     const deleted = await runRetention();
     console.log('[cron/retention]', JSON.stringify(deleted));

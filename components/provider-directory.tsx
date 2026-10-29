@@ -90,7 +90,7 @@ export function ProviderDirectory({ items, initialQuery = '' }: { items: Provide
         <section className="uo-directory-results">
           <div className="uo-results-main">
             <div className="directory-result-intro">
-              <div><span className="uo-kicker">{filter === 'all' ? d.allKicker : label(filter)}</span><h2>{filter === 'all' ? d.allTitle : d.filteredTitle(label(filter))}</h2><p>{d.count(filtered.length)}{query ? d.forQuery(query) : ''}</p></div>
+              <div><span className="uo-kicker">{filter === 'all' ? d.allKicker : label(filter)}</span><h2>{filter === 'all' ? d.allTitle : d.filteredTitle(label(filter))}</h2><p aria-live="polite">{d.count(filtered.length)}{query ? d.forQuery(query) : ''}</p></div>
               {filter !== 'all' && <button className="uo-reset-button" type="button" onClick={() => chooseFilter('all')}>{d.showAll}</button>}
             </div>
 
@@ -107,7 +107,7 @@ export function ProviderDirectory({ items, initialQuery = '' }: { items: Provide
                       <div className="directory-provider-topline"><span>{item.meta}</span>{item.verified && <span className="directory-provider-verified"><BadgeCheck aria-hidden="true" /> {t.common.verified}</span>}</div>
                       <h3>{item.title}</h3>
                       <p>{item.description}</p>
-                      <div className="directory-provider-meta"><span><MapPin aria-hidden="true" /> {t.common.town} · {item.postcode}</span></div>
+                      <div className="directory-provider-meta"><span><MapPin aria-hidden="true" /> {item.postcode ? `${t.common.town} · ${item.postcode}` : t.common.area}</span></div>
                       <div className="uo-provider-actions">
                         {item.id && <a href={lp(lang, `/businesses/${item.id}`)}>{t.common.viewProfile} <ArrowRight aria-hidden="true" /></a>}
                         {item.phone && <a href={`tel:${item.phone.replace(/\s/g, '')}`} aria-label={t.common.call(item.title)}><Phone aria-hidden="true" /></a>}

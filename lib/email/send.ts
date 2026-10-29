@@ -66,11 +66,14 @@ export async function sentRecently(ref: string, minutes: number) {
   } catch { return false; }
 }
 
+const NO_ADMIN_COPY = new Set(['login_link', 'password_reset', 'password_reset_admin']);
+
 export async function sendEmailDetailed(email: Email): Promise<SendResult> {
   const recipients = [...new Set((Array.isArray(email.to) ? email.to : [email.to]).map((s) => String(s || '').trim()).filter(Boolean))];
   if (!recipients.length) return { status: 'skipped', id: null, error: 'no recipient' };
   const admin = adminEmail();
-  const bcc = email.adminCopy === false || recipients.some((r) => r.toLowerCase() === admin) ? null : admin;
+  // Sign-in and reset links are credentials for someone else's account: never copy them to the admin.
+  const bcc = email.adminCopy === false || NO_ADMIN_COPY.has(email.kind) || recipients.some((r) => r.toLowerCase() === admin) ? null : admin;
   if (!emailConfigured()) {
     await logAttempt(email, recipients, bcc, 'skipped', null, 'RESEND_API_KEY not configured');
     return { status: 'skipped', id: null, error: 'RESEND_API_KEY not configured' };

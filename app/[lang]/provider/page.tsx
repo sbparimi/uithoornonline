@@ -12,7 +12,10 @@ import { getDictionary, statusLabel } from '../../../lib/i18n/dictionaries';
 import type { Metadata } from 'next';
 import { BUSINESS_OFFER_ANCHOR, PRICING_ENABLED } from '../../../lib/pricing';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params;
+  return { title: lang === 'en' ? 'Business dashboard' : 'Bedrijfsdashboard', robots: { index: false, follow: false } };
+}
 
 export default async function ProviderPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang: raw } = await params;

@@ -6,6 +6,7 @@ import { isLocale, lp, seo, SITE_URL, whatsappHref, type Locale } from '../../li
 import { getDictionary } from '../../lib/i18n/dictionaries';
 import { AppIcon, HeroChat, type ChatScript } from '../../components/hero-chat';
 import { BUSINESS_OFFER_ANCHOR, PRICING_ENABLED } from '../../lib/pricing';
+import { jsonLd } from '../../lib/json-ld';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: raw } = await params;
@@ -124,7 +125,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
 
   return (
     <div className="ds-page f-home">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structuredData) }} />
       <SiteHeader />
       <main id="main">
         <section className="f-hero">

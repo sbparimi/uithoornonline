@@ -8,7 +8,10 @@ import { AppHeader } from '../../../components/app-header';
 import { dateLocale, isLocale, lp, type Locale } from '../../../lib/i18n/config';
 import { getDictionary, statusLabel } from '../../../lib/i18n/dictionaries';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params;
+  return { title: lang === 'en' ? 'My account' : 'Mijn account', robots: { index: false, follow: false } };
+}
 
 export default async function AccountPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang: raw } = await params;

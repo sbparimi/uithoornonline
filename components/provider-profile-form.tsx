@@ -19,7 +19,11 @@ export default function ProviderProfileForm({ business }: { business: Business }
     event.preventDefault(); if (saving) return; setSaving(true); setError(''); setSaved(false);
     try {
       const res = await fetch('/api/provider/profile', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.name.trim(), category: form.category, description: form.description.trim(), postcode: form.postcode.trim().toUpperCase(), address: form.address.trim(), website: form.website.trim(), phone: form.phone.trim() }) });
-      if (!res.ok) throw new Error('save_failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error === 'invalid_website' ? t.common.websiteError : data.error === 'invalid_postcode' ? t.common.postcodeError : p.saveError);
+        return;
+      }
       setSaved(true);
     } catch { setError(p.saveError); } finally { setSaving(false); }
   }

@@ -144,7 +144,7 @@ try {
   const r2 = await anon.req('POST', '/api/auth/password-reset', { email: `nobody-${run}@test.uithoorn.invalid`, lang: 'nl' });
   check('reset request: same answer for existing and unknown email', r1.status === 200 && r2.status === 200 && JSON.stringify(r1.data) === JSON.stringify(r2.data));
   const resetMail = await waitFor(() => sent.slice(nBefore).find((m) => m.to?.includes(res.email) && /wachtwoord/i.test(m.subject)));
-  check('reset email sent (with BCC to admin)', resetMail && resetMail.bcc?.includes(ADMIN_EMAIL));
+  check('reset email sent, never copied to the admin (it is a credential)', resetMail && !(resetMail.bcc || []).includes(ADMIN_EMAIL));
   await wait(300);
   check('no email for the unknown address', !sent.slice(nBefore).some((m) => m.to?.some((t) => t.startsWith('nobody-'))));
   const token = resetMail ? decodeURIComponent((resetMail.text.match(/token=([^\s&]+)/) || [])[1] || '') : '';
@@ -270,8 +270,12 @@ try {
   // ---------- 8. Email log and the admin-copy rule
   const log = (await db.query("select count(*) filter (where bcc_address = $1)::int as bcc, count(*) filter (where provider_id like 'mock_%')::int as ids from email_outbox where created_at > now() - interval '30 minutes'", [ADMIN_EMAIL])).rows[0];
   check('email_log rows carry the admin BCC and the Resend id', log.bcc > 5 && log.ids > 5, JSON.stringify(log));
-  const nonAdmin = sent.filter((m) => !m.to?.includes(ADMIN_EMAIL) && !(m.bcc || []).includes(ADMIN_EMAIL));
-  check('every outgoing email reached the admin (To or BCC)', nonAdmin.length === 0, nonAdmin.map((m) => m.subject).join(' | '));
+  // Sign-in and reset links are the one exception: they are credentials for the recipient's account.
+  const isCredential = (m) => /^(Stel een nieuw wachtwoord in|Set a new password|Je inloglink voor|Your sign-in link for)/.test(m.subject || '');
+  const nonAdmin = sent.filter((m) => !isCredential(m) && !m.to?.includes(ADMIN_EMAIL) && !(m.bcc || []).includes(ADMIN_EMAIL));
+  check('every outgoing email except sign-in/reset links reached the admin (To or BCC)', nonAdmin.length === 0, nonAdmin.map((m) => m.subject).join(' | '));
+  const leaked = sent.filter((m) => isCredential(m) && !m.to?.includes(ADMIN_EMAIL) && (m.bcc || []).includes(ADMIN_EMAIL));
+  check('no sign-in/reset link was copied to the admin', leaked.length === 0, leaked.map((m) => m.subject).join(' | '));
   check('every email has HTML and text versions', sent.every((m) => m.html && m.text && m.html.includes('<html')));
 
   // ---------- 9. User admin: suspend + delete

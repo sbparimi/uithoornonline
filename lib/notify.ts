@@ -7,11 +7,12 @@ import { adminAlertEmail, siteUrl } from './email/templates';
 // site's operations inbox (uithoorn.online@mail.tab.bot) and to OWNER_NOTIFY_EMAIL when set.
 const OPS_INBOX = 'uithoorn.online@mail.tab.bot';
 
-export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted' | 'new_issue' | 'new_inbound_email';
+export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted' | 'new_issue' | 'new_inbound_email' | 'business_updated';
 
 const titles: Record<NotifyEvent, string> = {
   new_request: 'Nieuwe hulpvraag',
   new_signup: 'Nieuwe aanmelding',
+  business_updated: 'Bedrijfsprofiel gewijzigd',
   new_business: 'Nieuw bedrijf wacht op goedkeuring',
   new_review: 'Nieuwe beoordeling',
   new_contact: 'Nieuw contactbericht',

@@ -61,9 +61,10 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     title: { default: t.meta.homeTitle, template: `%s${t.meta.titleSuffix}` },
     description: t.meta.homeDescription,
     applicationName: 'Uithoorn.online',
-    icons: { icon: '/icon.svg', shortcut: '/icon.svg' },
+    icons: { icon: [{ url: '/favicon.ico', sizes: '48x48' }, { url: '/icon.svg', type: 'image/svg+xml' }], apple: '/apple-icon.png' },
+    manifest: '/manifest.webmanifest',
     alternates: alternatesFor(lang, '/'),
-    openGraph: { type: 'website', siteName: 'Uithoorn.online', locale: ogLocale(lang), alternateLocale: [ogLocale(lang === 'nl' ? 'en' : 'nl')], title: t.meta.homeTitle, description: t.meta.homeDescription, url: lang === 'nl' ? SITE_URL : `${SITE_URL}/en`, images: [{ url: lang === 'nl' ? '/og-image.png' : '/og-image-en.png', width: 1200, height: 630, alt: 'Uithoorn.online' }] },
+    openGraph: { type: 'website', siteName: 'Uithoorn.online', locale: ogLocale(lang), alternateLocale: [ogLocale(lang === 'nl' ? 'en' : 'nl')], title: t.meta.homeTitle, description: t.meta.homeDescription, images: [{ url: lang === 'nl' ? '/og-image.png' : '/og-image-en.png', width: 1200, height: 630, alt: 'Uithoorn.online' }] },
     twitter: { card: 'summary_large_image', title: t.meta.homeTitle, description: t.meta.homeDescription, images: [lang === 'nl' ? '/og-image.png' : '/og-image-en.png'] },
     formatDetection: { telephone: false },
   };

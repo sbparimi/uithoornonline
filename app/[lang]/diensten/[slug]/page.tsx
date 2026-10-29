@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { listPublicBusinessesMatching } from '../../../../lib/data/businesses';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
-import { fallbackBusinesses, localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
+import { localizeBusiness, type PublicBusiness } from '../../../../lib/business-content';
 import { seo, isLocale, locales, lp, type Locale } from '../../../../lib/i18n/config';
 import { getDictionary } from '../../../../lib/i18n/dictionaries';
 
@@ -52,7 +52,7 @@ export default async function ServiceLandingPage({ params }: Props) {
         <div className="service-landing-actions"><a className="primary" href={requestHref}>{s.cta} <ArrowRight aria-hidden="true" /></a><a className="secondary" href={lp(lang, '/businesses')}>{s.all}</a></div>
         <div className="service-landing-results">
           <div className="provider-profile-section-head"><div><span className="uo-kicker">{s.availableKicker}</span><h2>{s.count(businesses.length)}</h2></div></div>
-          {businesses.length ? <div className="directory-provider-cards">{businesses.map((raw) => { const business = localizeBusiness(raw, lang); return <article className="directory-provider-card" key={business.id}><div className="directory-provider-avatar" aria-hidden="true">{business.name.slice(0, 1)}</div><div className="directory-provider-copy"><div className="directory-provider-topline"><span>{business.category}</span>{business.verified && <span className="directory-provider-verified"><BadgeCheck aria-hidden="true" /> {t.common.verified}</span>}</div><h3>{business.name}</h3><p>{business.description || t.common.localProviderDesc}</p><div className="directory-provider-meta"><span><MapPin aria-hidden="true" /> {t.common.town} · {business.postcode || t.common.town}</span></div><a href={lp(lang, `/businesses/${business.id}`)}>{t.common.viewProfile} <ArrowRight aria-hidden="true" /></a></div></article>; })}</div> : <div className="uo-empty"><MapPin aria-hidden="true" /><h3>{s.emptyTitle}</h3><p>{s.emptyText}</p><a href={requestHref}>{s.emptyCta} <ArrowRight aria-hidden="true" /></a></div>}
+          {businesses.length ? <div className="directory-provider-cards">{businesses.map((raw) => { const business = localizeBusiness(raw, lang); return <article className="directory-provider-card" key={business.id}><div className="directory-provider-avatar" aria-hidden="true">{business.name.slice(0, 1)}</div><div className="directory-provider-copy"><div className="directory-provider-topline"><span>{business.category}</span>{business.verified && <span className="directory-provider-verified"><BadgeCheck aria-hidden="true" /> {t.common.verified}</span>}</div><h3>{business.name}</h3><p>{business.description || t.common.localProviderDesc}</p><div className="directory-provider-meta"><span><MapPin aria-hidden="true" /> {business.postcode ? `${t.common.town} · ${business.postcode}` : t.common.area}</span></div><a href={lp(lang, `/businesses/${business.id}`)}>{t.common.viewProfile} <ArrowRight aria-hidden="true" /></a></div></article>; })}</div> : <div className="uo-empty"><MapPin aria-hidden="true" /><h3>{s.emptyTitle}</h3><p>{s.emptyText}</p><a href={requestHref}>{s.emptyCta} <ArrowRight aria-hidden="true" /></a></div>}
         </div>
       </section>
     </main>

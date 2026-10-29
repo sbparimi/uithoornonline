@@ -26,13 +26,13 @@ const privacyNl: LegalDoc = {
   intro: `${C.tradeName} is een lokaal platform voor Uithoorn en De Kwakel. Hier lees je welke persoonsgegevens we verwerken, waarom, hoe lang we ze bewaren en welke rechten je hebt. We houden ons aan de Algemene verordening gegevensbescherming (AVG).`,
   sections: [
     { heading: '1. Wie is verantwoordelijk?', body: [
-      `Verwerkingsverantwoordelijke: ${C.legalName}, handelend onder de naam ${C.tradeName}, ${C.address}. E-mail: ${C.email}. Je kunt ons ook bereiken via het contactformulier op /contact.`,
+      `Verwerkingsverantwoordelijke: ${C.legalName}, handelend onder de naam ${C.tradeName}, ${C.address}. E-mail: ${C.email}. Je kunt ons ook bereiken via het contactformulier op uithoorn.online/contact.`,
       'We hebben geen functionaris voor gegevensbescherming aangesteld; dat is voor een organisatie van onze omvang niet verplicht. Vragen over privacy kun je via de contactgegevens hierboven stellen.',
     ] },
     { heading: '2. Welke gegevens verwerken we?', body: [
       'Account: naam, e-mailadres, telefoonnummer (optioneel), rol (bewoner of ondernemer), taalvoorkeur, een versleutelde (gehashte) versie van je wachtwoord, en het moment van registratie, laatste login en akkoord met de voorwaarden.',
       'Hulpvragen: de categorie, omschrijving, postcode, gewenste planning, urgentie en het eventuele budget dat je invult.',
-      'Gesprekken en beoordelingen: berichten tussen jou en een aanbieder, en beoordelingen die je achterlaat (je voornaam is bij een beoordeling openbaar).',
+      'Gesprekken en beoordelingen: berichten tussen jou en een aanbieder, en beoordelingen die je achterlaat (je naam wordt bij een beoordeling niet getoond).',
       'Bedrijfsvermeldingen: bedrijfsnaam, categorie, omschrijving, adres/postcode, website en telefoonnummer. Deze gegevens zijn openbaar zodra een vermelding is goedgekeurd. Bij eenmanszaken kunnen dit persoonsgegevens zijn.',
       'Contactberichten en inzendingen: je naam, e-mailadres en bericht.',
       'Technische gegevens: om misbruik te voorkomen tellen we kortstondig het aantal verzoeken per IP-adres en per e-mailadres. We slaan daarbij alleen een onleesbare hash op, niet het IP-adres zelf. Daarnaast tellen we anoniem paginabezoeken (zonder cookies, zie artikel 7).',
@@ -46,7 +46,7 @@ const privacyNl: LegalDoc = {
     ] },
     { heading: '4. Met wie delen we gegevens?', body: [
       'Met lokale aanbieders: als je een hulpvraag plaatst, zien passende aanbieders de omschrijving, categorie, postcode, planning en het budget. Je naam en e-mailadres zien ze niet; contact verloopt via het berichtensysteem nadat een aanbieder je aanvraag heeft geaccepteerd.',
-      'Met verwerkers die ons helpen de dienst te leveren, op basis van een verwerkersovereenkomst: Vercel Inc. (hosting van de website en anonieme bezoekersstatistieken; servers in de EU en de VS), Neon Inc. (database; opslag in de EU, regio Frankfurt, Duitsland), Resend (verzenden van e-mail; VS) en Tab (tab.bot), de digitale assistent die de beheerdersmailbox van Uithoorn.online leest en meldingen over nieuwe aanvragen, aanmeldingen en berichten verwerkt.',
+      'Met verwerkers die ons helpen de dienst te leveren, op basis van een verwerkersovereenkomst: Vercel Inc. (hosting van de website en anonieme bezoekersstatistieken; servers in de EU en de VS), Neon Inc. (database; opslag in de EU, regio Frankfurt, Duitsland), Resend (verzenden en ontvangen van e-mail; verwerking in de EU (Ierland), bedrijf gevestigd in de VS) en Tab (tab.bot), de digitale assistent die de beheerdersmailbox van Uithoorn.online leest en meldingen over nieuwe aanvragen, aanmeldingen en berichten verwerkt.',
       'Waar een verwerker gegevens buiten de Europese Economische Ruimte verwerkt (bijvoorbeeld in de Verenigde Staten), gebeurt dat op basis van het EU-VS Data Privacy Framework of de standaardcontractbepalingen van de Europese Commissie. [Eigenaar: verwerkersovereenkomsten met Vercel, Neon en Resend afsluiten en hier controleren.]',
       'Als je ons via WhatsApp benadert, verwerkt WhatsApp (Meta) je gegevens volgens het eigen privacybeleid van WhatsApp.',
       'We verstrekken gegevens aan instanties als de wet ons daartoe verplicht.',
@@ -83,13 +83,13 @@ const privacyEn: LegalDoc = {
   intro: `${C.tradeName} is a local platform for Uithoorn and De Kwakel. This policy explains which personal data we process, why, how long we keep it and what your rights are. We comply with the EU General Data Protection Regulation (GDPR, in Dutch: AVG). The Dutch version is leading.`,
   sections: [
     { heading: '1. Who is responsible?', body: [
-      `Controller: ${C.legalName}, trading as ${C.tradeName}, ${C.address}. Email: ${C.email}. You can also reach us through the contact form at /en/contact.`,
+      `Controller: ${C.legalName}, trading as ${C.tradeName}, ${C.address}. Email: ${C.email}. You can also reach us through the contact form at uithoorn.online/en/contact.`,
       'We have not appointed a data protection officer, which is not required for an organisation of our size. Privacy questions can be sent to the contact details above.',
     ] },
     { heading: '2. Which data do we process?', body: [
       'Account: name, email address, phone number (optional), role (resident or business), language preference, a hashed version of your password, and when you registered, last logged in and accepted the terms.',
       'Help requests: category, description, postcode, preferred timing, urgency and any budget you enter.',
-      'Conversations and reviews: messages between you and a business, and reviews you leave (your first name is public on a review).',
+      'Conversations and reviews: messages between you and a business, and reviews you leave (your name is not shown on a review).',
       'Business listings: business name, category, description, address/postcode, website and phone number. These are public once a listing is approved. For sole traders these can be personal data.',
       'Contact messages and submissions: your name, email address and message.',
       'Technical data: to prevent abuse we briefly count requests per IP address and per email address, storing only an unreadable hash, not the IP address itself. We also count page visits anonymously (without cookies, see section 7).',
@@ -103,7 +103,7 @@ const privacyEn: LegalDoc = {
     ] },
     { heading: '4. Who do we share data with?', body: [
       "Local businesses: when you post a help request, matching businesses see the description, category, postcode, timing and budget. They do not see your name or email address; contact happens through the messaging system after a business accepts your request.",
-      'Processors that help us deliver the service, under a data processing agreement: Vercel Inc. (website hosting and anonymous visitor statistics; servers in the EU and US), Neon Inc. (database; stored in the EU, Frankfurt region, Germany), Resend (email delivery; US) and Tab (tab.bot), the digital assistant that reads the Uithoorn.online operations mailbox and handles notifications about new requests, sign-ups and messages.',
+      'Processors that help us deliver the service, under a data processing agreement: Vercel Inc. (website hosting and anonymous visitor statistics; servers in the EU and US), Neon Inc. (database; stored in the EU, Frankfurt region, Germany), Resend (sending and receiving email; processed in the EU (Ireland), company based in the US) and Tab (tab.bot), the digital assistant that reads the Uithoorn.online operations mailbox and handles notifications about new requests, sign-ups and messages.',
       'Where a processor handles data outside the European Economic Area (for example in the United States), this is based on the EU-US Data Privacy Framework or the European Commission’s standard contractual clauses. [Owner: sign data processing agreements with Vercel, Neon and Resend and verify here.]',
       'If you contact us via WhatsApp, WhatsApp (Meta) processes your data under its own privacy policy.',
       'We disclose data to authorities where the law requires it.',
@@ -141,7 +141,8 @@ const cookiesNl: LegalDoc = {
   sections: [
     { heading: '1. Welke cookies gebruiken we?', body: [
       'uo_session – houdt je ingelogd. Functioneel/strikt noodzakelijk. Bevat alleen een willekeurige sleutel, geen persoonsgegevens. Geldig tot je uitlogt of maximaal 30 dagen. Alleen gezet als je inlogt.',
-      'uithoorn-locale – onthoudt of je de site in het Nederlands of Engels wilt zien. Functioneel. Alleen gezet als je zelf van taal wisselt.',
+      'uithoorn-locale – onthoudt of je de site in het Nederlands of Engels wilt zien. Functioneel. Alleen gezet als je zelf van taal wisselt. Bewaartermijn: 1 jaar.',
+      'Daarnaast bewaren we tijdelijk in je browser (sessionStorage, gewist zodra je het tabblad sluit): een concept van je hulpvraag als je eerst moet inloggen, en of je de advertentie hebt gesloten. Dit zijn geen cookies en ze worden niet naar ons verstuurd.',
     ] },
     { heading: '2. Statistieken zonder cookies', body: [
       'We meten bezoekersaantallen met Vercel Web Analytics. Dat werkt zonder cookies en zonder bezoekers over websites heen te volgen; er wordt geen persoonlijk profiel gemaakt. Daarnaast tellen we op onze eigen server anoniem gebeurtenissen zoals een geplaatste aanvraag, zonder IP-adres of identificatie op te slaan.',
@@ -162,7 +163,8 @@ const cookiesEn: LegalDoc = {
   sections: [
     { heading: '1. Which cookies do we use?', body: [
       'uo_session – keeps you logged in. Functional/strictly necessary. Contains only a random key, no personal data. Valid until you log out or for at most 30 days. Only set when you log in.',
-      'uithoorn-locale – remembers whether you want the site in Dutch or English. Functional. Only set when you switch language yourself.',
+      'uithoorn-locale – remembers whether you want the site in Dutch or English. Functional. Only set when you switch language yourself. Kept for 1 year.',
+      'We also store, temporarily in your browser (sessionStorage, cleared when you close the tab): a draft of your request if you need to sign in first, and whether you closed the ad. These are not cookies and are not sent to us.',
     ] },
     { heading: '2. Statistics without cookies', body: [
       'We measure visitor numbers with Vercel Web Analytics, which works without cookies and does not track visitors across websites; no personal profile is built. On our own server we also count events such as a submitted request anonymously, without storing IP addresses or identifiers.',
@@ -212,13 +214,13 @@ const termsNl: LegalDoc = {
       'Onze aansprakelijkheid is in alle gevallen beperkt tot het bedrag dat je in de 12 maanden voorafgaand aan de schade aan ons hebt betaald, of tot €100 als je niets hebt betaald. Deze beperking geldt niet bij opzet of grove schuld, of voor zover dwingend consumentenrecht dat niet toestaat.',
     ] },
     { heading: '8. Klachten', body: [
-      'Heb je een klacht over het platform? Neem contact op via /contact. We reageren binnen 14 dagen. Klachten over het werk van een aanbieder los je in eerste instantie met de aanbieder zelf op.',
+      'Heb je een klacht over het platform? Neem contact op via het contactformulier op uithoorn.online/contact. We reageren binnen 14 dagen. Klachten over het werk van een aanbieder los je in eerste instantie met de aanbieder zelf op.',
     ] },
     { heading: '9. Wijzigingen', body: [
       'We kunnen deze voorwaarden wijzigen. Belangrijke wijzigingen laten we minimaal 30 dagen van tevoren per e-mail weten. Gebruik je het platform daarna nog, dan gelden de nieuwe voorwaarden.',
     ] },
     { heading: '10. Toepasselijk recht', body: [
-      'Op deze voorwaarden is Nederlands recht van toepassing. Geschillen worden voorgelegd aan de bevoegde rechter in het arrondissement Noord-Holland, tenzij je als consument een andere bevoegde rechter mag kiezen.',
+      'Op deze voorwaarden is Nederlands recht van toepassing. Geschillen worden voorgelegd aan de bevoegde rechter in het arrondissement Amsterdam (Rechtbank Amsterdam, waaronder Uithoorn valt), tenzij je als consument een andere bevoegde rechter mag kiezen.',
     ] },
   ],
 };
@@ -258,13 +260,13 @@ const termsEn: LegalDoc = {
       'Our liability is in all cases limited to the amount you paid us in the 12 months before the damage, or €100 if you paid nothing. This limitation does not apply in case of intent or gross negligence, or where mandatory consumer law does not allow it.',
     ] },
     { heading: '8. Complaints', body: [
-      'Have a complaint about the platform? Contact us via /en/contact. We respond within 14 days. Complaints about a provider’s work should first be resolved with the provider.',
+      'Have a complaint about the platform? Contact us through the contact form at uithoorn.online/en/contact. We respond within 14 days. Complaints about a provider’s work should first be resolved with the provider.',
     ] },
     { heading: '9. Changes', body: [
       'We may change these terms. We will email you about significant changes at least 30 days in advance. If you keep using the platform afterwards, the new terms apply.',
     ] },
     { heading: '10. Governing law', body: [
-      'These terms are governed by Dutch law. Disputes are submitted to the competent court in the district of Noord-Holland, unless as a consumer you are entitled to choose another competent court.',
+      'These terms are governed by Dutch law. Disputes are submitted to the competent court in the district of Amsterdam (the Amsterdam District Court, which covers Uithoorn), unless as a consumer you are entitled to choose another competent court.',
     ] },
   ],
 };
