@@ -1,4 +1,5 @@
 import 'server-only';
+import { notificationText } from '../notification-text';
 import { query, queryOne, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { PRICING_ENABLED } from '../pricing';
@@ -6,7 +7,7 @@ import { PRICING_ENABLED } from '../pricing';
 type Participant = { id: string; status: string; request_id: string; customer_id: string; business_id: string; business_owner: string | null; business_name: string };
 
 async function participantConversation(user: SessionUser, id: string): Promise<(Participant & { side: 'customer' | 'business' | 'admin' }) | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   const c = await queryOne<Participant>(
     `select c.id, c.status, c.request_id, c.customer_id, c.business_id, b.owner_id as business_owner, b.name as business_name
        from conversations c join businesses b on b.id = c.business_id where c.id = $1`, [id]);
@@ -49,7 +50,7 @@ export async function sendMessage(user: SessionUser, conversationId: string, bod
   const id = await transaction(async (client) => {
     const { rows: [m] } = await client.query<{ id: string }>('insert into messages(conversation_id, sender_id, body) values ($1, $2, $3) returning id', [conversationId, user.id, body]);
     await client.query('update conversations set updated_at = now() where id = $1', [conversationId]);
-    if (recipientId) await client.query(`insert into notifications(user_id, type, title, body, conversation_id) values ($1, 'new_message', 'Nieuw bericht op Uithoorn.online', left($2, 180), $3)`, [recipientId, body, conversationId]);
+    if (recipientId) await client.query(`insert into notifications(user_id, type, title, body, conversation_id) values ($1, 'new_message', case when (select locale from users where id = $1) = 'en' then $4 else $5 end, left($2, 180), $3)`, [recipientId, body, conversationId, notificationText('new_message', 'en').title, notificationText('new_message', 'nl').title]);
     return m.id;
   });
   const recipient = recipientId ? await queryOne<{ email: string; locale: 'nl' | 'en' }>('select email, locale from users where id = $1', [recipientId]) : null;
@@ -62,18 +63,20 @@ export async function completeConversation(user: SessionUser, conversationId: st
   await transaction(async (client) => {
     await client.query(`update conversations set status = 'completed' where id = $1`, [conversationId]);
     await client.query(`update service_requests set status = 'completed' where id = $1`, [c.request_id]);
-    await client.query(`insert into notifications(user_id, type, title, body, conversation_id, request_id) values ($1, 'request_update', 'Opdracht afgerond', 'Je gesprek is gemarkeerd als afgerond. Laat een beoordeling achter voor de aanbieder.', $2, $3)`, [c.customer_id, conversationId, c.request_id]);
+    const { rows: [cu] } = await client.query<{ locale: string }>('select locale from users where id = $1', [c.customer_id]);
+    const done = notificationText('completed', cu?.locale);
+    await client.query(`insert into notifications(user_id, type, title, body, conversation_id, request_id) values ($1, 'request_update', $4, $5, $2, $3)`, [c.customer_id, conversationId, c.request_id, done.title, done.body]);
   });
   return true;
 }
 
 /** A business owner accepts a lead: opens the conversation with the resident. */
 export async function acceptRequest(user: SessionUser, requestId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(requestId)) return { error: 'request_not_available' as const };
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) return { error: 'request_not_available' as const };
   const lead = await queryOne<{ lead_id: string; business_id: string; business_name: string; status: string; customer_id: string; customer_email: string; customer_locale: 'nl' | 'en'; hidden: boolean }>(
     `select l.id as lead_id, l.business_id, b.name as business_name, l.status, r.customer_id, u.email as customer_email, u.locale as customer_locale, r.hidden
        from leads l join businesses b on b.id = l.business_id join service_requests r on r.id = l.request_id join users u on u.id = r.customer_id
-      where l.request_id = $1 and b.owner_id = $2 limit 1`, [requestId, user.id]);
+      where l.request_id = $1 and b.owner_id = $2 and b.active and b.moderation_status = 'approved' limit 1`, [requestId, user.id]);
   if (!lead || lead.hidden) return { error: 'request_not_available' as const };
   if (lead.status === 'locked' && PRICING_ENABLED) return { error: 'lead_limit_reached' as const };
   const conversationId = await transaction(async (client) => {
@@ -83,7 +86,8 @@ export async function acceptRequest(user: SessionUser, requestId: string) {
       `insert into conversations(request_id, customer_id, business_id, status) values ($1, $2, $3, 'active')
        on conflict (request_id, business_id) do update set status = 'active', updated_at = now() returning id`, [requestId, lead.customer_id, lead.business_id]);
     await client.query(`update service_requests set status = 'in_conversation' where id = $1`, [requestId]);
-    await client.query(`insert into notifications(user_id, type, title, body, conversation_id, request_id) values ($1, 'request_update', 'Een aanbieder heeft gereageerd', 'Een lokale aanbieder heeft jouw aanvraag geaccepteerd. Je kunt nu berichten.', $2, $3)`, [lead.customer_id, conv.id, requestId]);
+    const acc = notificationText('accepted', lead.customer_locale);
+    await client.query(`insert into notifications(user_id, type, title, body, conversation_id, request_id) values ($1, 'request_update', $4, $5, $2, $3)`, [lead.customer_id, conv.id, requestId, acc.title, acc.body]);
     return conv.id;
   });
   return { conversationId, businessName: lead.business_name, customerEmail: lead.customer_email, customerLocale: lead.customer_locale };

@@ -15,7 +15,7 @@ export const ANALYTICS_EVENTS = new Set(['page_view', 'search', 'search_result_c
 
 /** Anonymous first-party counters. No cookie, no IP, no session id is stored. */
 export async function trackEvent(name: string, businessId: string | null, requestId: string | null, metadata: Record<string, unknown>) {
-  const uuid = (v: string | null) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : null);
+  const uuid = (v: string | null) => (v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null);
   const meta = JSON.stringify(metadata).length <= 2000 ? metadata : {};
   await query(
     `insert into analytics_events(event_name, business_id, request_id, metadata)

@@ -5,9 +5,10 @@ import { ArrowRight, Check } from 'lucide-react';
 import { lp } from '../lib/i18n/config';
 import { getBackendDict } from '../lib/i18n/backend';
 import { useDict, useLang } from './lang-context';
+import { isSafeLocalPath } from '../lib/safe-path';
 
 function safe(next: string | null, fallback: string) {
-  return next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://') ? next : fallback;
+  return isSafeLocalPath(next) ? next : fallback;
 }
 
 export default function LoginForm() {

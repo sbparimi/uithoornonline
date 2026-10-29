@@ -10,7 +10,7 @@ export function assertAdmin(user: SessionUser | null | undefined): asserts user 
   if (!user || user.role !== 'admin') throw new Error('admin_required');
 }
 
-export const isId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v);
+export const isId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
 /** True when the error means a table/column from a not-yet-applied migration is missing. */
 export function isMissingSchema(error: unknown) {

@@ -7,7 +7,10 @@ import { queryOne } from '../../../../lib/db';
 import { isLocale, lp, type Locale } from '../../../../lib/i18n/config';
 import { getBackendDict } from '../../../../lib/i18n/backend';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params;
+  return { title: lang === 'en' ? 'Settings' : 'Instellingen', robots: { index: false, follow: false } };
+}
 export const dynamic = 'force-dynamic';
 
 export default async function AccountSettingsPage({ params }: { params: Promise<{ lang: string }> }) {

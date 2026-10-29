@@ -9,7 +9,7 @@ async function audit(actor: SessionUser, action: string, targetType: string, tar
   await query('insert into audit_log(actor_id, action, target_type, target_id, details) values ($1,$2,$3,$4,$5)', [actor.id, action, targetType, targetId, JSON.stringify(details)]);
 }
 function assertAdmin(user: SessionUser) { if (user.role !== 'admin') throw new Error('admin_required'); }
-const isId = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
+const isId = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
 export async function adminStats(user: SessionUser) {
   assertAdmin(user);

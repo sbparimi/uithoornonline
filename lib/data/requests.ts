@@ -1,4 +1,5 @@
 import 'server-only';
+import { notificationText } from '../notification-text';
 import { query, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { planUsage } from './plans';
@@ -72,7 +73,7 @@ export async function createRequest(user: SessionUser, input: RequestInput) {
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
       [user.id, input.category, input.description, input.postcode, input.preferredTiming, input.urgency, input.budgetMin, input.budgetMax]);
     const postcode4 = input.postcode.replace(/\D/g, '').slice(0, 4);
-    const { rows: candidates } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, [input.category.toLowerCase(), postcode4, user.id]);
+    const { rows: candidates } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, [input.category.toLowerCase().replace(/[\\%_]/g, '\\$&'), postcode4, user.id]);
 
     const matched: MatchedBusiness[] = [];
     for (const b of candidates) {
@@ -90,7 +91,7 @@ export async function createRequest(user: SessionUser, input: RequestInput) {
       await client.query(`insert into leads(request_id, business_id, status, counts_toward_limit) values ($1, $2, $3, $4) on conflict (request_id, business_id) do nothing`, [request.id, b.id, locked ? 'locked' : 'new', !viaCredit]);
       await client.query(
         `insert into notifications(user_id, type, title, body, request_id) values ($1, 'new_request', $2, $3, $4)`,
-        [b.owner_id, locked ? 'Nieuwe aanvraag (limiet bereikt)' : 'Nieuwe lokale aanvraag', locked ? 'Er is een nieuwe aanvraag voor jouw bedrijf. Upgrade je pakket om hem te bekijken.' : 'Er is een nieuwe aanvraag die past bij jouw bedrijf.', request.id]);
+        [b.owner_id, notificationText(locked ? 'new_request_locked' : 'new_request', b.owner_locale).title, notificationText(locked ? 'new_request_locked' : 'new_request', b.owner_locale).body, request.id]);
       matched.push({ id: b.id, name: b.name, ownerEmail: b.owner_email, ownerLocale: b.owner_locale, locked });
     }
     const delivered = matched.filter((m) => !m.locked).length;

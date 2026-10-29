@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     if (name.length < 2 || !email || message.length < 10) return errorJson('invalid_contact', 400);
     const row = await createContactMessage({ name, email, subject, body: message });
     const lang = body.lang === 'en' ? 'en' : 'nl';
-    after(() => sendEmail({ to: email, kind: 'contact_auto_reply', lang, ref: row?.id ? `contact:${row.id}` : undefined, ...contactAutoReplyEmail(lang, name, message) }));
+    after(() => sendEmail({ to: email, kind: 'contact_auto_reply', lang, ref: row?.id ? `contact:${row.id}` : undefined, ...contactAutoReplyEmail(lang) }));
     after(() => notify('new_contact', subject || message.slice(0, 60), { name, email, message }));
     return json({ id: row?.id, ok: true }, 201);
   }, 'contact');

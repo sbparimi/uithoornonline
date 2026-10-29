@@ -3,7 +3,12 @@ export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = 'nl';
 export const LOCALE_COOKIE = 'uithoorn-locale';
 export const SITE_URL = 'https://uithoorn.online';
-export const WHATSAPP_NUMBER = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '31616270233').replace(/\D/g, '');
+/** International digits for wa.me: accepts "+31 6…", "0031 6…" or a Dutch national "06…". */
+export function normalizeWhatsapp(raw: string) {
+  return raw.replace(/\D/g, '').replace(/^00/, '').replace(/^0(?=6)/, '31');
+}
+// OWNER: confirm the platform's number (this fallback is also a listed business's phone). Set NEXT_PUBLIC_WHATSAPP_NUMBER on Vercel.
+export const WHATSAPP_NUMBER = normalizeWhatsapp(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '31616270233');
 
 export function isLocale(value: string | undefined | null): value is Locale {
   return value === 'nl' || value === 'en';

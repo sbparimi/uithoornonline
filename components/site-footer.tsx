@@ -43,7 +43,7 @@ export function SiteFooter({ lang }: { lang: Locale }) {
       </div>
       <div className="site-footer-bottom">
         <span>© 2026 Uithoorn.online · {f.rights}</span>
-        <nav aria-label={f.contact}>
+        <nav aria-label={lang === 'en' ? 'Legal' : 'Juridisch'}>
           <a href={lp(lang, '/privacy')}>{f.privacy}</a>
           <a href={lp(lang, '/cookies')}>{f.cookies}</a>
           <a href={lp(lang, '/voorwaarden')}>{lang === 'en' ? 'Terms' : 'Algemene voorwaarden'}</a>

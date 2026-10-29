@@ -1,4 +1,5 @@
 import 'server-only';
+import { notificationText } from '../notification-text';
 import { query, queryOne, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { assertAdmin, audit, isId, like, paged, paging } from './core';
@@ -83,7 +84,8 @@ export async function assignLead(user: SessionUser, requestId: string, businessI
     await client.query('insert into request_providers(request_id, business_id) values ($1, $2) on conflict do nothing', [requestId, businessId]);
     const ins = await client.query<{ id: string }>(`insert into leads(request_id, business_id, status, counts_toward_limit) values ($1, $2, 'new', false) on conflict (request_id, business_id) do nothing returning id`, [requestId, businessId]);
     if (!ins.rowCount) return { error: 'already_assigned' as const };
-    if (b.owner_id) await client.query(`insert into notifications(user_id, type, title, body, request_id) values ($1, 'new_request', 'Nieuwe lokale aanvraag', 'Er is een nieuwe aanvraag die past bij jouw bedrijf.', $2)`, [b.owner_id, requestId]);
+    const nt = notificationText('new_request', b.owner_locale);
+    if (b.owner_id) await client.query(`insert into notifications(user_id, type, title, body, request_id) values ($1, 'new_request', $3, $4, $2)`, [b.owner_id, requestId, nt.title, nt.body]);
     await client.query(`update service_requests set status = 'matched' where id = $1 and status = 'open'`, [requestId]);
     await audit(user, 'lead_assign', 'request', requestId, null, { business_id: businessId, business_name: b.name, lead_id: ins.rows[0].id }, {}, client);
     return { ok: true, business: b, category: r.category };

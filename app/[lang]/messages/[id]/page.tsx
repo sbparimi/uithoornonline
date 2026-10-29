@@ -9,7 +9,10 @@ import { AppHeader } from '../../../../components/app-header';
 import { isLocale, lp, type Locale } from '../../../../lib/i18n/config';
 import { getDictionary, statusLabel } from '../../../../lib/i18n/dictionaries';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params;
+  return { title: lang === 'en' ? 'Conversation' : 'Gesprek', robots: { index: false, follow: false } };
+}
 
 export default async function MessagesPage({ params }: { params: Promise<{ lang: string; id: string }> }) {
   const { lang: raw, id } = await params;

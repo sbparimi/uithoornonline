@@ -36,7 +36,7 @@ export async function listLeadsForOwner(user: SessionUser) {
 const ALLOWED = ['viewed', 'accepted', 'declined', 'contacted', 'converted', 'closed'];
 
 export async function updateLeadStatus(user: SessionUser, leadId: string, status: string) {
-  if (!ALLOWED.includes(status) || !/^[0-9a-f-]{36}$/i.test(leadId)) return 'invalid_request' as const;
+  if (!ALLOWED.includes(status) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) return 'invalid_request' as const;
   const row = await queryOne<{ id: string }>(
     `update leads l set status = $3,
             viewed_at = case when $3 = 'viewed' and l.viewed_at is null then now() else l.viewed_at end,

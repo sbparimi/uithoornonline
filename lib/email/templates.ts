@@ -76,7 +76,8 @@ export function passwordChangedEmail(lang: Lang) {
   });
 }
 
-export function welcomeEmail(lang: Lang, name: string, isBusiness: boolean) {
+export function welcomeEmail(lang: Lang, rawName: string, isBusiness: boolean) {
+  const name = greetingName(rawName);
   const dash = `${site()}${localPath(lang, isBusiness ? '/provider' : '/account')}`;
   return layout(lang, L(lang, 'Welkom bij Uithoorn.online', 'Welcome to Uithoorn.online'), {
     heading: L(lang, `Welkom${name ? `, ${name}` : ''}!`, `Welcome${name ? `, ${name}` : ''}!`),
@@ -158,12 +159,20 @@ export function paymentReceiptEmail(lang: Lang, p: { businessName: string; amoun
   });
 }
 
-export function contactAutoReplyEmail(lang: Lang, name: string, message: string) {
+// The auto-reply goes to an address nobody has verified, so it must not echo anything the sender typed
+// (otherwise the form becomes a relay for spam or phishing text from our own domain).
+export function contactAutoReplyEmail(lang: Lang) {
   return layout(lang, L(lang, 'We hebben je bericht ontvangen', 'We received your message'), {
-    heading: L(lang, `Bedankt${name ? `, ${name}` : ''}!`, `Thanks${name ? `, ${name}` : ''}!`),
+    heading: L(lang, 'Bedankt voor je bericht!', 'Thanks for your message!'),
     paragraphs: [L(lang, 'We hebben je bericht ontvangen en reageren meestal binnen één werkdag.', 'We received your message and usually reply within one working day.')],
-    quote: message.slice(0, 1500),
   });
+}
+
+/** First name only, short, and nothing that looks like a link or address (names come from unverified signups). */
+export function greetingName(name: string) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  if (!first || first.length > 30 || /[.:/@<>\\]/.test(first)) return '';
+  return first;
 }
 
 export function adminReplyEmail(lang: Lang, subject: string, body: string) {

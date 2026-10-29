@@ -3,7 +3,7 @@ import { queryOne } from '../db';
 import type { SessionUser } from '../auth/session';
 
 export async function createReview(user: SessionUser, conversationId: string, rating: number, body: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return { error: 'review_not_allowed' as const };
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId)) return { error: 'review_not_allowed' as const };
   const c = await queryOne<{ id: string; request_id: string; business_id: string; business_name: string }>(
     `select c.id, c.request_id, c.business_id, b.name as business_name from conversations c join businesses b on b.id = c.business_id
       where c.id = $1 and c.customer_id = $2 and c.status = 'completed'`, [conversationId, user.id]);

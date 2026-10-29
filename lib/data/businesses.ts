@@ -34,7 +34,7 @@ export async function listPublicBusinessesMatching(terms: string[]) {
 export type PublicReview = { id: string; rating: number; body: string; created_at: string; author: string };
 
 export async function getPublicBusiness(id: string): Promise<{ business: PublicBusiness; reviews: PublicReview[]; rating: { average: number | null; count: number } } | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   try {
     const business = await queryOne<PublicBusiness>(`select ${PUBLIC_COLUMNS} from businesses where id = $1 and ${PUBLIC_WHERE}`, [id]);
     if (!business) return null;
@@ -107,7 +107,7 @@ export async function createBusinessForOwner(ownerId: string, input: Required<Pi
 
 /** Photos an admin added to a business (table business_photos, migration 0002). Empty when none or not migrated. */
 export async function getPublicBusinessPhotos(id: string): Promise<{ url: string; alt: string }[]> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return [];
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return [];
   try {
     return await query<{ url: string; alt: string }>('select url, alt from business_photos where business_id = $1 order by sort, created_at limit 12', [id]);
   } catch {

@@ -9,7 +9,8 @@ import { useDict, useLang } from './lang-context';
 
 type Role = 'customer' | 'provider';
 // Values are stored as-is; labels are translated.
-const providerCategories = ['Klus & onderhoud', 'Schoonmaak', 'Elektricien & installatie', 'Tuin & buiten', 'Workshop', 'Indian food'];
+// Same list as the provider profile form (lead matching uses the category), plus the two older values.
+const providerCategories = ['Klus & onderhoud', 'Schoonmaak', 'Elektricien & installatie', 'Tuin & buiten', 'Loodgieter', 'Transport & logistiek', 'Automotive', 'Kapper & beauty', 'Eten & catering', 'Professionele diensten', 'Workshop', 'Indian food'];
 
 export default function AccountSignup({ initialRole = 'customer' }: { initialRole?: Role }) {
   const lang = useLang();
@@ -33,7 +34,7 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
       const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...fields, email: form.email.trim(), password, fullName: form.name.trim(), phone: form.phone.trim(), role, businessName: form.business.trim(), businessCategory: form.category, businessDescription: form.description.trim(), website: form.website.trim(), postcode: form.postcode.trim().toUpperCase(), acceptTerms: accept, lang }) });
       const data = await res.json().catch(() => ({}));
       if (res.ok) { window.location.href = data.redirect || lp(lang, role === 'provider' ? '/provider' : '/account'); return; }
-      setError(data.error === 'email_exists' ? s.errExists : data.error === 'password_too_short' ? b.weakPassword : data.error === 'terms_required' ? b.termsRequired : data.error === 'invalid_postcode' ? t.common.postcodeError : data.error === 'rate_limited' ? b.rateLimited : s.errFailed);
+      setError(data.error === 'email_exists' ? s.errExists : data.error === 'password_too_short' ? b.weakPassword : data.error === 'terms_required' ? b.termsRequired : data.error === 'invalid_postcode' ? t.common.postcodeError : data.error === 'invalid_website' ? t.common.websiteError : data.error === 'rate_limited' ? b.rateLimited : s.errFailed);
     } catch {
       setError(t.common.network);
     } finally {
@@ -50,12 +51,12 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
       <label>{t.common.phone}<input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder={s.phonePlaceholder} /></label>
       {role === 'provider' && <>
         <label>{t.common.businessName}<input required autoComplete="organization" value={form.business} onChange={(e) => update('business', e.target.value)} /></label>
-        <label>{t.common.category}<select value={form.category} onChange={(e) => update('category', e.target.value)}>{providerCategories.map((value) => <option key={value} value={value}>{s.categories[value] ?? value}</option>)}</select></label>
+        <label>{t.common.category}<select value={form.category} onChange={(e) => update('category', e.target.value)}>{providerCategories.map((value) => <option key={value} value={value}>{s.categories[value] ?? t.provider.profileCategories[value] ?? value}</option>)}</select></label>
         <label>{t.common.description}<textarea required minLength={20} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder={s.descPlaceholder} /></label>
         <label>{t.common.website}<input type="url" value={form.website} onChange={(e) => update('website', e.target.value)} placeholder="https://" /></label>
         <label>{t.common.postcode}<input required inputMode="text" autoComplete="postal-code" value={form.postcode} onChange={(e) => update('postcode', e.target.value.toUpperCase())} placeholder="1421 AB" /></label>
       </>}
-      <label className="checkbox-row"><input type="checkbox" required checked={accept} onChange={(e) => setAccept(e.target.checked)} /> <span>{b.acceptTerms} <a href={lp(lang, '/voorwaarden')} target="_blank" rel="noopener">{b.terms}</a> {b.and} <a href={lp(lang, '/privacy')} target="_blank" rel="noopener">{b.privacy}</a> {b.read}</span></label>
+      <label className="checkbox-row"><input type="checkbox" required checked={accept} onChange={(e) => setAccept(e.target.checked)} /> <span>{b.acceptTerms} <a href={lp(lang, '/voorwaarden')} target="_blank" rel="noopener">{b.terms}</a> {b.and} <a href={lp(lang, '/privacy')} target="_blank" rel="noopener">{b.privacy}</a>{b.read}</span></label>
       {trap}
       {error && <p className="platform-error" role="alert" aria-live="assertive">{error}</p>}
       <button className="primary" disabled={loading} type="submit">{loading ? s.sending : s.submit} <ArrowRight aria-hidden="true" /></button>

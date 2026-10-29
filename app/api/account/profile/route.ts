@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security/rate-limit';
 import { errorJson, handle, json, readJson, sameOrigin, str } from '@/lib/http';
 import { requireUser } from '@/lib/auth/session';
 import { updateOwnProfile } from '@/lib/data/users';
@@ -8,6 +9,8 @@ export async function PATCH(request: Request) {
   return handle(async () => {
     if (!sameOrigin(request)) return errorJson('bad_origin', 403);
     const user = await requireUser();
+    const limit = await rateLimit('account-action', user.id, { limit: 60, windowSeconds: 3600 });
+    if (!limit.ok) return errorJson('rate_limited', 429);
     const body = await readJson(request);
     const input: { fullName?: string; phone?: string | null; locale?: 'nl' | 'en' } = {};
     if (body.fullName !== undefined) { const v = str(body.fullName, 120); if (v.length < 2) return errorJson('invalid_name', 400); input.fullName = v; }

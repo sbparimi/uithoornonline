@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { consumeAuthToken } from '@/lib/auth/tokens';
+import { consumeAuthTokenFor } from '@/lib/auth/tokens';
 import { createSession } from '@/lib/auth/session';
 import { findUserByEmail, markEmailVerified } from '@/lib/data/users';
+import { isSafeLocalPath } from '../../../lib/safe-path';
 
 function safeNext(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('://')) return null;
-  return value;
+  return isSafeLocalPath(value) ? value : null;
 }
 
 // Magic-link landing: one-time token -> session cookie -> redirect.
@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   const next = safeNext(url.searchParams.get('next'));
   const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, url.origin));
   try {
-    const consumed = await consumeAuthToken(token);
+    // Only sign-in tokens: a reset link must go through /reset-password (it ends other sessions).
+    const consumed = await consumeAuthTokenFor(token, 'login');
     if (!consumed) return fail('link_invalid');
     const user = await findUserByEmail(consumed.email);
     if (!user || user.disabled_at) return fail('link_invalid');

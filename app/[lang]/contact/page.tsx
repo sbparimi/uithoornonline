@@ -3,7 +3,7 @@ import { MessageCircle } from 'lucide-react';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
 import { ContactForm } from '../../../components/contact-form';
-import { alternatesFor, formatDutchMobile, isLocale, lp, WHATSAPP_NUMBER, whatsappHref, type Locale } from '../../../lib/i18n/config';
+import { seo, formatDutchMobile, isLocale, lp, WHATSAPP_NUMBER, whatsappHref, type Locale } from '../../../lib/i18n/config';
 import { getBackendDict } from '../../../lib/i18n/backend';
 import { COMPANY } from '../../../lib/legal/content';
 
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang: raw } = await params;
   const lang: Locale = isLocale(raw) ? raw : 'nl';
   const c = getBackendDict(lang).contact;
-  return { title: c.metaTitle, description: c.intro, alternates: alternatesFor(lang, '/contact') };
+  return { title: c.metaTitle, description: c.intro, ...seo(lang, '/contact', c.metaTitle, c.intro) };
 }
 
 export default async function ContactPage({ params }: Props) {

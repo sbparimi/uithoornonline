@@ -8,6 +8,7 @@ import { cleanBusinessInput, createBusinessForOwner } from '@/lib/data/businesse
 import { sendEmail } from '@/lib/email/send';
 import { welcomeEmail } from '@/lib/email/templates';
 import { notify } from '@/lib/notify';
+import { query } from '@/lib/db';
 import { after } from 'next/server';
 
 export async function POST(request: Request) {
@@ -42,7 +43,15 @@ export async function POST(request: Request) {
     const created = await createUser({ email, passwordHash: await hashPassword(password), fullName, phone, role, locale });
     if (!created) return errorJson('email_exists', 409);
     let businessId: string | null = null;
-    if (business) businessId = await createBusinessForOwner(created.id, { ...business, name: business.name!, category: business.category! });
+    if (business) {
+      try {
+        businessId = await createBusinessForOwner(created.id, { ...business, name: business.name!, category: business.category! });
+      } catch (error) {
+        // Keep signup all-or-nothing: no provider account without its business.
+        await query('delete from users where id = $1', [created.id]).catch(() => undefined);
+        throw error;
+      }
+    }
     await createSession(created.id, 'password');
 
     const mail = welcomeEmail(locale, fullName, role === 'provider');

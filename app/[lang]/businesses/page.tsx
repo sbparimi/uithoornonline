@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { listPublicBusinesses } from '../../../lib/data/businesses';
 import { ProviderDirectory } from '../../../components/provider-directory';
-import { fallbackBusinesses, localizeBusiness, spiceIndiaId, type PublicBusiness } from '../../../lib/business-content';
+import { localizeBusiness, spiceIndiaId, type PublicBusiness } from '../../../lib/business-content';
 import { alternatesFor, isLocale, lp, seo, SITE_URL, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
+import { jsonLd } from '../../../lib/json-ld';
 
 const foodSearchPattern = /food|eten|restaurant|cater|catering|takeaway|thuiskeuken|bakker|bakery|taart|indian|indiaas|spiceindia|biryani|dosa|idli|vada|lunch|dinner|maaltijd/i;
 
@@ -35,7 +36,7 @@ export default async function BusinessesPage({ params, searchParams }: Props) {
 
   const items = businesses.map((raw) => {
     const b = localizeBusiness(raw, lang);
-    return { id: b.id, title: b.name, meta: b.category, description: b.description || t.common.localProviderDesc, postcode: b.postcode || t.common.town, website: b.website, phone: b.phone, verified: b.verified, searchText: `${raw.category} ${raw.description}` };
+    return { id: b.id, title: b.name, meta: b.category, description: b.description || t.common.localProviderDesc, postcode: b.postcode || '', website: b.website, phone: b.phone, verified: b.verified, searchText: `${raw.category} ${raw.description}` };
   });
 
   const structuredData = {
@@ -51,7 +52,7 @@ export default async function BusinessesPage({ params, searchParams }: Props) {
   };
 
   return <>
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structuredData) }} />
     <ProviderDirectory items={items} initialQuery={query} />
   </>;
 }
