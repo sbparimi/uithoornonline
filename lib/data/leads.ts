@@ -1,7 +1,8 @@
 import 'server-only';
 import { query, queryOne } from '../db';
 import type { SessionUser } from '../auth/session';
-import { planUsage } from './plans';
+import { planUsage, releaseLockedLeads } from './plans';
+import { PRICING_ENABLED } from '../pricing';
 
 export type LeadView = {
   id: string; status: string; created_at: string; request_id: string; category: string;
@@ -14,6 +15,7 @@ export type LeadView = {
 export async function listLeadsForOwner(user: SessionUser) {
   const business = await queryOne<{ id: string; name: string }>('select id, name from businesses where owner_id = $1 order by created_at limit 1', [user.id]);
   if (!business) return null;
+  await releaseLockedLeads(business.id); // pricing off: nothing stays locked
   const leads = await query<LeadView>(
     `select l.id, l.status, l.created_at, r.id as request_id, r.category,
             case when l.status = 'locked' then null else r.description end as description,
@@ -42,7 +44,7 @@ export async function updateLeadStatus(user: SessionUser, leadId: string, status
             contacted_at = case when $3 = 'contacted' then now() else l.contacted_at end,
             converted_at = case when $3 = 'converted' then now() else l.converted_at end
       from businesses b
-      where l.id = $1 and b.id = l.business_id and b.owner_id = $2 and l.status <> 'locked'
-      returning l.id`, [leadId, user.id, status]);
+      where l.id = $1 and b.id = l.business_id and b.owner_id = $2 and (l.status <> 'locked' or $4::boolean)
+      returning l.id`, [leadId, user.id, status, !PRICING_ENABLED]);
   return row ? 'ok' as const : 'not_authorized' as const;
 }

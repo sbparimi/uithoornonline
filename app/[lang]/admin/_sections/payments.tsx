@@ -2,6 +2,7 @@ import type { SessionUser } from '../../../../lib/auth/session';
 import * as P from '../../../../lib/admin/payments';
 import { businessOptions } from '../../../../lib/admin/businesses';
 import { Act, Back, Card, csvHref, Empty, eur, Field, fmtDate, Form, MigrationNotice, Pager, Pill, Select, Toolbar, tr, type Ctx } from '../_ui';
+import { PRICING_ENABLED } from '../../../../lib/pricing';
 
 function PaymentForm({ ctx, p, businesses, create }: { ctx: Ctx; p?: Partial<P.Payment>; businesses: { id: string; name: string }[]; create?: boolean }) {
   const t = tr(ctx.lang);
@@ -20,6 +21,7 @@ function PaymentForm({ ctx, p, businesses, create }: { ctx: Ctx; p?: Partial<P.P
       <Field label={t('Notitie', 'Note')} wide><input name="note" maxLength={1000} defaultValue={p?.note ?? ''} /></Field>
     </div>
     <div className="adm-checks"><label><input type="checkbox" name="send_receipt" defaultChecked={create} /> {t('Stuur betaalbewijs naar de eigenaar (als betaald)', 'Email a receipt to the owner (when paid)')}</label></div>
+    {!PRICING_ENABLED && <p className="adm-hint">{t('Prijzen staan uit: alles is gratis en leads zijn onbeperkt. Deze gegevens worden bewaard voor als prijzen terugkomen.', 'Pricing is switched off: everything is free and leads are unlimited. This data is kept for when pricing returns.')}</p>}
     <p className="adm-hint">{t('Betaald = direct verwerkt: een pakketbetaling zet het pakket voor het aantal maanden, losse leads worden credits. Vergrendelde leads van deze maand gaan dan open.', 'Paid = applied at once: a plan payment sets the plan for the given months, single leads become credits. This month’s locked leads then unlock.')}</p>
     <button type="submit" className="adm-btn adm-primary">{create ? t('Betaling vastleggen', 'Record payment') : t('Opslaan', 'Save')}</button>
   </Form>;

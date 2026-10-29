@@ -5,6 +5,7 @@
 // and to clean up the test accounts afterwards. Safe against a preview; never run on production.
 import pg from 'pg';
 
+const PRICING = process.env.NEXT_PUBLIC_PRICING_ENABLED === 'true'; // must match the build under test
 const BASE = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url) { console.error('DATABASE_URL is required'); process.exit(1); }
@@ -146,14 +147,37 @@ try {
     await who.req('POST', '/api/requests', form({ category: 'tuin schutting', description: `Nieuwe schutting nodig, verzoek nummer ${i + 2}.`, postcode: '1422AA', preferredTiming: 'Flexibel', urgency: 'flexible' }));
   }
   const leads2 = await biz.req('GET', '/api/provider/leads');
-  const locked = leads2.data?.leads?.filter((l) => l.status === 'locked') ?? [];
-  check('Free plan: 4th lead this month is locked (limit 3)', leads2.data?.usage?.includedLeads === 3 && leads2.data?.usage?.usedThisMonth === 3 && locked.length === 1, JSON.stringify(leads2.data?.usage));
-  check('locked lead hides the request details', locked[0] && locked[0].description === null && locked[0].postcode === null);
-  check('business cannot accept a locked lead (402)', locked[0] && (await biz.req('POST', `/api/provider/requests/${locked[0].request_id}/accept`)).status === 402);
-  const plan = await admin.req('POST', '/api/admin', { action: 'business.plan', id: bizRow.id, plan: 'pro', note: 'test: betaald via Tikkie' });
-  check('admin sets plan Pro -> locked lead unlocked', plan.status === 200 && plan.data?.result?.unlocked === 1, JSON.stringify(plan.data));
-  const leads3 = await biz.req('GET', '/api/provider/leads');
-  check('Pro plan shows 15 included leads', leads3.data?.usage?.includedLeads === 15 && !leads3.data.leads.some((l) => l.status === 'locked'));
+  if (PRICING) {
+    const locked = leads2.data?.leads?.filter((l) => l.status === 'locked') ?? [];
+    check('Free plan: 4th lead this month is locked (limit 3)', leads2.data?.usage?.includedLeads === 3 && leads2.data?.usage?.usedThisMonth === 3 && locked.length === 1, JSON.stringify(leads2.data?.usage));
+    check('locked lead hides the request details', locked[0] && locked[0].description === null && locked[0].postcode === null);
+    check('business cannot accept a locked lead (402)', locked[0] && (await biz.req('POST', `/api/provider/requests/${locked[0].request_id}/accept`)).status === 402);
+    const plan = await admin.req('POST', '/api/admin', { action: 'business.plan', id: bizRow.id, plan: 'pro', note: 'test: betaald via Tikkie' });
+    check('admin sets plan Pro -> locked lead unlocked', plan.status === 200 && plan.data?.result?.unlocked === 1, JSON.stringify(plan.data));
+    const leads3 = await biz.req('GET', '/api/provider/leads');
+    check('Pro plan shows 15 included leads', leads3.data?.usage?.includedLeads === 15 && !leads3.data.leads.some((l) => l.status === 'locked'));
+  } else {
+    // Pricing switched off (lib/pricing.ts, the default): no caps, nothing locked, details always visible.
+    const all = leads2.data?.leads ?? [];
+    check('pricing off: 4th lead this month is NOT locked (unlimited)', all.length >= 4 && !all.some((l) => l.status === 'locked'), JSON.stringify(all.map((l) => l.status)));
+    check('pricing off: every lead shows its request details', all.length >= 4 && all.every((l) => l.description && l.postcode));
+    const open = all.find((l) => l.status === 'new');
+    await db.query(`update leads set status = 'locked' where id = $1`, [open.id]);
+    const leads3 = await biz.req('GET', '/api/provider/leads');
+    const again = leads3.data?.leads?.find((l) => l.id === open.id);
+    check('pricing off: a lead locked under the old limits is opened up', again && again.status === 'new' && again.description, JSON.stringify(again));
+    await db.query(`update leads set status = 'locked' where id = $1`, [open.id]);
+    check('pricing off: business can accept an old locked lead', (await biz.req('POST', `/api/provider/requests/${open.request_id}/accept`)).status === 200);
+    for (const path of ['/', '/en', '/voor-bedrijven', '/en/voor-bedrijven', '/voorwaarden', '/en/voorwaarden']) {
+      const html = String((await anon.req('GET', path, undefined, { accept: 'text/html' })).data);
+      const text = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ');
+      const bad = ['Pro+', '/ maand', '/ month', 'per maand', 'per month', 'leads per', 'Losse lead', 'Single lead', 'Upgrade'].filter((x) => text.includes(x));
+      for (const m of text.match(/€\s?(29|59|10|0)(?![\d,.])/g) ?? []) bad.push(m); // plan prices (the €100 liability cap in the terms is not a price)
+      check(`pricing off: ${path} shows no prices or plans`, bad.length === 0, bad.join(', '));
+    }
+    const vb = String((await anon.req('GET', '/voor-bedrijven', undefined, { accept: 'text/html' })).data);
+    check('pricing off: /voor-bedrijven shows the free card', vb.includes('Gratis voor iedereen') && vb.includes('id="gratis"'));
+  }
 
   // --- Admin safety
   const adminId = (await db.query('select id from users where email = $1', [admin.email])).rows[0].id;

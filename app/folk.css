@@ -252,6 +252,17 @@ a.f-card:hover .f-card-cta svg { transform: translateX(3px); }
 .f-plan em small { font-size: 13px; color: var(--f-grey-2); font-weight: 400; }
 .f-plans-note { font: 600 19px/1.1 var(--f-hand); color: var(--f-blue); margin-top: 6px; text-align: right; }
 
+/* free mode (lib/pricing.ts): one "free for everyone" card instead of the plans */
+.pricing-grid.pricing-grid-single { grid-template-columns: minmax(0, 460px); justify-content: center; }
+.folk .ds-page .business-free-note { display: block; text-align: center; margin: 20px auto 0; font-size: 24px; }
+.business-free .pricing-head p { min-height: 0; }
+.business-free .pricing-price { margin: 12px 0 16px; }
+.f-plan-free { padding: 18px 20px; }
+.f-plan-free em { color: var(--f-blue); }
+.f-free-list { list-style: none; margin: 4px 0 0; padding: 14px 18px; border-radius: 18px; background: var(--f-card); display: grid; gap: 9px; }
+.f-free-list li { display: flex; align-items: center; gap: 10px; font: 400 15px/1.3 var(--f-serif); color: var(--f-ink); }
+.f-free-list li svg { width: 18px; height: 18px; flex: none; color: var(--f-blue); }
+
 /* reveal on scroll (progressive: content visible without JS / reduced motion) */
 @supports (animation-timeline: view()) {
   .f-reveal { animation: f-rise linear both; animation-timeline: view(); animation-range: entry 0% cover 22%; }

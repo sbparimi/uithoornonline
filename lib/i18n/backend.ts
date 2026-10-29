@@ -76,6 +76,7 @@ const nl = {
   },
   leads: {
     usage: (used: number, included: number, plan: string) => `${used} van ${included} leads gebruikt deze maand (${plan})`,
+    usageFree: (used: number) => `${used} ${used === 1 ? 'aanvraag' : 'aanvragen'} deze maand · onbeperkt en gratis`,
     lockedTitle: 'Nieuwe aanvraag (limiet bereikt)',
     lockedText: 'Je hebt alle leads van je pakket voor deze maand gebruikt. Upgrade om deze aanvraag te bekijken en te beantwoorden.',
     upgrade: 'Upgraden via WhatsApp',
@@ -199,6 +200,7 @@ const en: Dict = {
   },
   leads: {
     usage: (used: number, included: number, plan: string) => `${used} of ${included} leads used this month (${plan})`,
+    usageFree: (used: number) => `${used} ${used === 1 ? 'request' : 'requests'} this month · unlimited and free`,
     lockedTitle: 'New request (limit reached)',
     lockedText: 'You have used all leads in your plan this month. Upgrade to view and answer this request.',
     upgrade: 'Upgrade via WhatsApp',

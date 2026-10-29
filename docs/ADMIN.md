@@ -9,6 +9,9 @@ Tabs: Overview · Businesses · Accounts · Requests (+ leads) · Payments · Co
 - Deletes need a typed confirmation (DELETE, or the account's email).
 
 ## Payments ledger (no processor; payments via WhatsApp/Tikkie/bank/cash)
+Pricing is currently switched off (see `lib/pricing.ts` / docs/BACKEND.md): everything is free and leads are unlimited,
+so the plan and credit fields below are dormant. They keep working for when pricing returns.
+
 Recording a **paid** payment applies it: a plan payment sets the plan for N months (extends the current period when it's the
 same plan), a single-lead payment adds extra lead credits (`business_lead_credits`). This month's locked leads that now fit
 are unlocked. Marking unpaid / deleting reverts the credits (a plan is left as is). Optional receipt email to the owner.

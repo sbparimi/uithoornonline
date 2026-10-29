@@ -39,7 +39,16 @@ the database (lower latency, personal data processed in the EU). There is no Sup
 - Public forms carry a hidden honeypot field (`company_website`) and a minimum fill time (2.5 s).
 - `/api/agent` (the old unauthenticated LLM endpoint) is removed.
 
-## Lead limits (server-side)
+## Pricing switch (currently OFF: everything is free)
+Since Oct 29, 2026 Uithoorn.online is free for everyone (owner's decision, "until we get good traction").
+`lib/pricing.ts` exports `PRICING_ENABLED`, read from `NEXT_PUBLIC_PRICING_ENABLED` (default: off). While it is off:
+no prices, plan cards, upgrade buttons or plan badges are shown; every business gets unlimited leads (nothing is
+locked, no credits are used, and leads locked under the old limits are opened up the next time the business views its
+leads). The plan/subscription/credit tables and the admin payments ledger stay in place, dormant.
+To bring pricing back: set `NEXT_PUBLIC_PRICING_ENABLED=true` in Vercel (Production + Preview), redeploy (it is baked
+in at build time), and update the pricing clauses in `lib/legal/content.ts` with advance notice to providers.
+
+## Lead limits (server-side, only while pricing is ON)
 Plans in `business_plans`: Free 3, Pro 15, Pro+ 50 leads per calendar month. When a business is over its limit, new
 leads are stored as `locked`: the business sees that a request came in, not its details, and cannot accept it.
 Raising the plan in /admin unlocks this month's locked leads up to the new limit.

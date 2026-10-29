@@ -1,7 +1,7 @@
 import 'server-only';
 import { query, queryOne } from '../db';
 import type { SessionUser } from '../auth/session';
-import { planUsage } from './plans';
+import { planUsage, releaseLockedLeads } from './plans';
 
 export async function getResidentDashboard(user: SessionUser) {
   const [requests, conversations, notifications] = await Promise.all([
@@ -20,6 +20,7 @@ export async function getProviderDashboard(user: SessionUser) {
   const business = await queryOne<{ id: string; name: string; category: string; postcode: string | null; verified: boolean; active: boolean; moderation_status: 'pending' | 'approved' | 'rejected' }>(
     'select id, name, category, postcode, verified, active, moderation_status from businesses where owner_id = $1 order by created_at limit 1', [user.id]);
   if (!business) return null;
+  await releaseLockedLeads(business.id); // pricing off: nothing stays locked
   const [plan, usage, leads, conversations, notifications, counts] = await Promise.all([
     queryOne<{ name: string; monthly_price_cents: number; included_leads: number; featured: boolean }>(
       `select p.name, p.monthly_price_cents, p.included_leads, p.featured from business_plans p

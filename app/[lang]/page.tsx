@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { ArrowRight, ChevronRight, MessageCircle, Search } from 'lucide-react';
+import { ArrowRight, Check, ChevronRight, MessageCircle, Search } from 'lucide-react';
 import { SiteHeader } from '../../components/site-header';
 import { SiteFooter } from '../../components/site-footer';
 import { isLocale, lp, seo, SITE_URL, whatsappHref, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 import { AppIcon, HeroChat, type ChatScript } from '../../components/hero-chat';
+import { BUSINESS_OFFER_ANCHOR, PRICING_ENABLED } from '../../lib/pricing';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: raw } = await params;
@@ -218,14 +219,18 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
                 <p>{h.bizText}</p>
                 <div className="f-biz-actions">
                   <a className="f-btn f-btn-blue" href={lp(lang, '/signup/account?role=provider')}>{h.bizSecondary} <ArrowRight aria-hidden="true" /></a>
-                  <a className="f-btn f-btn-white" href={lp(lang, '/voor-bedrijven#prijzen')}>{h.bizCta}</a>
+                  <a className="f-btn f-btn-white" href={lp(lang, `/voor-bedrijven${BUSINESS_OFFER_ANCHOR}`)}>{h.bizCta}</a>
                 </div>
               </div>
-              <div className="f-plans" aria-label={m.plansKicker}>
+              {PRICING_ENABLED ? <div className="f-plans" aria-label={m.plansKicker}>
                 {planKeys.map((k) => { const [name, desc] = b.plans[k]; return <div key={k} className="f-plan"><div><strong>{name}</strong><span>{desc}</span></div><em>€{prices[k]}{k !== 'free' && <small> {b.perMonth}</small>}</em></div>; })}
                 <div className="f-plan"><div><strong>{m.single}</strong></div><em><MessageCircle aria-hidden="true" style={{ width: 22, height: 22, color: '#25a35a' }} /></em></div>
                 <p className="f-plans-note">{m.viaWa}</p>
-              </div>
+              </div> : <div className="f-plans" aria-label={b.free.title}>
+                <div className="f-plan f-plan-free"><div><strong>{b.free.title}</strong><span>{b.free.desc}</span></div><em>{b.free.name}</em></div>
+                <ul className="f-free-list">{b.free.features.map((f) => <li key={f}><Check aria-hidden="true" />{f}</li>)}</ul>
+                <p className="f-plans-note">{b.free.note}</p>
+              </div>}
             </div>
           </div>
         </section>
