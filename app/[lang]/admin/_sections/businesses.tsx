@@ -1,6 +1,7 @@
 import type { SessionUser } from '../../../../lib/auth/session';
 import * as B from '../../../../lib/admin/businesses';
 import { Act, Back, Card, csvHref, DangerZone, Empty, eur, Field, fmtDate, Form, Pager, Pill, Select, Toolbar, tr, type Ctx } from '../_ui';
+import { PRICING_ENABLED } from '../../../../lib/pricing';
 
 const PLAN_LABEL: Record<string, string> = { free: 'Gratis', pro: 'Pro', pro_plus: 'Pro+' };
 
@@ -48,7 +49,8 @@ export default async function Businesses({ ctx, user }: { ctx: Ctx; user: Sessio
         {b.moderation_status === 'approved' && b.active ? <a className="adm-btn adm-ghost" href={`/${ctx.lang === 'en' ? 'en/' : ''}businesses/${b.id}`} target="_blank" rel="noopener noreferrer">{t('Bekijk pagina', 'View page')} ↗</a> : null}
       </div>
       <div className="adm-grid2">
-        <Card title={t('Pakket & leads', 'Plan & leads')}>
+        <Card title={PRICING_ENABLED ? t('Pakket & leads', 'Plan & leads') : t('Pakket & leads (nu niet in gebruik)', 'Plan & leads (currently unused)')}>
+          {!PRICING_ENABLED && <p className="adm-hint">{t('Prijzen staan uit: alles is gratis en leads zijn onbeperkt. Deze gegevens worden bewaard voor als prijzen terugkomen.', 'Pricing is switched off: everything is free and leads are unlimited. This data is kept for when pricing returns.')}</p>}
           <dl className="adm-dl"><dt>{t('Pakket', 'Plan')}</dt><dd>{PLAN_LABEL[b.plan_key] ?? b.plan_key}{b.current_period_end ? ` · ${t('tot', 'until')} ${fmtDate(ctx.lang, b.current_period_end, false)}` : ''}</dd>
             <dt>{t('Leads deze maand', 'Leads this month')}</dt><dd>{b.leads_month}</dd><dt>{t('Extra lead-credits', 'Extra lead credits')}</dt><dd>{b.credits}</dd></dl>
           <Form ctx={ctx} action="business.plan" id={b.id} className="adm-form adm-row-form">

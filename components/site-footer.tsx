@@ -2,6 +2,7 @@ import { MessageCircle } from 'lucide-react';
 import { formatDutchMobile, lp, WHATSAPP_NUMBER, whatsappHref, type Locale } from '../lib/i18n/config';
 import { getDictionary } from '../lib/i18n/dictionaries';
 import { CONTACT_EMAIL } from '../lib/contact';
+import { BUSINESS_OFFER_ANCHOR } from '../lib/pricing';
 
 export function SiteFooter({ lang }: { lang: Locale }) {
   const t = getDictionary(lang);
@@ -27,7 +28,7 @@ export function SiteFooter({ lang }: { lang: Locale }) {
         <div className="site-footer-col">
           <h2>{f.entrepreneurs}</h2>
           <a href={lp(lang, '/voor-bedrijven')}>{f.forBusinesses}</a>
-          <a href={lp(lang, '/voor-bedrijven#prijzen')}>{f.pricing}</a>
+          <a href={lp(lang, `/voor-bedrijven${BUSINESS_OFFER_ANCHOR}`)}>{f.pricing}</a>
           <a href={lp(lang, '/signup/account?role=provider')}>{f.listBusiness}</a>
           <a href={lp(lang, '/provider')}>{f.dashboard}</a>
           <a href={lp(lang, '/signup')}>{f.share}</a>

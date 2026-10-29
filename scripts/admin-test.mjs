@@ -8,6 +8,7 @@ import http from 'node:http';
 import { createHmac } from 'node:crypto';
 import pg from 'pg';
 
+const PRICING = process.env.NEXT_PUBLIC_PRICING_ENABLED === 'true'; // must match the build under test
 const BASE = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url || /neon\.tech/.test(url)) { console.error('Set DATABASE_URL to a LOCAL database (refusing Neon).'); process.exit(1); }
@@ -214,12 +215,13 @@ try {
   check('deleting the payment reverts its credits', (await admin.req('POST', '/api/admin', { action: 'payment.delete', id: pay3.id })).status === 200 && (await credits()) === 0);
   const totals = (await db.query("select coalesce(sum(amount_cents),0)::int s from payments where business_id = $1 and status = 'paid'", [bizRow.id])).rows[0].s;
   check('ledger totals: €39 paid for this business', totals === 3900);
-  // a credit is used automatically when a new lead arrives over the limit
+  // a credit is used automatically when a new lead arrives over the limit (only while pricing is on)
   await admin.req('POST', '/api/admin', { action: 'business.plan', id: bizRow.id, plan: 'free' });
   await admin.req('POST', '/api/admin', { action: 'business.credits', id: bizRow.id, credits: '1' });
   const rq = await res.req('POST', '/api/requests', form({ category: 'Schilder', description: 'Graag de kozijnen laten schilderen, ongeveer 6 ramen.', postcode: '1421AB', preferredTiming: 'Binnen een maand', urgency: 'flexible' }));
   const newLead = rq.data?.id ? (await db.query('select status, counts_toward_limit from leads where request_id = $1 and business_id = $2', [rq.data.id, bizRow.id])).rows[0] : null;
-  check('over the limit, a new lead uses a credit instead of locking', rq.status === 201 && newLead?.status === 'new' && newLead?.counts_toward_limit === false && (await credits()) === 0, JSON.stringify({ rq: rq.data, newLead }));
+  if (PRICING) check('over the limit, a new lead uses a credit instead of locking', rq.status === 201 && newLead?.status === 'new' && newLead?.counts_toward_limit === false && (await credits()) === 0, JSON.stringify({ rq: rq.data, newLead }));
+  else check('pricing off: a new lead over the old limit is delivered without using a credit', rq.status === 201 && newLead?.status === 'new' && (await credits()) === 1, JSON.stringify({ rq: rq.data, newLead }));
   const confirmMail = await waitFor(() => sent.find((m) => m.to?.includes(res.email) && /geplaatst/i.test(m.subject)));
   check('resident gets a request confirmation email', Boolean(confirmMail));
 

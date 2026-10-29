@@ -200,9 +200,8 @@ const termsNl: LegalDoc = {
     { heading: '5. Extra voorwaarden voor aanbieders', body: [
       'Elke bedrijfsvermelding wordt gecontroleerd voordat die openbaar wordt. Het label “Geverifieerd” betekent dat wij de basisgegevens van het bedrijf hebben gecontroleerd; het is geen keurmerk voor de kwaliteit van het werk.',
       'Je bent verantwoordelijk voor de juistheid van je vermelding en voor het naleven van de wet bij het uitvoeren van opdrachten, waaronder consumentenrecht, belasting- en vergunningsregels.',
-      'Pakketten: Gratis (€0, 3 leads per kalendermaand), Pro (€29 per maand, 15 leads per maand) en Pro+ (€59 per maand, 50 leads per maand, met uitgelichte plaatsing). [Prijzen inclusief/exclusief btw – in te vullen.] Een lead is een hulpvraag die aan jouw bedrijf wordt doorgestuurd. Komen er meer leads binnen dan je pakket toestaat, dan zie je dat er een aanvraag is, maar niet de inhoud, totdat je upgradet.',
-      'Betaling gebeurt vooralsnog per factuur of betaalverzoek na contact via WhatsApp of het contactformulier. Pakketten lopen per maand en zijn maandelijks opzegbaar tegen het einde van de lopende maand. Reeds betaalde maanden worden niet terugbetaald, tenzij de wet anders bepaalt.',
-      'We kunnen prijzen en pakketten wijzigen. Een prijsverhoging laten we minimaal 30 dagen van tevoren weten; je kunt dan opzeggen voordat de wijziging ingaat.',
+      'Uithoorn.online is op dit moment gratis voor alle aanbieders: er zijn geen pakketten of kosten en je ontvangt onbeperkt leads. Een lead is een hulpvraag die aan jouw bedrijf wordt doorgestuurd.',
+      'We kunnen later betaalde pakketten invoeren. Dat laten we je vooraf weten.',
       'Als aanbieder verwerk je persoonsgegevens van bewoners die je via het platform ontvangt als zelfstandig verantwoordelijke. Je gebruikt ze alleen om op de hulpvraag te reageren en de opdracht uit te voeren.',
     ] },
     { heading: '6. Beschikbaarheid', body: [
@@ -247,9 +246,8 @@ const termsEn: LegalDoc = {
     { heading: '5. Additional terms for providers', body: [
       'Every business listing is reviewed before it becomes public. The “Verified” label means we have checked the basic business details; it is not a quality mark for the work.',
       'You are responsible for the accuracy of your listing and for complying with the law when carrying out work, including consumer, tax and licensing rules.',
-      'Plans: Free (€0, 3 leads per calendar month), Pro (€29 per month, 15 leads per month) and Pro+ (€59 per month, 50 leads per month, with featured placement). [Prices including/excluding VAT – to be filled in.] A lead is a help request forwarded to your business. If more leads arrive than your plan allows, you see that a request came in, but not its content, until you upgrade.',
-      'For now, payment is by invoice or payment request after contact via WhatsApp or the contact form. Plans run monthly and can be cancelled at the end of the current month. Months already paid are not refunded unless the law requires otherwise.',
-      'We may change prices and plans. We announce a price increase at least 30 days in advance; you may cancel before it takes effect.',
+      'Uithoorn.online is currently free for all providers: there are no plans or costs and you receive unlimited leads. A lead is a help request forwarded to your business.',
+      'We may introduce paid plans later. We will let you know in advance.',
       'As a provider you process the personal data of residents you receive through the platform as an independent controller. You use it only to respond to the request and carry out the job.',
     ] },
     { heading: '6. Availability', body: [

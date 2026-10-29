@@ -1,4 +1,5 @@
 import type { Locale } from './config';
+import { PRICING_ENABLED } from '../pricing';
 
 const nl = {
   meta: {
@@ -396,6 +397,9 @@ const nl = {
     plan: 'Abonnement',
     included: (n: number) => `${n} leads inbegrepen`,
     freePlan: 'Gratis',
+    unlimited: 'onbeperkt aanvragen',
+    noCosts: 'geen abonnement, geen kosten',
+    completeProfile: 'Profiel aanvullen',
     growthKicker: 'Groei met Uithoorn.online',
     growthTitle: 'Maak van lokale zoekopdrachten echte klanten.',
     growthText: 'Je profiel is gratis. Met Pro of Pro+ krijg je meer leads, inzichten en promotie.',
@@ -510,6 +514,17 @@ const nl = {
     finalTitle: 'Zet je bedrijf op de lokale kaart.',
     finalText: 'Begin gratis en groei met echte klantvragen uit de buurt.',
     finalCta: 'Meld je bedrijf aan',
+    free: {
+      kicker: 'Gratis',
+      title: 'Gratis voor iedereen.',
+      text: 'Geen abonnement en geen kosten. Meld je bedrijf aan en ontvang onbeperkt aanvragen van bewoners.',
+      name: 'Gratis',
+      forWho: 'Voor elk lokaal bedrijf',
+      desc: 'Onbeperkt aanvragen ontvangen, geen abonnement',
+      features: ['Je bedrijf in de lokale gids', 'Onbeperkt aanvragen van bewoners', 'Contact via WhatsApp', 'Geen kosten, geen abonnement'],
+      cta: 'Gratis aanmelden',
+      note: 'gewoon gratis 🙂',
+    },
   },
   ad: {
     close: 'Sluiten',
@@ -930,6 +945,9 @@ const en: Dictionary = {
     plan: 'Plan',
     included: (n: number) => `${n} leads included`,
     freePlan: 'Free',
+    unlimited: 'unlimited requests',
+    noCosts: 'no subscription, no costs',
+    completeProfile: 'Complete your profile',
     growthKicker: 'Grow with Uithoorn.online',
     growthTitle: 'Turn local searches into real customers.',
     growthText: 'Your profile is free. Pro or Pro+ gives you more leads, insights and promotion.',
@@ -1044,6 +1062,17 @@ const en: Dictionary = {
     finalTitle: 'Put your business on the local map.',
     finalText: 'Start for free and grow with real customer requests from your area.',
     finalCta: 'List your business',
+    free: {
+      kicker: 'Free',
+      title: 'Free for everyone.',
+      text: 'No subscription and no costs. List your business and receive unlimited requests from residents.',
+      name: 'Free',
+      forWho: 'For every local business',
+      desc: 'Unlimited requests, no subscription',
+      features: ['Your business in the local directory', 'Unlimited requests from residents', 'Contact via WhatsApp', 'No costs, no subscription'],
+      cta: 'List for free',
+      note: 'simply free 🙂',
+    },
   },
   ad: {
     close: 'Close',
@@ -1066,7 +1095,49 @@ const en: Dictionary = {
   },
 };
 
-const dictionaries: Record<Locale, Dictionary> = { nl, en };
+// Free mode (lib/pricing.ts, the default): the texts above that talk about paid plans are replaced by
+// these. The plan copy itself stays in the dictionaries, unused, so pricing can come back with one switch.
+type FreeOverrides = { business: Partial<Dictionary['business']>; provider: Partial<Dictionary['provider']>; footer: Partial<Dictionary['footer']> };
+const freeOverrides: Record<Locale, FreeOverrides> = {
+  nl: {
+    business: {
+      metaDescription: 'Ontvang lokale klantaanvragen en groei met Uithoorn.online. Gratis voor alle bedrijven: onbeperkt aanvragen, geen abonnement.',
+      intro: 'Uithoorn.online verbindt bewoners met lokale bedrijven. Gratis voor iedereen: je profiel, onbeperkt aanvragen van bewoners en contact via WhatsApp.',
+      seePricing: 'Wat je krijgt',
+      engineTitle: 'Echte klantvragen, geen ruis.',
+      finalText: 'Meld je gratis aan en ontvang echte klantvragen uit de buurt.',
+    },
+    provider: {
+      plan: 'Kosten',
+      growthText: 'Je vermelding is gratis, met onbeperkt aanvragen. Maak je profiel compleet, dan vinden bewoners je sneller.',
+      yourPlan: 'Gratis voor iedereen',
+      benefits: ['Onbeperkt lokale klantaanvragen', 'Inzicht in leads en contact', 'Verificatie en vertrouwen', 'Contact via WhatsApp'],
+    },
+    footer: { pricing: 'Gratis voor bedrijven' },
+  },
+  en: {
+    business: {
+      metaDescription: 'Receive local customer requests and grow with Uithoorn.online. Free for every business: unlimited requests, no subscription.',
+      intro: 'Uithoorn.online connects residents with local businesses. Free for everyone: your profile, unlimited requests from residents and contact via WhatsApp.',
+      seePricing: 'What you get',
+      engineTitle: 'Real customer requests, not noise.',
+      finalText: 'List your business for free and receive real customer requests from your area.',
+    },
+    provider: {
+      plan: 'Cost',
+      growthText: 'Your listing is free, with unlimited requests. Complete your profile so residents find you faster.',
+      yourPlan: 'Free for everyone',
+      benefits: ['Unlimited local customer requests', 'Lead and contact insights', 'Verification and trust', 'Contact via WhatsApp'],
+    },
+    footer: { pricing: 'Free for businesses' },
+  },
+};
+
+const withFree = (d: Dictionary, o: FreeOverrides): Dictionary => ({
+  ...d, business: { ...d.business, ...o.business }, provider: { ...d.provider, ...o.provider }, footer: { ...d.footer, ...o.footer },
+});
+
+const dictionaries: Record<Locale, Dictionary> = PRICING_ENABLED ? { nl, en } : { nl: withFree(nl, freeOverrides.nl), en: withFree(en, freeOverrides.en) };
 
 export function getDictionary(lang: Locale): Dictionary {
   return dictionaries[lang] ?? nl;

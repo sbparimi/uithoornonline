@@ -1,6 +1,7 @@
 import 'server-only';
 import { query, queryOne, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
+import { PRICING_ENABLED } from '../pricing';
 
 type Participant = { id: string; status: string; request_id: string; customer_id: string; business_id: string; business_owner: string | null; business_name: string };
 
@@ -74,7 +75,7 @@ export async function acceptRequest(user: SessionUser, requestId: string) {
        from leads l join businesses b on b.id = l.business_id join service_requests r on r.id = l.request_id join users u on u.id = r.customer_id
       where l.request_id = $1 and b.owner_id = $2 limit 1`, [requestId, user.id]);
   if (!lead || lead.hidden) return { error: 'request_not_available' as const };
-  if (lead.status === 'locked') return { error: 'lead_limit_reached' as const };
+  if (lead.status === 'locked' && PRICING_ENABLED) return { error: 'lead_limit_reached' as const };
   const conversationId = await transaction(async (client) => {
     await client.query(`update request_providers set status = 'accepted', responded_at = now() where request_id = $1 and business_id = $2`, [requestId, lead.business_id]);
     await client.query(`update leads set status = 'accepted', accepted_at = now() where id = $1`, [lead.lead_id]);
