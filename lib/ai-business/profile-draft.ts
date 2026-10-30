@@ -81,13 +81,24 @@ export function hoursFromText(text: string): OpeningHours | null {
 // ---------- the source pack ----------
 function sourcePack(pages: PageFacts[], input: DraftInput) {
   const ld = pages.flatMap((p) => p.jsonLd).filter((o) => /Business|Organization|Store|Restaurant|Service|Contractor|Plumber|Electrician|Salon|Shop|Dentist|Physician|Bakery|Cafe|Place/i.test(String(o['@type'] ?? '')));
-  const parts: string[] = [];
-  for (const p of pages) parts.push(`# PAGE ${p.url}\nTITLE: ${p.title ?? ''}\nMETA: ${p.metaDescription ?? ''}\n${p.text.slice(0, 5000)}`);
-  if (ld.length) parts.push(`# STRUCTURED DATA\n${JSON.stringify(ld).slice(0, 3000)}`);
-  if (input.name) parts.push(`# NAME GIVEN BY OWNER\n${input.name}`);
-  if (input.kvk) parts.push(`# KVK NUMBER GIVEN BY OWNER\n${input.kvk}`);
-  if (input.about) parts.push(`# OWNER'S OWN WORDS\n${input.about}`);
-  const text = parts.join('\n\n').slice(0, 14000);
+  // The AI input is capped at about 6,000 characters by llmJson (shared with lane B), so the pack is
+  // budgeted: the owner's own words and structured data first, then the home page gets the biggest share.
+  // Validation of contact details uses the full `haystack` below, not this pack.
+  const BUDGET = 5800;
+  const head: string[] = [];
+  if (input.name) head.push(`# NAME GIVEN BY OWNER\n${input.name.slice(0, 120)}`);
+  if (input.kvk) head.push(`# KVK NUMBER GIVEN BY OWNER\n${input.kvk}`);
+  if (input.about) head.push(`# OWNER'S OWN WORDS\n${input.about.slice(0, 1500)}`);
+  if (ld.length) head.push(`# STRUCTURED DATA\n${JSON.stringify(ld).slice(0, 1200)}`);
+  let left = BUDGET - head.join('\n\n').length - 20;
+  const pageParts: string[] = [];
+  pages.forEach((p, i) => {
+    if (left < 200) return;
+    const share = i === 0 ? Math.floor(left * (pages.length > 1 ? 0.55 : 1)) : Math.floor(left / (pages.length - i));
+    const part = `# PAGE ${p.url}\nTITLE: ${p.title ?? ''}\nMETA: ${p.metaDescription ?? ''}\n${p.text}`.slice(0, Math.max(0, share));
+    pageParts.push(part); left -= part.length + 2;
+  });
+  const text = [...head, ...pageParts].join('\n\n').slice(0, BUDGET);
   const haystack = `${pages.map((p) => `${p.title} ${p.metaDescription} ${p.text}`).join(' ')} ${JSON.stringify(ld)} ${pages.flatMap((p) => p.tels).join(' ')} ${pages.flatMap((p) => p.mails).join(' ')} ${input.name ?? ''} ${input.about ?? ''}`;
   return { text, haystack, ld };
 }

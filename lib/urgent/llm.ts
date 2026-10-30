@@ -115,7 +115,7 @@ async function discoverModel(p: Provider): Promise<string | null> {
   } catch { return null; }
 }
 
-export async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
+async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
   try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs, maxTokens); }
   catch (e) {
     if (p0.kind !== 'openai' || !/ 404$| 400$/.test(e instanceof Error ? e.message : '')) throw e;
@@ -144,7 +144,7 @@ async function callOnce(p: Provider, system: string, user: string, timeoutMs: nu
   } finally { clearTimeout(timer); }
 }
 
-export function parseJson(text: string): Record<string, unknown> | null {
+function parseJson(text: string): Record<string, unknown> | null {
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   try { const v = JSON.parse(m[0]); return v && typeof v === 'object' ? v as Record<string, unknown> : null; } catch { return null; }
@@ -181,17 +181,17 @@ async function classifyWith(p: Provider, text: string, lang: 'nl' | 'en', rules:
 }
 
 /**
- * Generic JSON call on the same providers/fallback chain as the intake (used by the AI business tools:
- * profile builder, page chat). Returns null when no provider is configured or every provider failed,
- * so callers always keep a rule-based path.
+ * Generic JSON call on the same providers (and fallback order) as the classifier, for the request
+ * flow's follow-up questions and the business job brief (lib/urgent/ai-request.ts). Returns null when
+ * no provider is configured or none answered with parseable JSON; callers then use their rule fallback.
  */
 export async function llmJson(system: string, user: string, opts: { maxTokens?: number; timeoutMs?: number } = {}): Promise<{ data: Record<string, unknown>; provider: string } | null> {
   for (const p of llmProviders()) {
     try {
-      const out = parseJson(await callLlm(p, system, user, opts.timeoutMs ?? 15000, opts.maxTokens ?? 1200));
+      const out = parseJson(await callLlm(p, system, user.slice(0, 6000), opts.timeoutMs ?? 12000, opts.maxTokens ?? 900));
       if (out) return { data: out, provider: `${p.name}/${discovered.get(p.name) ?? p.model}` };
     } catch (e) {
-      console.warn('[llmJson] provider failed:', p.name, e instanceof Error ? e.message : e);
+      console.warn('[ai-request] llm failed:', p.name, e instanceof Error ? e.message : e);
     }
   }
   return null;

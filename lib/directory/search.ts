@@ -12,17 +12,17 @@ import { OTHER_CATEGORY } from '../categories';
 export type DirectorySource = {
   id: string; name: string; category: string; description: string | null;
   descriptionNl?: string | null; categoryNl?: string | null;
+  opening_hours?: unknown;
   postcode: string | null; address?: string | null; website: string | null; phone: string | null;
   verified: boolean; featured?: boolean; created_at?: string | Date | null;
-  opening_hours?: unknown;
 };
 
 export type DirectoryEntry = {
   id: string; name: string; rawCategory: string; category: DirectoryCategory; section: SectionId;
   description: string; descriptionNl: string; categoryNl: string;
+  hours: OpeningHours | null;
   postcode: string | null; address: string | null; town: string | null; place: PlaceId;
   website: string | null; phone: string | null; verified: boolean; featured: boolean; createdAt: number;
-  hours: OpeningHours | null;
 };
 
 export type SortKey = 'relevance' | 'az' | 'newest';
@@ -111,9 +111,9 @@ export function toEntry(src: DirectorySource): DirectoryEntry {
   return {
     id: src.id, name: src.name.trim(), rawCategory: src.category, category, section: category.section,
     description: (src.description || '').trim(), descriptionNl: (src.descriptionNl || src.description || '').trim(), categoryNl: (src.categoryNl || src.category).trim(),
+    hours: cleanHours(src.opening_hours),
     postcode: src.postcode, address: src.address ?? null, town, place,
     website: src.website, phone: src.phone, verified: !!src.verified, featured: !!src.featured, createdAt: Number.isFinite(created) ? created : 0,
-    hours: cleanHours(src.opening_hours),
   };
 }
 

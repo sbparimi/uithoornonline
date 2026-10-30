@@ -16,15 +16,20 @@ type Row = DirectorySource & { created_at: string };
 async function load(): Promise<{ index: DirectoryIndex; source: 'database' | 'fallback' }> {
   let rows: Row[]; let source: 'database' | 'fallback' = 'database';
   try {
-    rows = await query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at, opening_hours
-                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`)
-      // Before migration 0006 there is no opening_hours column: same list without it.
-      .catch((e) => { if ((e as { code?: string })?.code !== '42703') throw e; return query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at
-                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`); });
+    rows = await query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at
+                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`);
   } catch (error) {
     if (!(error instanceof DbUnavailableError)) throw error;
     rows = FALLBACK_BUSINESSES.map((b) => ({ ...b, address: null, created_at: '' }));
     source = 'fallback';
+  }
+  // Opening hours (migration 0006) in their own query, merged by id: no hours before the migration,
+  // and the main listing query above stays untouched for the other lanes.
+  if (source === 'database') {
+    const withHours = await query<{ id: string; opening_hours: unknown }>(`select id, opening_hours from businesses where opening_hours is not null and moderation_status = 'approved' and active = true`)
+      .catch((e) => { if ((e as { code?: string })?.code === '42703' || e instanceof DbUnavailableError) return []; throw e; });
+    const byId = new Map(withHours.map((h) => [h.id, h.opening_hours]));
+    if (byId.size) rows = rows.map((r) => (byId.has(r.id) ? { ...r, opening_hours: byId.get(r.id) } : r));
   }
   const entries = rows.map((r) => toEntry({ ...r, descriptionNl: localizeText(r.description, 'nl'), categoryNl: localizeText(r.category, 'nl') }));
   return { index: buildIndex(entries), source };

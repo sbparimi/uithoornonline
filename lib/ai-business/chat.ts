@@ -89,7 +89,10 @@ export async function answerChat(b: NonNullable<Awaited<ReturnType<typeof getCha
   const last = turns.filter((t) => t.role === 'user').pop()?.content ?? '';
   const facts = factSheet(b, lang);
   const convo = turns.slice(-8).map((t) => `${t.role === 'user' ? 'VISITOR' : 'ASSISTANT'}: ${t.content}`).join('\n');
-  const ai = await llmJson(SYSTEM(lang, b.name), `FACTS:\n${facts}\n\nCONVERSATION:\n${convo}`, { maxTokens: 700, timeoutMs: 12000 });
+  // llmJson caps the input at about 6,000 characters: the conversation goes first and the fact sheet
+  // gets the rest, so a long FAQ list can never cut off the visitor's question.
+  const convoPart = `CONVERSATION:\n${convo.slice(-1600)}`;
+  const ai = await llmJson(SYSTEM(lang, b.name), `${convoPart}\n\nFACTS:\n${facts.slice(0, 5900 - convoPart.length)}`, { maxTokens: 700, timeoutMs: 12000 });
   const reply = typeof ai?.data.reply === 'string' ? ai.data.reply.trim().slice(0, 600) : '';
   if (!ai || !reply) return rulesAnswer(b, last, lang);
   const intent = ai.data.intent === 'lead' || ai.data.intent === 'unknown' ? ai.data.intent as 'lead' | 'unknown' : 'answer';
