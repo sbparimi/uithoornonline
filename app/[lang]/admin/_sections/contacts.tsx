@@ -30,7 +30,7 @@ export default async function Contacts({ ctx, user }: { ctx: Ctx; user: SessionU
             <Field label={t('Bericht', 'Message')} wide><textarea name="body" rows={6} required maxLength={10000} /></Field>
             <Field label={t('Taal van de e-mail', 'Email language')}><Select name="lang" value={ctx.lang} label="lang" options={[['nl', 'Nederlands'], ['en', 'English']]} /></Field>
           </div>
-          <p className="adm-hint">{t(`Gaat naar ${c.email}, met een kopie naar de admin. Antwoorden op jouw mail komen bij uithoorn.online@mail.tab.bot.`, `Goes to ${c.email}, with a copy to the admin. Replies to your email arrive at uithoorn.online@mail.tab.bot.`)}</p>
+          <p className="adm-hint">{t(`Gaat naar ${c.email}, met een kopie naar de admin. Antwoorden op jouw mail gaan naar sam@uithoorn.online en worden doorgestuurd naar de admin-inbox.`, `Goes to ${c.email}, with a copy to the admin. Replies to your email go to sam@uithoorn.online and are forwarded to the admin inbox.`)}</p>
           <button type="submit" className="adm-btn adm-primary">{t('Verstuur antwoord', 'Send reply')}</button>
         </Form>
       </Card>
