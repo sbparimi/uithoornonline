@@ -9,7 +9,7 @@ const DRAFT_KEY = 'uo_ai_profile_draft';
 // Business signup: "Heb je een website? Laat AI je aanmelding invullen." Fills the signup fields from the
 // business's own website and keeps the full draft (EN text, services, hours, FAQs) in this browser tab,
 // so the profile page can offer it right after signup. Nothing is saved or published here.
-export function SignupAiFill({ lang, onFill }: { lang: 'nl' | 'en'; onFill: (d: SignupFill) => void }) {
+export function SignupAiFill({ lang, onFill, variant = 'account' }: { lang: 'nl' | 'en'; onFill: (d: SignupFill) => void; variant?: 'account' | 'listing' }) {
   const en = lang === 'en';
   const L = (nl: string, e: string) => (en ? e : nl);
   const [site, setSite] = useState('');
@@ -30,7 +30,9 @@ export function SignupAiFill({ lang, onFill }: { lang: 'nl' | 'en'; onFill: (d: 
       try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* private mode: fine */ }
       onFill({ name: d.name, category: d.category, description: d.description_nl, website: d.website, postcode: d.postcode, publicEmail: d.public_email, phone: d.phone });
       setState('done');
-      setMsg(L('Ingevuld met AI. Controleer de velden hieronder en pas aan waar nodig. Openingstijden, diensten en veelgestelde vragen vul je straks aan op je profielpagina.', 'Filled in with AI. Check the fields below and edit where needed. You add opening hours, services and FAQs on your profile page next.'));
+      setMsg(variant === 'listing'
+        ? L('Ingevuld met AI. Controleer de velden hieronder en pas aan waar nodig. Met een gratis bedrijfsaccount voeg je later openingstijden, diensten en veelgestelde vragen toe.', 'Filled in with AI. Check the fields below and edit where needed. With a free business account you can add opening hours, services and FAQs later.')
+        : L('Ingevuld met AI. Controleer de velden hieronder en pas aan waar nodig. Openingstijden, diensten en veelgestelde vragen vul je straks aan op je profielpagina.', 'Filled in with AI. Check the fields below and edit where needed. You add opening hours, services and FAQs on your profile page next.'));
     } catch { setState('error'); setMsg(L('Dat duurde te lang. Vul het formulier zelf in of probeer het opnieuw.', 'That took too long. Fill in the form yourself or try again.')); }
   }
   return (

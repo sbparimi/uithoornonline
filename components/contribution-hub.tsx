@@ -2,7 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { ArrowRight, Building2, CheckCircle2, Lightbulb } from 'lucide-react';
-import { useDict } from './lang-context';
+import { useDict, useLang } from './lang-context';
+import { SignupAiFill } from './ai-business/signup-ai-fill';
+import '../app/ai-business.css';
 import { useSpamTrap } from './spam-trap';
 
 type Kind = 'business' | 'tip';
@@ -12,6 +14,7 @@ const emptyForm = { name: '', email: '', phone: '', title: '', description: '', 
 
 export default function ContributionHub({ initialKind = 'business' }: { initialKind?: Kind }) {
   const t = useDict();
+  const lang = useLang();
   const c = t.contribution;
   const [kind, setKind] = useState<Kind>(initialKind);
   const [form, setForm] = useState(emptyForm);
@@ -51,6 +54,7 @@ export default function ContributionHub({ initialKind = 'business' }: { initialK
     <div className="contribution-form-wrap"><div className="contribution-form-intro"><span className="uo-kicker">{selectedTitle}</span><h2>{c.formTitle[0]}<em>{c.formTitle[1]}</em>{c.formTitle[2]}</h2><p>{selectedText} {c.checked}</p></div><form className="contribution-form" onSubmit={submit} noValidate style={{ position: 'relative' }}>{trap}
       <div className="contribution-two"><label>{c.yourName}<input required autoComplete="name" value={form.name} onChange={(e) => update('name', e.target.value)} /></label><label>{t.common.email}<input required type="email" autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} /></label></div>
       <div className="contribution-two"><label>{t.common.phone} <span>{t.common.optional}</span><input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label><label>{t.common.postcode} <span>{t.common.optional}</span><input autoComplete="postal-code" value={form.postcode} onChange={(e) => update('postcode', e.target.value)} placeholder="1421 AB" /></label></div>
+      {kind === 'business' && <SignupAiFill lang={lang} variant="listing" onFill={(d) => setForm((v) => ({ ...v, title: v.title || d.name || '', category: v.category || d.category || '', description: v.description || d.description || '', postcode: v.postcode || d.postcode || '', website: v.website || d.website || '' }))} />}
       <label>{kind === 'business' ? t.common.businessName : c.tipTitle}<input required value={form.title} onChange={(e) => update('title', e.target.value)} /></label>
       {kind === 'business' && <div className="contribution-two"><label>{t.common.category}<input value={form.category} onChange={(e) => update('category', e.target.value)} placeholder={c.categoryPlaceholder} /></label><label>{t.common.website} <span>{t.common.optional}</span><input type="url" value={form.website} onChange={(e) => update('website', e.target.value)} placeholder="https://" /></label></div>}
       <label>{t.common.description}<textarea required minLength={15} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder={kind === 'business' ? c.descBusiness : c.descTip} /></label>
