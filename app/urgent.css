@@ -126,3 +126,81 @@
 .ui-wa-small { margin: 0; text-align: center; font-size: 14px; }
 .ui-wa-small a { display: inline-flex; align-items: center; gap: 6px; color: #0f7a43; text-decoration: underline; text-underline-offset: 3px; }
 .ui-wa-small a svg { width: 16px; height: 16px; flex: none; }
+
+/* ---------- AI request flow for all jobs (docs/AI_REQUESTS.md): follow-up questions, quotes, reviews ---------- */
+.ui-question .ui-q-count { color: #5f6168; font-size: .85rem; }
+.ui-chips, .ui-price-types { display: flex; flex-wrap: wrap; gap: 8px; }
+.ui-chip { font: inherit; font-size: .95rem; padding: 9px 14px; border-radius: 999px; border: 1px solid #c9d3ee; background: #fff; color: #183d9a; cursor: pointer; min-height: 40px; }
+.ui-chip:hover, .ui-chip:focus-visible { background: #eef3fe; border-color: #2f5bd3; outline: none; }
+.ui-chip.on, .ui-chip[aria-checked=true] { background: #2f5bd3; border-color: #2f5bd3; color: #fff; }
+.ui-inline-icon { width: 16px; height: 16px; vertical-align: -3px; margin-left: 4px; }
+.ui-blue { color: #2f5bd3; }
+
+.ui-quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 14px 0 6px; }
+.ui-quote { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #e1e5ee; border-radius: 18px; background: #fff; }
+.ui-quote h3 { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.ui-quote-badges { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; }
+.ui-quote-badges:empty { display: none; }
+.ui-badge { font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #e7f6ec; color: #1d6b3a; }
+.ui-badge-star { background: #fff4e0; color: #8a5300; }
+.ui-badge-ok { background: #2f5bd3; color: #fff; }
+.ui-quote-rating { margin: 0; color: #44464c; font-size: .92rem; display: flex; align-items: center; gap: 4px; }
+.ui-quote-rating svg { width: 16px; height: 16px; color: #e8a400; }
+.ui-quote-price { margin: 4px 0 0; font-size: 1.5rem; font-weight: 800; color: #111; letter-spacing: -.01em; }
+.ui-quote-date { margin: 0; color: #44464c; font-size: .92rem; display: flex; align-items: center; gap: 6px; }
+.ui-quote-date svg { width: 15px; height: 15px; }
+.ui-quote-msg { margin: 4px 0 0; padding: 10px 12px; border-radius: 12px; background: #f5f6f8; color: #2a2b2e; font-size: .95rem; line-height: 1.5; white-space: pre-line; }
+.ui-quote-actions { margin-top: auto; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ui-quote-actions .primary { flex: 1 1 auto; justify-content: center; }
+.ui-quote-chosen { border: 2px solid #2f5bd3; box-shadow: 0 6px 24px rgba(47, 91, 211, .15); }
+.ui-quote-faded { opacity: .6; }
+
+.ui-after { margin: 14px 0 4px; padding: 14px 16px; border-radius: 16px; background: #f5f6f8; }
+.ui-after h3 { margin: 0 0 10px; font-size: 1.05rem; }
+.ui-done-ask { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.ui-done-ask span { font-weight: 600; }
+.ui-done-ask .ui-ghost { display: inline-flex; gap: 6px; align-items: center; }
+
+.ui-review-form { display: grid; gap: 12px; }
+.ui-review-form textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 12px 14px; border: 1px solid #d6d9e0; border-radius: 14px; }
+.ui-review-form .primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; justify-self: start; }
+.ui-verified { margin: 0; display: flex; gap: 8px; align-items: flex-start; color: #1d4fb8; background: #eef3fe; padding: 10px 12px; border-radius: 12px; font-size: .93rem; line-height: 1.45; }
+.ui-verified svg { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.ui-stars-input { display: flex; align-items: center; gap: 4px; }
+.ui-stars-input button { border: 0; background: none; padding: 4px; cursor: pointer; color: #c3c8d4; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.ui-stars-input button svg { width: 32px; height: 32px; }
+.ui-stars-input button.on { color: #e8a400; }
+.ui-stars-input button:focus-visible { outline: 3px solid rgba(47, 91, 211, .35); border-radius: 10px; }
+.ui-stars-word { margin-left: 8px; font-weight: 600; color: #44464c; }
+.ui-review-compact .ui-stars-input button svg { width: 28px; height: 28px; }
+
+.ui-brief { margin: 16px 0; padding: 16px; border-radius: 18px; background: #f3f6fd; border: 1px solid #dbe4fa; }
+.ui-brief h2 { margin: 0 0 8px; font-size: 1.05rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ui-brief h2 svg { width: 18px; height: 18px; color: #2f5bd3; }
+.ui-ai-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 999px; background: #fff; color: #5f6168; border: 1px solid #dbe4fa; }
+.ui-brief > p { margin: 0 0 10px; line-height: 1.55; }
+.ui-brief-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; margin: 0 0 10px; }
+.ui-brief-facts dt { font-size: .82rem; color: #5f6168; }
+.ui-brief-facts dd { margin: 0; font-weight: 600; }
+.ui-brief-price { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #fff; }
+.ui-brief-price span { color: #5f6168; font-size: .9rem; }
+.ui-brief-ask ul { margin: 6px 0 8px; padding-left: 20px; }
+
+.ui-quote-form { display: grid; gap: 12px; margin-top: 8px; padding-top: 16px; border-top: 1px solid #eceef2; }
+.ui-quote-form h2 { margin: 0; font-size: 1.2rem; }
+.ui-quote-form label { display: grid; gap: 6px; font-weight: 600; font-size: .95rem; }
+.ui-quote-form input, .ui-quote-form textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 12px 14px; border: 1px solid #d6d9e0; border-radius: 14px; background: #fff; color: #1f2024; }
+.ui-amount-field { position: relative; display: block; }
+.ui-amount-field svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #5f6168; }
+.ui-amount-field input { padding-left: 38px; font-size: 1.15rem; font-weight: 700; }
+.ui-quote-form .primary { display: inline-flex; align-items: center; gap: 8px; }
+.ui-link-btn { justify-self: start; border: 0; background: none; padding: 0; color: #2f5bd3; font: inherit; font-size: .92rem; text-decoration: underline; cursor: pointer; }
+.provider-review-verified { display: inline-flex; align-items: center; gap: 3px; color: #1d4fb8; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .ui-quotes { grid-template-columns: 1fr; }
+  .ui-quote-price { font-size: 1.35rem; }
+}
+
+/* chosen business: call button on its own line */
+.ui-won .ui-call { display: flex; width: fit-content; margin-top: 10px; }

@@ -5,6 +5,9 @@ once on several channels with a one-tap accept link (first to accept gets the jo
 ("spoed") requests escalate to businesses that offer 24/7 emergency service when nobody accepts in
 10 minutes. Everything is behind feature flags; with no flags set the site behaves exactly as before.
 
+Non-urgent jobs (quotes from the best 3 businesses, AI follow-up questions and job brief, verified reviews)
+are described in docs/AI_REQUESTS.md (`QUOTE_FLOW_ENABLED`).
+
 ## Pieces
 
 | Part | Where |

@@ -14,7 +14,9 @@ import WhatsAppFallback, { type WaContext } from './whatsapp-fallback';
 
 type Level = 'spoed' | 'today' | 'week' | 'flexible';
 type Classification = { category: string; urgency: Level; summary: string; tip: string | null; followUp: string | null; source: 'ai' | 'rules'; provider?: string };
-type Step = 'problem' | 'thinking' | 'category' | 'followup' | 'urgency' | 'postcode' | 'contact' | 'review' | 'sending' | 'done';
+type Step = 'problem' | 'thinking' | 'category' | 'followup' | 'urgency' | 'loadingQ' | 'questions' | 'photoNudge' | 'postcode' | 'contact' | 'review' | 'sending' | 'done';
+type Question = { q: string; options: string[] };
+type Answer = { q: string; a: string };
 type Msg = { from: 'bot' | 'me'; text: string; tone?: 'tip' };
 export type IntakeUser = { name: string; email: string; phone: string | null } | null;
 
@@ -33,6 +35,10 @@ const T = {
     photoErr: 'Deze foto kon niet worden toegevoegd. Probeer een andere foto, of ga verder zonder.',
     aiDown: 'De assistent is even niet bereikbaar. Kies hieronder zelf de juiste categorie.', aiDownWa: 'De assistent is even niet bereikbaar. Kies hieronder zelf de juiste categorie, of stuur ons direct een WhatsApp.',
     timeout: 'Het versturen duurt te lang. Controleer je internetverbinding en probeer het opnieuw.',
+    helloQuotes: 'Hoi! Ik ben de assistent van Uithoorn.online. Vertel kort wat je nodig hebt: een spoedklus, of een offerte voor bijvoorbeeld een badkamer, schilder, tuin of oppas.',
+    qIntro: 'Nog een paar korte vragen, dan kunnen de bedrijven je een goede offerte sturen.', qLoading: 'Ik bedenk de juiste vragen…', qOther: 'Of typ je eigen antwoord', qOf: (i: number, n: number) => `Vraag ${i} van ${n}`,
+    photoAsk: 'Heb je een foto van de situatie? Daarmee krijg je een preciezere offerte.', photoSkip: 'Geen foto', photoDone: 'Verder', answers: 'Details',
+    reviewQQuotes: 'Klopt alles? Dan stuur ik je vraag naar de 3 best passende bedrijven. Je contactgegevens gaan pas naar een bedrijf als je zijn offerte kiest.', confirmQuotes: 'Ja, vraag offertes aan',
   },
   en: {
     hello: "Hi! I'm the help assistant of Uithoorn.online. Briefly describe what's wrong and I'll find a local professional right away.",
@@ -48,6 +54,10 @@ const T = {
     photoErr: "This photo couldn't be added. Try another photo, or continue without one.",
     aiDown: "The assistant isn't available right now. Please pick the right category below.", aiDownWa: "The assistant isn't available right now. Please pick the right category below, or message us on WhatsApp.",
     timeout: 'Sending is taking too long. Check your internet connection and try again.',
+    helloQuotes: "Hi! I'm the assistant of Uithoorn.online. Tell me briefly what you need: an urgent repair, or a quote for e.g. a bathroom, painter, garden or babysitter.",
+    qIntro: 'A few short questions, so the businesses can send you a good quote.', qLoading: 'Thinking of the right questions…', qOther: 'Or type your own answer', qOf: (i: number, n: number) => `Question ${i} of ${n}`,
+    photoAsk: 'Do you have a photo of the situation? It gets you a more precise quote.', photoSkip: 'No photo', photoDone: 'Next', answers: 'Details',
+    reviewQQuotes: "All correct? Then I'll send your request to the 3 best-matching businesses. Your contact details only go to a business once you choose its quote.", confirmQuotes: 'Yes, get quotes',
   },
 };
 
@@ -65,12 +75,13 @@ async function compress(file: File): Promise<string | null> {
 
 const timeout = (ms: number) => (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : undefined);
 
-export default function UrgentIntake({ user, categories, whatsapp = null }: { user: IntakeUser; categories: [string, string][]; whatsapp?: string | null }) {
+export default function UrgentIntake({ user, categories, whatsapp = null, quotes = false }: { user: IntakeUser; categories: [string, string][]; whatsapp?: string | null; quotes?: boolean }) {
   const lang = useLang();
   const t = T[lang === 'en' ? 'en' : 'nl'];
   const label = (v: string) => categories.find(([k]) => k === v)?.[1] ?? v;
   const { fields: spamFields, trap } = useSpamTrap();
-  const [msgs, setMsgs] = useState<Msg[]>([{ from: 'bot', text: t.hello }]);
+  const hello = quotes ? t.helloQuotes : t.hello;
+  const [msgs, setMsgs] = useState<Msg[]>([{ from: 'bot', text: hello }]);
   const [step, setStep] = useState<Step>('problem');
   const [problem, setProblem] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -86,6 +97,13 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
   const [error, setError] = useState('');
   const [statusToken, setStatusToken] = useState('');
   const [trouble, setTrouble] = useState(''); // why the WhatsApp fallback is shown prominently (ai_failed, …)
+  // AI request flow (quotes): 2-4 follow-up questions with tap-to-answer options.
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [qIndex, setQIndex] = useState(0);
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [qInput, setQInput] = useState('');
+  const [qSource, setQSource] = useState('');
+  const quoteFlow = quotes && level !== 'spoed';
   const endRef = useRef<HTMLDivElement>(null);
   const say = (m: Msg | Msg[]) => setMsgs((prev) => [...prev, ...(Array.isArray(m) ? m : [m])]);
 
@@ -126,15 +144,50 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
 
   function confirmCategory() {
     say({ from: 'me', text: label(category) });
+    // Quotes on: timing first, then (non-urgent) the AI follow-up questions; spoed keeps its single question.
+    if (quotes) { say({ from: 'bot', text: t.urgencyQ }); setStep('urgency'); return; }
     if (ai?.followUp) { say({ from: 'bot', text: ai.followUp }); setStep('followup'); }
     else { say({ from: 'bot', text: t.urgencyQ }); setStep('urgency'); }
   }
   function sendAnswer(skip = false) {
     if (!skip && answer.trim()) say({ from: 'me', text: answer.trim() }); else setAnswer('');
+    if (quotes) { say({ from: 'bot', text: t.postcodeQ }); setStep('postcode'); return; }
     say({ from: 'bot', text: t.urgencyQ }); setStep('urgency');
   }
   function pickLevel(l: Level) {
-    setLevel(l); say([{ from: 'me', text: t.levels[l][0] }, ...(l === 'spoed' ? [{ from: 'bot' as const, text: t.danger, tone: 'tip' as const }] : []), { from: 'bot', text: t.postcodeQ }]); setStep('postcode');
+    setLevel(l);
+    if (quotes && l !== 'spoed') { say({ from: 'me', text: t.levels[l][0] }); loadQuestions(l); return; }
+    if (quotes && l === 'spoed' && ai?.followUp) { say([{ from: 'me', text: t.levels[l][0] }, { from: 'bot', text: t.danger, tone: 'tip' }, { from: 'bot', text: ai.followUp }]); setStep('followup'); return; }
+    say([{ from: 'me', text: t.levels[l][0] }, ...(l === 'spoed' ? [{ from: 'bot' as const, text: t.danger, tone: 'tip' as const }] : []), { from: 'bot', text: t.postcodeQ }]); setStep('postcode');
+  }
+  async function loadQuestions(l: Level) {
+    setStep('loadingQ'); setAnswers([]); setQIndex(0); setQInput('');
+    let qs: Question[] = [];
+    try {
+      const r = await fetch('/api/intake/questions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: problem.trim(), category, level: l, lang }), signal: timeout(20_000) });
+      if (r.ok) { const d = await r.json(); qs = Array.isArray(d.questions) ? d.questions : []; setQSource(String(d.source ?? '')); }
+    } catch { /* no questions: go straight on */ }
+    qs = qs.filter((q) => q && typeof q.q === 'string').slice(0, 4);
+    setQuestions(qs);
+    if (!qs.length) { afterQuestions(); return; }
+    say([{ from: 'bot', text: t.qIntro }, { from: 'bot', text: qs[0].q }]); setStep('questions');
+  }
+  function answerQuestion(value: string | null) {
+    const q = questions[qIndex];
+    const a = (value ?? '').trim();
+    const next = a ? [...answers, { q: q.q, a }] : answers;
+    if (a) say({ from: 'me', text: a }); else say({ from: 'me', text: t.skip });
+    setAnswers(next); setQInput('');
+    if (qIndex + 1 < questions.length) { setQIndex(qIndex + 1); say({ from: 'bot', text: questions[qIndex + 1].q }); return; }
+    afterQuestions();
+  }
+  function afterQuestions() {
+    if (!photos.length) { say({ from: 'bot', text: t.photoAsk }); setStep('photoNudge'); return; }
+    say({ from: 'bot', text: t.postcodeQ }); setStep('postcode');
+  }
+  function photoNext() {
+    if (photos.length) say({ from: 'me', text: `📷 × ${photos.length}` });
+    say({ from: 'bot', text: t.postcodeQ }); setStep('postcode');
   }
   function sendPostcode(e: FormEvent) {
     e.preventDefault(); setError('');
@@ -148,7 +201,7 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
     if (level === 'spoed' && phone.replace(/\D/g, '').length < 9) { setError(t.errors.phone_required); return; }
     if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) { setError(t.errors.invalid_email); return; }
     if (!user && !terms) { setError(t.errors.terms_required); return; }
-    say([{ from: 'me', text: [name.trim(), phone.trim(), user ? '' : email.trim()].filter(Boolean).join(' · ') }, { from: 'bot', text: t.reviewQ }]); setStep('review');
+    say([{ from: 'me', text: [name.trim(), phone.trim(), user ? '' : email.trim()].filter(Boolean).join(' · ') }, { from: 'bot', text: quoteFlow ? t.reviewQQuotes : t.reviewQ }]); setStep('review');
   }
   async function submit() {
     setError(''); setStep('sending');
@@ -157,6 +210,7 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
         ...spamFields, lang, category, description: problem.trim(), followUpAnswer: answer.trim(), followUp: ai?.followUp ?? '', summary: ai?.summary ?? '',
         level, postcode, name: name.trim(), phone: phone.trim(), email: email.trim(), acceptTerms: terms, photos,
         ai: ai?.source === 'ai', provider: ai?.provider ?? '', suggestedCategory: ai?.category ?? '', suggestedLevel: ai?.urgency ?? '',
+        ...(quoteFlow ? { answers, questionsSource: qSource } : {}),
       }) });
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.statusToken) { setError((t.errors as Record<string, string>)[data.error] ?? t.errors.generic); setTrouble(`submit_${data.error || r.status}`); setStep('review'); return; }
@@ -169,9 +223,9 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
 
   // Everything the resident has typed so far, for the WhatsApp fallback (nothing is lost if the chat fails).
   const waCtx: WaContext = {
-    problem: [problem.trim(), answer.trim()].filter(Boolean).join(' — '),
+    problem: [problem.trim(), answer.trim(), ...answers.map((x) => `${x.q} ${x.a}`)].filter(Boolean).join(' — '),
     category: ai || category ? label(category) : '',
-    level: ['category', 'followup', 'urgency', 'thinking', 'problem'].includes(step) ? '' : t.levels[level][0].replace('🚨 ', ''),
+    level: ['category', 'followup', 'urgency', 'thinking', 'problem', 'loadingQ'].includes(step) ? '' : t.levels[level][0].replace('🚨 ', ''),
     postcode: /^\d{4} [A-Z]{2}$/.test(postcode) ? postcode : postcode.trim(),
     name: name.trim(), phone: phone.trim(), email: user ? user.email : email.trim(),
   };
@@ -182,7 +236,7 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
   return <div className="ui-chat" aria-live="polite">{trap}
     <div className="ui-log">
       {msgs.map((m, i) => <div key={i} className={`ui-msg ui-${m.from}${m.tone === 'tip' ? ' ui-tip' : ''}`}>{m.tone === 'tip' ? <Siren aria-hidden="true" /> : null}<span>{m.text}</span></div>)}
-      {step === 'thinking' || step === 'sending' ? <div className="ui-msg ui-bot ui-typing"><Loader2 aria-hidden="true" className="ui-spin" /><span>{step === 'thinking' ? t.thinking : t.sending}</span></div> : null}
+      {step === 'thinking' || step === 'sending' || step === 'loadingQ' ? <div className="ui-msg ui-bot ui-typing"><Loader2 aria-hidden="true" className="ui-spin" /><span>{step === 'thinking' ? t.thinking : step === 'loadingQ' ? t.qLoading : t.sending}</span></div> : null}
       <div ref={endRef} />
     </div>
 
@@ -205,6 +259,21 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
         <input autoFocus value={answer} maxLength={600} onChange={(e) => setAnswer(e.target.value)} placeholder={t.answerPh} aria-label={t.answerPh} />
         <div className="ui-row"><button type="button" className="ui-ghost" onClick={() => sendAnswer(true)}>{t.skip}</button><button className="primary" type="submit">{t.next} <ArrowRight aria-hidden="true" /></button></div>
       </form>}
+
+      {step === 'questions' && questions[qIndex] && <form className="ui-stack ui-question" onSubmit={(e) => { e.preventDefault(); if (qInput.trim()) answerQuestion(qInput); }}>
+        <small className="ui-q-count">{t.qOf(qIndex + 1, questions.length)}</small>
+        {questions[qIndex].options.length ? <div className="ui-chips">{questions[qIndex].options.map((o) => <button key={o} type="button" className="ui-chip" onClick={() => answerQuestion(o)}>{o}</button>)}</div> : null}
+        <input key={qIndex} autoFocus={!questions[qIndex].options.length} value={qInput} maxLength={300} onChange={(e) => setQInput(e.target.value)} placeholder={t.qOther} aria-label={questions[qIndex].q} />
+        <div className="ui-row"><button type="button" className="ui-ghost" onClick={() => answerQuestion(null)}>{t.skip}</button><button className="primary" type="submit" disabled={!qInput.trim()}>{t.next} <ArrowRight aria-hidden="true" /></button></div>
+      </form>}
+
+      {step === 'photoNudge' && <div className="ui-stack">
+        <div className="ui-row">
+          <label className="ui-photo-btn"><Camera aria-hidden="true" /> {t.photos} <small>({t.photoNote})</small><input type="file" accept="image/*" multiple hidden onChange={(e) => addPhotos(e.target.files)} disabled={photos.length >= 3} /></label>
+          <button className="primary" type="button" onClick={photoNext}>{photos.length ? t.photoDone : t.photoSkip} <ArrowRight aria-hidden="true" /></button>
+        </div>
+        {photos.length ? <div className="ui-thumbs">{photos.map((ph, i) => <span key={i}><img src={ph} alt="" /><button type="button" aria-label="x" onClick={() => setPhotos((x) => x.filter((_, j) => j !== i))}><X aria-hidden="true" /></button></span>)}</div> : null}
+      </div>}
 
       {step === 'urgency' && <div className="ui-levels">
         {(['spoed', 'today', 'week', 'flexible'] as Level[]).map((l) => <button key={l} type="button" className={`ui-level ui-level-${l}${ai?.urgency === l ? ' ui-suggested' : ''}`} onClick={() => pickLevel(l)}>
@@ -229,12 +298,13 @@ export default function UrgentIntake({ user, categories, whatsapp = null }: { us
           <div><dt>{t.fields.what}</dt><dd>{ai?.summary || problem}</dd></div>
           <div><dt>{t.fields.category}</dt><dd>{label(category)}</dd></div>
           <div><dt>{t.fields.when}</dt><dd>{t.levels[level][0]}</dd></div>
+          {quoteFlow && answers.length ? <div><dt>{t.answers}</dt><dd>{answers.map((x) => x.a).join(' · ')}</dd></div> : null}
           <div><dt>{t.fields.where}</dt><dd>{postcode}</dd></div>
           <div><dt>{t.fields.who}</dt><dd>{[name, phone, user ? user.email : email].filter(Boolean).join(' · ')}</dd></div>
         </dl>
         <div className="ui-row">
-          <button type="button" className="ui-ghost" disabled={step === 'sending'} onClick={() => { setMsgs([{ from: 'bot', text: t.hello }]); setStep('problem'); setAi(null); setAnswer(''); setError(''); setTrouble(''); }}>{t.edit}</button>
-          <button className="primary" type="button" disabled={step === 'sending'} onClick={submit}>{step === 'sending' ? t.sending : t.confirm} <ArrowRight aria-hidden="true" /></button>
+          <button type="button" className="ui-ghost" disabled={step === 'sending'} onClick={() => { setMsgs([{ from: 'bot', text: hello }]); setStep('problem'); setAi(null); setAnswer(''); setAnswers([]); setQuestions([]); setError(''); setTrouble(''); }}>{t.edit}</button>
+          <button className="primary" type="button" disabled={step === 'sending'} onClick={submit}>{step === 'sending' ? t.sending : quoteFlow ? t.confirmQuotes : t.confirm} <ArrowRight aria-hidden="true" /></button>
         </div>
       </div>}
 

@@ -1,7 +1,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { query, queryOne, transaction } from '../db';
-import { createRequest, MATCH_SQL } from '../data/requests';
+import { createRequest, MATCH_SQL, matchParams } from '../data/requests';
 import type { SessionUser } from '../auth/session';
 import { notificationText } from '../notification-text';
 import { sendEmailDetailed } from '../email/send';
@@ -11,6 +11,7 @@ import type { Lang } from '../email/templates';
 import { signToken } from './tokens';
 import { callGapMinutes, emailAlertsEnabled, escalateAfterMinutes, escalationEnabled, voiceAlertsEnabled } from './flags';
 import { placeCall, sendSms, sendWhatsApp, type ChannelResult } from './channels';
+import { quoteNotChosenEmail } from './quote-mail';
 import { acceptUrl, customerAcceptedEmail, customerEscalationEmail, intakeConfirmationEmail, jobAlertEmail, jobTakenEmail, jobWonEmail, urgencyLabel } from './mail';
 import type { UrgencyLevel } from './llm';
 
@@ -31,6 +32,8 @@ export const LEVEL_TO_FIELDS: Record<UrgencyLevel, { preferredTiming: string; ur
 export type IntakeInput = {
   category: string; description: string; postcode: string; level: UrgencyLevel; name: string; email: string; phone: string | null;
   lang: Lang; intake: Record<string, unknown>; photos: { mime: string; data: Buffer }[];
+  /** AI request flow (lib/urgent/quotes.ts): best 3 businesses, they send quotes, the customer picks. */
+  quoteMode?: boolean;
 };
 
 /** Logged-in user, else the existing account for this email, else a new customer account (no password; sign in by email link). */
@@ -50,17 +53,19 @@ export async function createIntakeRequest(current: SessionUser | null, input: In
   const f = LEVEL_TO_FIELDS[input.level];
   const result = await createRequest({ id: customer.id } as SessionUser, {
     category: input.category, description: input.description, postcode: input.postcode, preferredTiming: f.preferredTiming, urgency: f.urgency, budgetMin: null, budgetMax: null,
-  });
+  }, input.quoteMode ? { maxMatches: 3 } : {});
   await transaction(async (c) => {
     await c.query(
       `update service_requests set urgency_level = $2, source = 'intake', contact_name = $3, contact_phone = $4, contact_email = $5, intake = $6 where id = $1`,
       [result.id, input.level, input.name.slice(0, 120), input.phone, input.email, JSON.stringify(input.intake)]);
+    // Only touched when the AI request flow is on (needs migration 0006), so the classic flow never depends on it.
+    if (input.quoteMode) await c.query('update service_requests set quote_mode = true, match_round = 1 where id = $1', [result.id]);
     for (const p of input.photos.slice(0, 3)) await c.query('insert into request_photos(request_id, mime, data) values ($1, $2, $3)', [result.id, p.mime, p.data]);
   });
   return { id: result.id, customer, matched: result.matched, delivered: result.delivered };
 }
 
-type ReqRow = {
+export type ReqRow = {
   id: string; category: string; description: string; postcode: string; urgency_level: UrgencyLevel | null; created_at: string; status: string; hidden: boolean;
   customer_id: string; customer_email: string; customer_locale: Lang; customer_name: string; customer_phone: string | null;
   contact_name: string | null; contact_phone: string | null; contact_email: string | null; intake: { summary?: string } | null;
@@ -76,21 +81,21 @@ export async function loadRequest(id: string, client?: PoolClient): Promise<ReqR
   return queryOne<ReqRow>(sql, [id]);
 }
 
-const job = (lang: Lang, r: ReqRow) => ({
+export const job = (lang: Lang, r: ReqRow) => ({
   category: r.category, categoryLabel: categoryLabel(lang, r.category), summary: (r.intake?.summary || r.description).slice(0, 600),
   postcode: r.postcode, urgency: r.urgency_level, createdAt: r.created_at,
 });
-const contactOf = (r: ReqRow) => ({ name: r.contact_name || r.customer_name, phone: r.contact_phone || r.customer_phone, email: r.contact_email || r.customer_email });
+export const contactOf = (r: ReqRow) => ({ name: r.contact_name || r.customer_name, phone: r.contact_phone || r.customer_phone, email: r.contact_email || r.customer_email });
 
-type Biz = { id: string; name: string; owner_email: string; owner_locale: Lang; phone: string | null; website: string | null; alert_email: boolean; alert_sms: boolean; alert_whatsapp: boolean; alert_phone: string | null; spoed_24_7: boolean; quiet_start: string | null; quiet_end: string | null };
-const BIZ_COLS = `b.id, b.name, u.email as owner_email, u.locale as owner_locale, b.phone, b.website, b.alert_email, b.alert_sms, b.alert_whatsapp, b.alert_phone, b.spoed_24_7, b.quiet_start::text, b.quiet_end::text`;
+export type Biz = { id: string; name: string; owner_email: string; owner_locale: Lang; phone: string | null; website: string | null; alert_email: boolean; alert_sms: boolean; alert_whatsapp: boolean; alert_phone: string | null; spoed_24_7: boolean; quiet_start: string | null; quiet_end: string | null };
+export const BIZ_COLS = `b.id, b.name, u.email as owner_email, u.locale as owner_locale, b.phone, b.website, b.alert_email, b.alert_sms, b.alert_whatsapp, b.alert_phone, b.spoed_24_7, b.quiet_start::text, b.quiet_end::text`;
 
-async function logAlert(requestId: string, businessId: string | null, audience: 'business' | 'customer' | 'admin', channel: 'email' | 'sms' | 'whatsapp' | 'voice', stage: string, r: { status: string; id: string | null; error: string | null; to: string | null }) {
+export async function logAlert(requestId: string, businessId: string | null, audience: 'business' | 'customer' | 'admin', channel: 'email' | 'sms' | 'whatsapp' | 'voice', stage: string, r: { status: string; id: string | null; error: string | null; to: string | null }) {
   await query(`insert into job_alerts(request_id, business_id, audience, channel, stage, status, recipient, provider_id, error) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [requestId, businessId, audience, channel, stage, r.status === 'skipped' ? 'skipped' : r.status, r.to?.slice(0, 254) ?? null, r.id?.slice(0, 200) ?? null, r.error?.slice(0, 500) ?? null]).catch((e) => console.error('[alerts] log failed', e?.message));
 }
 
-async function email(requestId: string, businessId: string | null, audience: 'business' | 'customer', stage: string, to: string, kind: string, lang: Lang, mail: { subject: string; text: string; html: string }) {
+export async function email(requestId: string, businessId: string | null, audience: 'business' | 'customer', stage: string, to: string, kind: string, lang: Lang, mail: { subject: string; text: string; html: string }) {
   const res = await sendEmailDetailed({ to, kind, lang, ref: `urgent:${requestId}`, ...mail });
   await logAlert(requestId, businessId, audience, 'email', stage, { status: res.status, id: res.id, error: res.error, to });
   return res;
@@ -176,7 +181,7 @@ export type AcceptResult =
   | { ok: false; error: 'not_found' | 'taken' | 'closed' | 'business_unavailable' };
 
 /** First business to accept wins. Idempotent for the winner. */
-export async function acceptJob(requestId: string, businessId: string, via: 'link' | 'voice' | 'dashboard'): Promise<AcceptResult> {
+export async function acceptJob(requestId: string, businessId: string, via: 'link' | 'voice' | 'dashboard' | 'quote'): Promise<AcceptResult> {
   const biz = await queryOne<Biz & { owner_id: string; active: boolean; moderation_status: string }>(
     `select ${BIZ_COLS}, b.owner_id, b.active, b.moderation_status from businesses b join users u on u.id = b.owner_id where b.id = $1`, [businessId]);
   if (!biz || !biz.active || biz.moderation_status !== 'approved') return { ok: false, error: 'business_unavailable' };
@@ -219,10 +224,11 @@ export async function acceptJob(requestId: string, businessId: string, via: 'lin
     await email(r.id, biz.id, 'business', 'accepted', biz.owner_email, 'job_won', bl, jobWonEmail(bl, biz.name, job(bl, r), contactOf(r), conversationId, signToken('accept', [r.id, biz.id], 3)));
     const others = await query<{ business_id: string; owner_email: string; owner_locale: Lang }>(
       `select distinct a.business_id, u.email as owner_email, u.locale as owner_locale from job_alerts a join businesses b on b.id = a.business_id join users u on u.id = b.owner_id
-        where a.request_id = $1 and a.audience = 'business' and a.business_id <> $2 and a.status = 'sent'`, [r.id, biz.id]);
+        where a.request_id = $1 and a.audience = 'business' and a.business_id <> $2 and a.status = 'sent'
+          and not exists (select 1 from leads l where l.request_id = a.request_id and l.business_id = a.business_id and l.status = 'declined')`, [r.id, biz.id]);
     for (const o of others) {
       const ol: Lang = o.owner_locale === 'en' ? 'en' : 'nl';
-      await email(r.id, o.business_id, 'business', 'taken', o.owner_email, 'job_taken', ol, jobTakenEmail(ol, job(ol, r)));
+      await email(r.id, o.business_id, 'business', 'taken', o.owner_email, via === 'quote' ? 'quote_not_chosen' : 'job_taken', ol, via === 'quote' ? quoteNotChosenEmail(ol, job(ol, r)) : jobTakenEmail(ol, job(ol, r)));
     }
   }
   return { ok: true, already, businessName: biz.name, conversationId, contact: contactOf(r) };
@@ -233,8 +239,8 @@ async function spoedPool(r: ReqRow) {
   const postcode4 = r.postcode.replace(/\D/g, '').slice(0, 4);
   return query<Biz>(
     `with m as (${MATCH_SQL}) select ${BIZ_COLS} from m join businesses b on b.id = m.id join users u on u.id = b.owner_id
-      where b.spoed_24_7 = true order by (exists (select 1 from leads l where l.request_id = $4 and l.business_id = b.id)) desc, b.featured desc, b.created_at`,
-    [r.category.toLowerCase().replace(/[\\%_]/g, '\\$&'), postcode4, r.customer_id, r.id]);
+      where b.spoed_24_7 = true order by (exists (select 1 from leads l where l.request_id = $8 and l.business_id = b.id)) desc, m.tier, m.hinted desc, m.rating desc, b.featured desc, b.created_at`,
+    [...matchParams(r.category, postcode4, r.customer_id, r.description), r.id]);
 }
 
 async function exhaust(r: ReqRow, pool: number) {

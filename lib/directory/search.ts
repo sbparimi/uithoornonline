@@ -13,6 +13,8 @@ export type DirectorySource = {
   descriptionNl?: string | null; categoryNl?: string | null;
   postcode: string | null; address?: string | null; website: string | null; phone: string | null;
   verified: boolean; featured?: boolean; created_at?: string | Date | null;
+  /** Verified reviews (tied to real jobs): average stars and count. Good ratings rank higher. */
+  rating_avg?: number | null; rating_count?: number | null;
 };
 
 export type DirectoryEntry = {
@@ -20,6 +22,8 @@ export type DirectoryEntry = {
   description: string; descriptionNl: string; categoryNl: string;
   postcode: string | null; address: string | null; town: string | null; place: PlaceId;
   website: string | null; phone: string | null; verified: boolean; featured: boolean; createdAt: number;
+  /** Bayesian star score from verified reviews (3.5 = no reviews yet) and the review count. */
+  ratingScore: number; ratingCount: number;
 };
 
 export type SortKey = 'relevance' | 'az' | 'newest';
@@ -110,6 +114,8 @@ export function toEntry(src: DirectorySource): DirectoryEntry {
     description: (src.description || '').trim(), descriptionNl: (src.descriptionNl || src.description || '').trim(), categoryNl: (src.categoryNl || src.category).trim(),
     postcode: src.postcode, address: src.address ?? null, town, place,
     website: src.website, phone: src.phone, verified: !!src.verified, featured: !!src.featured, createdAt: Number.isFinite(created) ? created : 0,
+    ratingCount: Number(src.rating_count) || 0,
+    ratingScore: Number(src.rating_count) > 0 ? ((Number(src.rating_avg) || 0) * Number(src.rating_count) + 7) / (Number(src.rating_count) + 2) : 3.5,
   };
 }
 
@@ -191,7 +197,8 @@ export function searchDirectory(index: DirectoryIndex, query: DirectoryQuery): D
 
   const sort = query.sort ?? 'relevance';
   const byName = (a: number, b: number) => entries[a].name.localeCompare(entries[b].name, 'nl', { sensitivity: 'base' });
-  const quality = (i: number) => (entries[i].featured ? 2 : 0) + (entries[i].verified ? 0.5 : 0);
+  // Verified reviews: well-rated businesses rise, poorly rated ones sink (unreviewed = neutral 3.5).
+  const quality = (i: number) => (entries[i].featured ? 2 : 0) + (entries[i].verified ? 0.5 : 0) + ((entries[i].ratingScore ?? 3.5) - 3.5) * 0.6;
   matched.sort((a, b) => {
     if (sort === 'az') return byName(a, b);
     if (sort === 'newest') return entries[b].createdAt - entries[a].createdAt || byName(a, b);

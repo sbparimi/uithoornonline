@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 // Signed, login-free tokens for the one-tap accept link (per business + request), the customer's
 // live status page (per request) and the voice-call keypress webhook. HMAC-SHA256 over the payload;
 // nothing is stored. Secret: ALERT_TOKEN_SECRET, falling back to CRON_SECRET.
-type Purpose = 'accept' | 'status' | 'voice' | 'photo';
+type Purpose = 'accept' | 'status' | 'voice' | 'photo' | 'review';
 
 function secret() {
   const s = process.env.ALERT_TOKEN_SECRET || process.env.CRON_SECRET;

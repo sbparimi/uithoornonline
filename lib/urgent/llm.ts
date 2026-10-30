@@ -45,26 +45,29 @@ export function llmProvider(): Provider | null {
 }
 
 // ---------- rule-based fallback ----------
+// Word-start/word-end boundaries on short words, so "car" no longer matches "care"/"childcare", "it" no
+// longer matches "keuken"/"kitchen", "lock" no longer matches "block" and "cat" no longer matches "catering".
+// Longer Dutch stems stay substrings on purpose, because Dutch glues words together ("daklekkage", "keukenkraan").
 const RULES: [RegExp, string][] = [
-  [/lek|lekkage|water ?schade|verstop|riool|wc|toilet|kraan|afvoer|leiding|cv|ketel|verwarming|boiler|geiser|douche|plumb|leak|drain|pipe|heating/i, 'Plumber'],
-  [/stroom|kortsluiting|stopcontact|groep|meterkast|aardlek|elektr|lamp|bedrading|zekering|power|electric|socket|fuse/i, 'Electrician & installation'],
-  [/buitengesloten|slot|sleutel|inbraak|alarm|camera|beveilig|deur.*(dicht|open)|locked out|lock|burglar|security/i, 'Security & alarm systems'],
-  [/tuin|gras|heg|boom|bestrating|schutting|hovenier|garden|lawn|hedge|tree|fence/i, 'Garden & outdoor'],
-  [/schoonma|poets|ramen|glazenwas|clean|window/i, 'Cleaning & household'],
-  [/verhuis|transport|bezorg|koerier|move|moving|delivery/i, 'Transport & logistics'],
-  [/schilder|verbouw|renov|badkamer|keuken|vloer|tegel|stuc|dak|bouw|paint|renovat|roof|floor|tile/i, 'Home improvement & renovation'],
-  [/klus|monteer|ophang|repar|kast|handyman|mount|assemble|repair/i, 'Handyman'],
-  [/computer|laptop|wifi|internet|printer|netwerk|telefoon instell|it|virus/i, 'Computer & IT help'],
-  [/auto|garage|band|apk|fiets|car|tyre|tire|bike/i, 'Automotive'],
-  [/kapper|haar|nagel|beauty|hair|nails/i, 'Hair & beauty'],
-  [/oppas|kinderopvang|gastouder|babysit|childcare/i, 'Childcare'],
-  [/hond|kat|dier|huisdier|dog|cat|pet/i, 'Pets'],
-  [/zorg|verpleeg|thuiszorg|fysio|care|nurse/i, 'Care & health'],
-  [/bijles|les |huiswerk|tutor|lesson/i, 'Lessons & tutoring'],
-  [/foto|video|photo/i, 'Photography & video'],
-  [/feest|evenement|event|party|catering|eten|food/i, 'Events & occasions'],
-  [/boekhoud|belasting|administratie|tax|accounting/i, 'Financial & administration'],
-  [/advocaat|jurid|notaris|legal|lawyer/i, 'Legal advice'],
+  [/lekkage|lekt\b|\blek\b|water ?schade|verstop|riool|\bwc\b|toilet|kraan|afvoer|leiding|\bcv\b|cv-ketel|ketel|verwarming|boiler|geiser|douche|plumb|\bleak|drain|\bpipe|heating/i, 'Plumber'],
+  [/stroom|kortsluiting|stopcontact|meterkast|aardlek|elektr|\blamp|bedrading|zekering|\bpower\b|electric|socket|\bfuse/i, 'Electrician & installation'],
+  [/buitengesloten|\bslot\b|sloten|sleutel|inbraak|ingebroken|alarm|camera|beveilig|deur.*(dicht|open)|locked out|\block\b|\blocks\b|burglar|security/i, 'Security & alarm systems'],
+  [/kinderopvang|gastouder|\boppas|babysit|childcare|childminder|\bbso\b|peuter/i, 'Childcare'],
+  [/thuiszorg|verpleeg|mantelzorg|\bzorg\b|fysio|home care|\bcarer|\bnurse|nursing|elderly care/i, 'Care & health'],
+  [/\btuin|gras\b|\bgazon|\bheg\b|\bboom|bomen|bestrating|schutting|hovenier|garden|\blawn|hedge|\btrees?\b|fence/i, 'Garden & outdoor'],
+  [/schoonma|poets|ramen wassen|glazenwas|\bclean|window cleaning/i, 'Cleaning & household'],
+  [/verhuis|transport|bezorg|koerier|\bmove\b|moving|delivery/i, 'Transport & logistics'],
+  [/schilder|verbouw|renov|badkamer|keuken|\bvloer|tegel|\bstuc|\bdak\b|dakgoot|aanbouw|\bpaint|bathroom|kitchen|\broof|\bfloor|\btiles?\b|\btiling/i, 'Home improvement & renovation'],
+  [/\bklus|monteer|ophang|repar|\bkast\b|handyman|\bmount|assemble|\brepair/i, 'Handyman'],
+  [/computer|laptop|\bwifi|internet|printer|netwerk|telefoon instell|\bit[- ]hulp|\bvirus|\bpc\b/i, 'Computer & IT help'],
+  [/\bauto\b|\bauto's\b|garage|\bbanden\b|\bband\b.*(lek|plat)|\bapk\b|\bfiets|\bcar\b|\bcars\b|\btyres?\b|\btires?\b|\bbike/i, 'Automotive'],
+  [/kapper|\bhaar\b|nagel|beauty|\bhair\b|\bnails\b/i, 'Hair & beauty'],
+  [/\bhond|\bkat\b|katten|\bdier|huisdier|\bdogs?\b|\bcats?\b|\bpets?\b/i, 'Pets'],
+  [/bijles|\bles\b|lessen|huiswerk|\btutor|\blessons?\b/i, 'Lessons & tutoring'],
+  [/\bfoto|\bvideo|\bphoto/i, 'Photography & video'],
+  [/\bfeest|evenement|\bevent|\bparty|catering|\beten\b|\bfood\b/i, 'Events & occasions'],
+  [/boekhoud|belasting|administratie|\btax\b|accounting/i, 'Financial & administration'],
+  [/advocaat|jurid|notaris|\blegal|lawyer/i, 'Legal advice'],
 ];
 const SPOED = /spoed|nood|direct|meteen|nu |nu$|acuut|lekt|lekkage|overstroom|onder water|geen stroom|kortsluiting|brand|rook|gaslucht|gas ruik|buitengesloten|ingebroken|inbraak|verstopt|geen verwarming|geen warm water|urgent|emergency|asap|right now|flood|locked out|no power|burst/i;
 const TODAY = /vandaag|vanavond|vanmiddag|vannacht|today|tonight|this evening/i;
@@ -91,6 +94,7 @@ function prompt(lang: 'nl' | 'en') {
     'A resident describes a problem. Classify it. Reply with ONE JSON object only, no prose, with keys:',
     `"category": exactly one of ${JSON.stringify(REQUEST_CATEGORIES)};`,
     'Category hints: locked out, locks, keys, alarm, break-in, camera -> "Security & alarm systems"; leaks, drains, blocked toilet, taps, heating, boiler (cv-ketel) -> "Plumber"; no power, sockets, fuses, wiring -> "Electrician & installation"; small repairs and mounting -> "Handyman".',
+    'More hints: car, garage, APK, tyres, bike -> "Automotive"; childcare, kinderopvang, gastouder, babysitter -> "Childcare"; home care, nursing, physio -> "Care & health" (never confuse "care" with "car"); bathroom/kitchen renovation, painting, plastering, floors, roof -> "Home improvement & renovation"; catering, party -> "Events & occasions" or "Food & catering".',
     '"urgency": "spoed" (needs help right now: leaks, flooding, no power, no heating in winter, locked out, break-in, blocked toilet), "today", "week" or "flexible";',
     `"summary": one short sentence in ${lang === 'en' ? 'English' : 'Dutch'} that a tradesperson understands;`,
     `"tip": for spoed only, one short safety tip in ${lang === 'en' ? 'English' : 'Dutch'} (mention 112 if there is danger), else null;`,
@@ -115,29 +119,29 @@ async function discoverModel(p: Provider): Promise<string | null> {
   } catch { return null; }
 }
 
-async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
-  try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs); }
+async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
+  try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs, maxTokens); }
   catch (e) {
     if (p0.kind !== 'openai' || !/ 404$| 400$/.test(e instanceof Error ? e.message : '')) throw e;
     const model = await discoverModel(p0);
     if (!model || model === p0.model) throw e;
-    return callOnce({ ...p0, model }, system, user, timeoutMs);
+    return callOnce({ ...p0, model }, system, user, timeoutMs, maxTokens);
   }
 }
 
-async function callOnce(p: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
+async function callOnce(p: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     if (p.kind === 'anthropic') {
       const r = await fetch(`${p.baseUrl}/messages`, { method: 'POST', signal: ctrl.signal, headers: { 'x-api-key': p.key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: p.model, max_tokens: 400, system, messages: [{ role: 'user', content: user }] }) });
+        body: JSON.stringify({ model: p.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
       if (!r.ok) throw new Error(`${p.name} ${r.status}`);
       const j = await r.json();
       return String(j?.content?.[0]?.text ?? '');
     }
     const r = await fetch(`${p.baseUrl}/chat/completions`, { method: 'POST', signal: ctrl.signal, headers: { Authorization: `Bearer ${p.key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: p.model, temperature: 0.1, max_tokens: 400, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+      body: JSON.stringify({ model: p.model, temperature: 0.1, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
     if (!r.ok) throw new Error(`${p.name} ${r.status}`);
     const j = await r.json();
     return String(j?.choices?.[0]?.message?.content ?? '');
@@ -178,4 +182,21 @@ async function classifyWith(p: Provider, text: string, lang: 'nl' | 'en', rules:
     console.warn('[intake] llm failed:', p.name, e instanceof Error ? e.message : e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * Generic JSON call on the same providers (and fallback order) as the classifier, for the request
+ * flow's follow-up questions and the business job brief (lib/urgent/ai-request.ts). Returns null when
+ * no provider is configured or none answered with parseable JSON; callers then use their rule fallback.
+ */
+export async function llmJson(system: string, user: string, opts: { maxTokens?: number; timeoutMs?: number } = {}): Promise<{ data: Record<string, unknown>; provider: string } | null> {
+  for (const p of llmProviders()) {
+    try {
+      const out = parseJson(await callLlm(p, system, user.slice(0, 6000), opts.timeoutMs ?? 12000, opts.maxTokens ?? 900));
+      if (out) return { data: out, provider: `${p.name}/${discovered.get(p.name) ?? p.model}` };
+    } catch (e) {
+      console.warn('[ai-request] llm failed:', p.name, e instanceof Error ? e.message : e);
+    }
+  }
+  return null;
 }

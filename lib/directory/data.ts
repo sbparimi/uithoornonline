@@ -15,8 +15,11 @@ type Row = DirectorySource & { created_at: string };
 async function load(): Promise<{ index: DirectoryIndex; source: 'database' | 'fallback' }> {
   let rows: Row[]; let source: 'database' | 'fallback' = 'database';
   try {
-    rows = await query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at
-                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`);
+    rows = await query<Row>(`select b.id, b.name, b.category, b.description, b.postcode, b.address, b.website, b.phone, b.verified, b.featured, b.created_at,
+                                    rv.avg as rating_avg, rv.n as rating_count
+                               from businesses b
+                               left join lateral (select avg(r.rating)::float as avg, count(*)::int as n from reviews r where r.business_id = b.id and r.hidden = false) rv on true
+                              where b.moderation_status = 'approved' and b.active = true order by b.featured desc, b.name`);
   } catch (error) {
     if (!(error instanceof DbUnavailableError)) throw error;
     rows = FALLBACK_BUSINESSES.map((b) => ({ ...b, address: null, created_at: '' }));
