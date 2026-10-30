@@ -29,6 +29,9 @@ One-time setup:
    Check: `adb devices` lists `emulator-5554   device`.
 
 ### Option A — install the ready-made APK (fastest)
+The release APK is self-contained (no Metro needed) and talks to production. It contains
+arm64-v8a, armeabi-v7a and x86_64 code, so it runs on real phones, on Apple Silicon emulators
+(arm64 image) and on Intel emulators (x86_64 image).
 ```sh
 adb install -r uithoorn-online-1.0.0-release.apk      # or the -debug.apk
 adb shell monkey -p online.uithoorn.app 1             # launches it
@@ -44,6 +47,9 @@ npx expo run:android          # builds a debug app, installs it on the emulator 
 ```
 Edit any file in `src/` and the app reloads instantly. Press `r` in the terminal to reload, `m` for the dev menu.
 Recommended VS Code extensions: *Expo Tools*, *ESLint*, *React Native Tools*.
+
+Debugging: `npx expo run:android` installs a *debug* build that loads JavaScript from Metro on your Mac
+(hot reload, `console.log` in the terminal, React DevTools with `j`). Logs from any build: `adb logcat *:S ReactNative:V ReactNativeJS:V`.
 
 Faster loop without a native build: `npx expo start` then press `a` (opens in the emulator via Expo Go)
 or `w` (opens in the browser).

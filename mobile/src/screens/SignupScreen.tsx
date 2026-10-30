@@ -16,7 +16,7 @@ export default function SignupScreen() {
   const { signup } = useAuth();
   const startedAt = useRef(Date.now());
   const [role, setRole] = useState<'customer' | 'provider'>(route.params?.role ?? 'customer');
-  const [f, setF] = useState({ name: '', email: '', password: '', phone: '', business: '', category: '', otherCategory: '', description: '', website: '', postcode: '' });
+  const [f, setF] = useState({ name: '', email: '', password: '', phone: '', business: '', category: '', otherCategory: '', description: '', website: '', postcode: '', publicEmail: '' });
   const [accept, setAccept] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,7 +35,7 @@ export default function SignupScreen() {
       const me = await signup({
         form_started_at: startedAt.current, company_website: '',
         email: f.email.trim(), password: f.password, fullName: f.name.trim(), phone: f.phone.trim(), role,
-        businessName: f.business.trim(), businessCategory, businessDescription: f.description.trim(), website: f.website.trim(), postcode: f.postcode.trim().toUpperCase(),
+        businessName: f.business.trim(), businessCategory, businessDescription: f.description.trim(), website: f.website.trim(), publicEmail: role === 'provider' ? f.publicEmail.trim() : '', postcode: f.postcode.trim().toUpperCase(),
         acceptTerms: accept, lang,
       });
       if (!me) throw new ApiError('error', 0);
@@ -66,6 +66,7 @@ export default function SignupScreen() {
             {f.category === otherValue && <Field label={t.auth.otherCategory} value={f.otherCategory} onChangeText={up('otherCategory')} placeholder={t.auth.otherHint} maxLength={80} />}
             <Field label={t.auth.descriptionBiz} hint={t.auth.descriptionBizHint} value={f.description} onChangeText={up('description')} multiline maxLength={3000} />
             <Field label={t.auth.website} value={f.website} onChangeText={up('website')} autoCapitalize="none" keyboardType="url" placeholder="www.jouwbedrijf.nl" />
+            <Field label={t.auth.publicEmail} hint={t.auth.publicEmailHint} value={f.publicEmail} onChangeText={up('publicEmail')} keyboardType="email-address" autoCapitalize="none" placeholder="info@jouwbedrijf.nl" />
             <Field label={t.auth.postcode} value={f.postcode} onChangeText={up('postcode')} autoCapitalize="characters" placeholder="1421 AB" maxLength={7} />
           </View>
         )}

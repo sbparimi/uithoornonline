@@ -15,13 +15,13 @@ export default function ProfileScreen() {
   const b = me?.business;
   const otherValue = meta.businessCategories.find((c) => c.other)?.value ?? 'Overig';
   const known = (v: string) => meta.businessCategories.some((c) => c.value === v && !c.other);
-  const [f, setF] = useState({ name: '', category: '', otherCategory: '', description: '', phone: '', website: '', postcode: '', address: '' });
+  const [f, setF] = useState({ name: '', category: '', otherCategory: '', description: '', phone: '', website: '', postcode: '', address: '', publicEmail: '' });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!b) return;
-    setF({ name: b.name, category: known(b.category) ? b.category : otherValue, otherCategory: known(b.category) ? '' : b.category, description: b.description ?? '', phone: b.phone ?? '', website: b.website ?? '', postcode: b.postcode ?? '', address: b.address ?? '' });
+    setF({ name: b.name, category: known(b.category) ? b.category : otherValue, otherCategory: known(b.category) || b.category === otherValue ? '' : b.category, description: b.description ?? '', phone: b.phone ?? '', website: b.website ?? '', postcode: b.postcode ?? '', address: b.address ?? '', publicEmail: b.public_email ?? '' });
   }, [b?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const up = (k: keyof typeof f) => (v: string) => { setSaved(false); setF((p) => ({ ...p, [k]: v })); };
   const options = [...meta.businessCategories.filter((c) => !c.other)].sort((a, x) => label(a).localeCompare(label(x), lang)).concat(meta.businessCategories.filter((c) => c.other)).map((c) => ({ value: c.value, label: label(c) }));
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
     try {
       const category = f.category === otherValue ? f.otherCategory.trim() : f.category;
       if (category.length < 2) throw new ApiError('invalid_business', 400);
-      await api<{ business: OwnBusiness }>('/api/provider/profile', { method: 'PATCH', body: { name: f.name.trim(), category, description: f.description.trim(), phone: f.phone.trim(), website: f.website.trim(), postcode: f.postcode.trim(), address: f.address.trim() } });
+      await api<{ business: OwnBusiness }>('/api/provider/profile', { method: 'PATCH', body: { name: f.name.trim(), category, description: f.description.trim(), phone: f.phone.trim(), website: f.website.trim(), postcode: f.postcode.trim(), address: f.address.trim(), public_email: f.publicEmail.trim() } });
       await refresh();
       setSaved(true);
     } catch (e) { setError(errorText(t, e instanceof ApiError ? e.code : undefined)); } finally { setBusy(false); }
@@ -57,6 +57,7 @@ export default function ProfileScreen() {
           <Field label={t.auth.descriptionBiz} value={f.description} onChangeText={up('description')} multiline maxLength={3000} />
           <Field label={t.auth.phone} value={f.phone} onChangeText={up('phone')} keyboardType="phone-pad" />
           <Field label={t.auth.website} value={f.website} onChangeText={up('website')} autoCapitalize="none" keyboardType="url" />
+          <Field label={t.auth.publicEmail} hint={t.auth.publicEmailHint} value={f.publicEmail} onChangeText={up('publicEmail')} keyboardType="email-address" autoCapitalize="none" />
           <Field label={t.auth.postcode} value={f.postcode} onChangeText={up('postcode')} autoCapitalize="characters" maxLength={7} />
           <Field label={t.provider.address} value={f.address} onChangeText={up('address')} />
           <ErrorNote text={error} />
