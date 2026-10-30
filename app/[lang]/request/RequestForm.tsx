@@ -7,19 +7,23 @@ import { useDict, useLang } from '../../../components/lang-context';
 import { useSpamTrap } from '../../../components/spam-trap';
 
 // Option values are stored in the database as-is; only the labels are translated.
-const categories = ['Home improvement & renovation', 'Garden & outdoor', 'Plumber', 'Handyman', 'Cleaning & household', 'Transport & logistics', 'Property services', 'Automotive', 'Family & personal', 'Events & occasions', 'Food & catering', 'Professional services'];
+const categories = ['Home improvement & renovation', 'Garden & outdoor', 'Plumber', 'Electrician & installation', 'Handyman', 'Cleaning & household', 'Transport & logistics', 'Security & alarm systems', 'Childcare', 'Care & health', 'Hair & beauty', 'Lessons & tutoring', 'Computer & IT help', 'Pets', 'Photography & video', 'Sport & fitness', 'Property services', 'Automotive', 'Family & personal', 'Events & occasions', 'Food & catering', 'Financial & administration', 'Legal advice', 'Professional services'];
 const timingOptions = ['Today', 'This week', 'Next week', 'This month', 'Flexible'];
 const urgencyOptions = ['As soon as possible', 'Within a week', 'Within a month', 'No urgency'];
 const categoryAliases: Record<string, string> = {
   garden: 'Garden & outdoor', 'tuin & buiten': 'Garden & outdoor', 'tuin & groen': 'Garden & outdoor', 'garden & outdoor': 'Garden & outdoor', tuin: 'Garden & outdoor',
   home: 'Home improvement & renovation', 'huis & klus': 'Home improvement & renovation', 'home improvement': 'Home improvement & renovation', 'home improvement & renovation': 'Home improvement & renovation',
-  plumber: 'Plumber', loodgieter: 'Plumber', 'loodgieter & elektra': 'Plumber', elektricien: 'Plumber',
+  plumber: 'Plumber', loodgieter: 'Plumber', 'loodgieter & elektra': 'Plumber', elektricien: 'Electrician & installation', electrician: 'Electrician & installation',
+  beveiliging: 'Security & alarm systems', alarm: 'Security & alarm systems', security: 'Security & alarm systems',
+  kinderopvang: 'Childcare', gastouder: 'Childcare', oppas: 'Childcare', childcare: 'Childcare', care: 'Care & health', zorg: 'Care & health',
+  bijles: 'Lessons & tutoring', les: 'Lessons & tutoring', computer: 'Computer & IT help', it: 'Computer & IT help', huisdieren: 'Pets', dieren: 'Pets',
+  fotograaf: 'Photography & video', fotografie: 'Photography & video', sport: 'Sport & fitness', fitness: 'Sport & fitness',
   handyman: 'Handyman', klus: 'Handyman', klusjesman: 'Handyman',
   cleaning: 'Cleaning & household', schoonmaak: 'Cleaning & household',
   transport: 'Transport & logistics', 'verhuizen & transport': 'Transport & logistics', 'transport & verhuizen': 'Transport & logistics',
   food: 'Food & catering', 'eten & catering': 'Food & catering',
   auto: 'Automotive', 'auto & fiets': 'Automotive', 'auto & vervoer': 'Automotive',
-  barber: 'Family & personal', 'kapper & beauty': 'Family & personal',
+  barber: 'Hair & beauty', kapper: 'Hair & beauty', 'kapper & beauty': 'Hair & beauty',
 };
 const DRAFT_KEY = 'uithoorn-request-draft';
 

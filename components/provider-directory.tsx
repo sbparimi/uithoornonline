@@ -17,9 +17,11 @@ const demandFilters: DemandFilter[] = [
   { value: 'transport', pattern: /transport|moving|removal|verhuiz|koerier|courier|bezorg|delivery/ },
   { value: 'barber', pattern: /barber|kapper|hairdresser|salon|beauty|kapsel/ },
   { value: 'home', pattern: /renov|paving|tiling|fenc|klus|onderhoud|bouw|schilder|timmer|vloer|floor|handyman|repair/ },
-  { value: 'plumber', pattern: /plumb|loodgiet|elektr|electric|install|water|lekkage|leak|verwarming|cv/ },
+  { value: 'plumber', pattern: /plumb|loodgiet|elektr|electric|install|water|lekkage|leak|verwarming|cv|alarm|beveilig|security/ },
   { value: 'food', pattern: /food|eten|restaurant|cater|takeaway|thuiskeuken|bakker|bakery|taart|indian|indiaas|spiceindia/ },
   { value: 'auto', pattern: /auto|garage|car\b|fiets|bike|bicycle|detail|mobiliteit/ },
+  { value: 'care', pattern: /kinderopvang|gastouder|oppas|childcare|thuiszorg|zorg|fysio|therap|gezondheid|health/ },
+  { value: 'services', pattern: /zakelijk|professio|administrat|boekhoud|financ|jurid|legal|makelaar|vastgoed|marketing|webdesign|computer|\bit\b|fotogra|bijles|onderwijs|tutor|sport|fitness|dieren|evenement/ },
 ];
 
 function inferFilter(query: string) {

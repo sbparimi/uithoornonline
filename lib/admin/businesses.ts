@@ -2,6 +2,7 @@ import 'server-only';
 import { query, queryOne, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { addCredits, unlockLockedLeads } from '../data/credits';
+import { normalizePhone } from '../phone';
 import { assertAdmin, audit, isId, like, needsSchema, optional, paged, paging } from './core';
 
 const MONTH_START = "(date_trunc('month', now() at time zone 'Europe/Amsterdam') at time zone 'Europe/Amsterdam')";
@@ -75,7 +76,7 @@ export function cleanBusiness(body: Record<string, unknown>): { value: BusinessI
   const status = s('moderation_status', 20);
   const value: BusinessInput = {
     name: s('name', 120), category: s('category', 120), description: s('description', 3000), postcode: s('postcode', 10).toUpperCase() || null,
-    address: s('address', 200) || null, website: website ? (/^https?:\/\//i.test(website) ? website : `https://${website}`) : null, phone: s('phone', 40) || null,
+    address: s('address', 200) || null, website: website ? (/^https?:\/\//i.test(website) ? website : `https://${website}`) : null, phone: normalizePhone(s('phone', 40)).slice(0, 40) || null,
     moderation_status: (['pending', 'approved', 'rejected'].includes(status) ? status : 'approved') as BusinessInput['moderation_status'],
     moderation_note: s('moderation_note', 500) || null, verified: b('verified'), featured: b('featured'), active: b('active'), owner_email: s('owner_email', 254).toLowerCase() || null,
   };

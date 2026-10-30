@@ -1,6 +1,7 @@
 import 'server-only';
 import { query, queryOne, transaction, DbUnavailableError } from '../db';
 import type { SessionUser } from '../auth/session';
+import { normalizePhone, normalizeWebsite } from '../phone';
 
 export type PublicBusiness = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean; featured: boolean };
 
@@ -67,10 +68,10 @@ export function cleanBusinessInput(raw: Record<string, unknown>): { value: Busin
   const s = (k: string, max: number) => (raw[k] === undefined ? undefined : String(raw[k] ?? '').trim().slice(0, max));
   const value: BusinessInput = {
     name: s('name', 120), category: s('category', 120), description: s('description', 3000),
-    postcode: s('postcode', 10)?.toUpperCase() || (raw.postcode === undefined ? undefined : null),
+    postcode: s('postcode', 10)?.toUpperCase().replace(/^(\d{4})\s*([A-Z]{2})$/, '$1 $2') || (raw.postcode === undefined ? undefined : null),
     address: s('address', 200) || (raw.address === undefined ? undefined : null),
-    website: s('website', 300) || (raw.website === undefined ? undefined : null),
-    phone: s('phone', 40) || (raw.phone === undefined ? undefined : null),
+    website: normalizeWebsite(s('website', 300)) || (raw.website === undefined ? undefined : null),
+    phone: normalizePhone(s('phone', 40)).slice(0, 40) || (raw.phone === undefined ? undefined : null),
   };
   if (value.name !== undefined && value.name.length < 2) return { value, error: 'invalid_name' };
   if (value.website && !/^https?:\/\/[^\s]+\.[^\s]+$/i.test(value.website)) return { value, error: 'invalid_website' };
