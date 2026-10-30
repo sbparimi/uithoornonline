@@ -1,6 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createHash, randomBytes } from 'node:crypto';
 import { query, queryOne, isDbConfigured, DbUnavailableError } from '../db';
 
@@ -22,8 +22,12 @@ function cookieSecure() {
   return process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== '1';
 }
 
-/** Creates a server-side session and sets the httpOnly cookie. Call from route handlers only. */
-export async function createSession(userId: string, authMethod: 'password' | 'email_link' = 'password') {
+/**
+ * Creates a server-side session and sets the httpOnly cookie. Call from route handlers only.
+ * Returns the raw token so the mobile app (which cannot rely on cookies) can send it back as
+ * `Authorization: Bearer <token>`; the database only ever stores its sha256.
+ */
+export async function createSession(userId: string, authMethod: 'password' | 'email_link' = 'password'): Promise<string> {
   const token = randomBytes(32).toString('base64url');
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
   await query('insert into sessions(id, user_id, auth_method, expires_at) values ($1, $2, $3, $4)', [sha256(token), userId, authMethod, expires]);
@@ -32,11 +36,27 @@ export async function createSession(userId: string, authMethod: 'password' | 'em
   query("delete from sessions where expires_at < now() - interval '1 day'").catch(() => undefined);
   const store = await cookies();
   store.set(SESSION_COOKIE, token, { httpOnly: true, secure: cookieSecure(), sameSite: 'lax', path: '/', expires });
+  return token;
+}
+
+/** True when the request comes from the Uithoorn.online mobile app (it asks for the token in the body). */
+export function isMobileClient(request: Request) {
+  return request.headers.get('x-uo-client') === 'mobile';
+}
+
+/** The session token from the cookie (web) or the Authorization header (mobile app). */
+async function requestToken(): Promise<string | undefined> {
+  const store = await cookies();
+  const fromCookie = store.get(SESSION_COOKIE)?.value;
+  if (fromCookie) return fromCookie;
+  const auth = (await headers()).get('authorization') || '';
+  const match = /^Bearer\s+([A-Za-z0-9_-]{20,200})$/.exec(auth.trim());
+  return match ? match[1] : undefined;
 }
 
 export async function destroySession() {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = await requestToken();
   if (token && isDbConfigured()) await query('delete from sessions where id = $1', [sha256(token)]).catch(() => undefined);
   store.set(SESSION_COOKIE, '', { httpOnly: true, secure: cookieSecure(), sameSite: 'lax', path: '/', maxAge: 0 });
 }
@@ -49,8 +69,7 @@ type Row = { id: string; email: string; full_name: string; phone: string | null;
 
 /** The signed-in user for this request, or null. Never throws for anonymous visitors or a DB outage. */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = await requestToken();
   if (!token || !isDbConfigured()) return null;
   try {
     const row = await queryOne<Row>(

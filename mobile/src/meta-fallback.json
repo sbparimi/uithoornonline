@@ -1,0 +1,332 @@
+{
+ "apiVersion": 1,
+ "businessCategories": [
+  {
+   "value": "Administratie & financiën",
+   "nl": "Administratie, boekhouding & financiën",
+   "en": "Accounting, admin & finance"
+  },
+  {
+   "value": "Automotive",
+   "nl": "Auto, garage & fiets",
+   "en": "Car, garage & bike"
+  },
+  {
+   "value": "Beveiliging & alarmsystemen",
+   "nl": "Beveiliging, alarm & camera",
+   "en": "Security, alarms & cameras"
+  },
+  {
+   "value": "Bouw & aannemer",
+   "nl": "Bouw & aannemer",
+   "en": "Construction & contractors"
+  },
+  {
+   "value": "Dierenverzorging",
+   "nl": "Dierenverzorging & trimsalon",
+   "en": "Pet care & grooming"
+  },
+  {
+   "value": "Elektricien & installatie",
+   "nl": "Elektricien & installatie",
+   "en": "Electrician & installation"
+  },
+  {
+   "value": "Eten & catering",
+   "nl": "Eten, catering & horeca",
+   "en": "Food, catering & hospitality"
+  },
+  {
+   "value": "Evenementen & feesten",
+   "nl": "Evenementen & feesten",
+   "en": "Events & parties"
+  },
+  {
+   "value": "Fotografie & video",
+   "nl": "Fotografie & video",
+   "en": "Photography & video"
+  },
+  {
+   "value": "Gezondheid & therapie",
+   "nl": "Gezondheid, fysio & therapie",
+   "en": "Health, physio & therapy"
+  },
+  {
+   "value": "IT & computerhulp",
+   "nl": "IT & computerhulp",
+   "en": "IT & computer help"
+  },
+  {
+   "value": "Juridisch advies",
+   "nl": "Juridisch advies",
+   "en": "Legal advice"
+  },
+  {
+   "value": "Kapper & beauty",
+   "nl": "Kapper, beauty & wellness",
+   "en": "Hair, beauty & wellness"
+  },
+  {
+   "value": "Kinderopvang & gastouderopvang",
+   "nl": "Kinderopvang & gastouderopvang",
+   "en": "Childcare & childminders"
+  },
+  {
+   "value": "Klus & onderhoud",
+   "nl": "Klus & onderhoud",
+   "en": "Repairs & maintenance"
+  },
+  {
+   "value": "Loodgieter",
+   "nl": "Loodgieter, cv & warmtepomp",
+   "en": "Plumber, heating & heat pumps"
+  },
+  {
+   "value": "Makelaar & vastgoed",
+   "nl": "Makelaar & vastgoed",
+   "en": "Estate agent & property"
+  },
+  {
+   "value": "Marketing & webdesign",
+   "nl": "Marketing, webdesign & drukwerk",
+   "en": "Marketing, web design & print"
+  },
+  {
+   "value": "Onderwijs & bijles",
+   "nl": "Onderwijs, bijles & lessen",
+   "en": "Tutoring, lessons & training"
+  },
+  {
+   "value": "Schilder & stukadoor",
+   "nl": "Schilder & stukadoor",
+   "en": "Painter & plasterer"
+  },
+  {
+   "value": "Schoonmaak",
+   "nl": "Schoonmaak",
+   "en": "Cleaning"
+  },
+  {
+   "value": "Sport & fitness",
+   "nl": "Sport, fitness & yoga",
+   "en": "Sport, fitness & yoga"
+  },
+  {
+   "value": "Tuin & buiten",
+   "nl": "Tuin, hovenier & bestrating",
+   "en": "Garden, landscaping & paving"
+  },
+  {
+   "value": "Transport & logistiek",
+   "nl": "Verhuizen, transport & koerier",
+   "en": "Moving, transport & courier"
+  },
+  {
+   "value": "Winkel & retail",
+   "nl": "Winkel & retail",
+   "en": "Shop & retail"
+  },
+  {
+   "value": "Professionele diensten",
+   "nl": "Zakelijke diensten & advies",
+   "en": "Business services & consulting"
+  },
+  {
+   "value": "Zorg & thuiszorg",
+   "nl": "Zorg & thuiszorg",
+   "en": "Care & home care"
+  },
+  {
+   "value": "Overig",
+   "nl": "Anders / overig (zelf invullen)",
+   "en": "Other (type your own)",
+   "other": true
+  }
+ ],
+ "requestCategories": [
+  {
+   "value": "Home improvement & renovation",
+   "nl": "Huis, klus & renovatie",
+   "en": "Home improvement & renovation"
+  },
+  {
+   "value": "Garden & outdoor",
+   "nl": "Tuin & buiten",
+   "en": "Garden & outdoor"
+  },
+  {
+   "value": "Plumber",
+   "nl": "Loodgieter",
+   "en": "Plumber"
+  },
+  {
+   "value": "Electrician & installation",
+   "nl": "Elektricien & installatie",
+   "en": "Electrician & installation"
+  },
+  {
+   "value": "Handyman",
+   "nl": "Klusjesman",
+   "en": "Handyman"
+  },
+  {
+   "value": "Cleaning & household",
+   "nl": "Schoonmaak & huishouden",
+   "en": "Cleaning & household"
+  },
+  {
+   "value": "Transport & logistics",
+   "nl": "Transport & verhuizen",
+   "en": "Transport & moving"
+  },
+  {
+   "value": "Security & alarm systems",
+   "nl": "Beveiliging & alarm",
+   "en": "Security & alarms"
+  },
+  {
+   "value": "Childcare",
+   "nl": "Kinderopvang & oppas",
+   "en": "Childcare & babysitting"
+  },
+  {
+   "value": "Care & health",
+   "nl": "Zorg & gezondheid",
+   "en": "Care & health"
+  },
+  {
+   "value": "Hair & beauty",
+   "nl": "Kapper & beauty",
+   "en": "Hair & beauty"
+  },
+  {
+   "value": "Lessons & tutoring",
+   "nl": "Les & bijles",
+   "en": "Lessons & tutoring"
+  },
+  {
+   "value": "Computer & IT help",
+   "nl": "Computer- & IT-hulp",
+   "en": "Computer & IT help"
+  },
+  {
+   "value": "Pets",
+   "nl": "Huisdieren",
+   "en": "Pets"
+  },
+  {
+   "value": "Photography & video",
+   "nl": "Fotografie & video",
+   "en": "Photography & video"
+  },
+  {
+   "value": "Sport & fitness",
+   "nl": "Sport & fitness",
+   "en": "Sport & fitness"
+  },
+  {
+   "value": "Property services",
+   "nl": "Vastgoed & onderhoud",
+   "en": "Property services"
+  },
+  {
+   "value": "Automotive",
+   "nl": "Auto & mobiliteit",
+   "en": "Car & mobility"
+  },
+  {
+   "value": "Family & personal",
+   "nl": "Gezin & persoonlijk",
+   "en": "Family & personal"
+  },
+  {
+   "value": "Events & occasions",
+   "nl": "Evenementen & feesten",
+   "en": "Events & occasions"
+  },
+  {
+   "value": "Food & catering",
+   "nl": "Eten & catering",
+   "en": "Food & catering"
+  },
+  {
+   "value": "Financial & administration",
+   "nl": "Administratie & financiën",
+   "en": "Admin & finance"
+  },
+  {
+   "value": "Legal advice",
+   "nl": "Juridisch advies",
+   "en": "Legal advice"
+  },
+  {
+   "value": "Professional services",
+   "nl": "Zakelijke diensten",
+   "en": "Professional services"
+  }
+ ],
+ "timing": [
+  {
+   "value": "Today",
+   "nl": "Vandaag",
+   "en": "Today"
+  },
+  {
+   "value": "This week",
+   "nl": "Deze week",
+   "en": "This week"
+  },
+  {
+   "value": "Next week",
+   "nl": "Volgende week",
+   "en": "Next week"
+  },
+  {
+   "value": "This month",
+   "nl": "Deze maand",
+   "en": "This month"
+  },
+  {
+   "value": "Flexible",
+   "nl": "Flexibel",
+   "en": "Flexible"
+  }
+ ],
+ "urgency": [
+  {
+   "value": "As soon as possible",
+   "nl": "Zo snel mogelijk",
+   "en": "As soon as possible"
+  },
+  {
+   "value": "Within a week",
+   "nl": "Binnen een week",
+   "en": "Within a week"
+  },
+  {
+   "value": "Within a month",
+   "nl": "Binnen een maand",
+   "en": "Within a month"
+  },
+  {
+   "value": "No urgency",
+   "nl": "Geen haast",
+   "en": "No rush"
+  }
+ ],
+ "contactEmail": "sam@uithoorn.online",
+ "links": {
+  "privacy": {
+   "nl": "https://uithoorn.online/privacy",
+   "en": "https://uithoorn.online/en/privacy"
+  },
+  "terms": {
+   "nl": "https://uithoorn.online/voorwaarden",
+   "en": "https://uithoorn.online/en/voorwaarden"
+  },
+  "forgotPassword": {
+   "nl": "https://uithoorn.online/forgot-password",
+   "en": "https://uithoorn.online/en/forgot-password"
+  }
+ }
+}
