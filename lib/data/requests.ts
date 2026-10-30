@@ -28,7 +28,7 @@ export function cleanRequestInput(body: Record<string, unknown>): { value: Reque
 }
 
 // Category → keyword regex, ported from the old match_service_request() SQL function.
-const MATCH_SQL = `
+export const MATCH_SQL = `
   select b.id, b.name, b.owner_id, u.email as owner_email, u.locale as owner_locale
     from businesses b join users u on u.id = b.owner_id
    where b.moderation_status = 'approved' and b.active = true and u.disabled_at is null

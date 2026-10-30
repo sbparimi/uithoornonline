@@ -66,11 +66,21 @@ export async function sentRecently(ref: string, minutes: number) {
   } catch { return false; }
 }
 
-const NO_ADMIN_COPY = new Set(['login_link', 'password_reset', 'password_reset_admin']);
+// job_alert / job_taken carry a one-tap accept link for a business (and go out in bulk per request):
+// the admin sees them in Admin → Spoed (alert log) instead of a BCC copy of each.
+const NO_ADMIN_COPY = new Set(['login_link', 'password_reset', 'password_reset_admin', 'job_alert', 'job_taken']);
 
-export async function sendEmailDetailed(email: Email): Promise<SendResult> {
-  const recipients = [...new Set((Array.isArray(email.to) ? email.to : [email.to]).map((s) => String(s || '').trim()).filter(Boolean))];
-  if (!recipients.length) return { status: 'skipped', id: null, error: 'no recipient' };
+/** Test safety (previews): EMAIL_REDIRECT_TO sends every email to that address instead, original recipient in the subject. */
+function redirected(email: Email, recipients: string[]): { email: Email; recipients: string[] } {
+  const to = (process.env.EMAIL_REDIRECT_TO || '').trim();
+  if (!to) return { email, recipients };
+  return { email: { ...email, adminCopy: false, subject: `[TEST → ${recipients.join(', ')}] ${email.subject}` }, recipients: [to] };
+}
+
+export async function sendEmailDetailed(original: Email): Promise<SendResult> {
+  const originalRecipients = [...new Set((Array.isArray(original.to) ? original.to : [original.to]).map((s) => String(s || '').trim()).filter(Boolean))];
+  if (!originalRecipients.length) return { status: 'skipped', id: null, error: 'no recipient' };
+  const { email, recipients } = redirected(original, originalRecipients);
   const admin = adminEmail();
   // Sign-in and reset links are credentials for someone else's account: never copy them to the admin.
   const bcc = email.adminCopy === false || NO_ADMIN_COPY.has(email.kind) || recipients.some((r) => r.toLowerCase() === admin) ? null : admin;
