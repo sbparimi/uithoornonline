@@ -1,4 +1,3 @@
-import { after } from 'next/server';
 import { errorJson, handle, json } from '@/lib/http';
 import { verifyToken } from '@/lib/urgent/tokens';
 import { requestStatus, tickQuietly } from '@/lib/urgent/alerts';
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
     const t = new URL(request.url).searchParams.get('t');
     const ids = verifyToken('status', t);
     if (!ids) return errorJson('invalid_token', 404);
-    after(tickQuietly);
+    await tickQuietly(); // advance a due spoed escalation before answering (no-op otherwise)
     const r = await requestStatus(ids[0]);
     if (!r) return errorJson('not_found', 404);
     return json({

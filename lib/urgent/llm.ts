@@ -15,6 +15,8 @@ export type UrgencyLevel = 'spoed' | 'today' | 'week' | 'flexible';
 export type Classification = {
   category: string; urgency: UrgencyLevel; summary: string; tip: string | null; followUp: string | null;
   source: 'ai' | 'rules'; provider?: string;
+  /** Why the AI was not used (previews only, never in production responses). */
+  debug?: string;
 };
 
 type Provider = { name: string; kind: 'openai' | 'anthropic'; baseUrl: string; key: string; model: string };
@@ -114,20 +116,21 @@ function parseJson(text: string): Record<string, unknown> | null {
 }
 
 const LEVELS: UrgencyLevel[] = ['spoed', 'today', 'week', 'flexible'];
+const debug = (provider: string, why: string) => (process.env.VERCEL_ENV === 'production' ? {} : { debug: `${provider}: ${why.slice(0, 160)}` });
 
 export async function classifyIntake(text: string, lang: 'nl' | 'en' = 'nl'): Promise<Classification> {
   const rules = classifyByRules(text, lang);
   const p = llmProvider();
-  if (!p) return rules;
+  if (!p) return { ...rules, ...(process.env.VERCEL_ENV === 'production' ? {} : { debug: 'no LLM key in this environment' }) };
   try {
     const out = parseJson(await callLlm(p, prompt(lang), text.slice(0, 2000), 8000));
-    if (!out) return rules;
+    if (!out) return { ...rules, ...debug(p.name, 'unparseable answer') };
     const category = REQUEST_CATEGORIES.includes(String(out.category)) ? String(out.category) : rules.category;
     const urgency = LEVELS.includes(out.urgency as UrgencyLevel) ? out.urgency as UrgencyLevel : rules.urgency;
     const s = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().toLowerCase() !== 'null' ? v.trim().slice(0, max) : null);
     return { category, urgency, summary: s(out.summary, 240) ?? rules.summary, tip: urgency === 'spoed' ? (s(out.tip, 240) ?? rules.tip) : null, followUp: s(out.followUp, 200), source: 'ai', provider: p.name };
   } catch (e) {
     console.warn('[intake] llm failed, using rules:', e instanceof Error ? e.message : e);
-    return rules;
+    return { ...rules, ...debug(p.name, e instanceof Error ? e.message : String(e)) };
   }
 }
