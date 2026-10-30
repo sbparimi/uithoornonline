@@ -51,7 +51,7 @@ export async function createRequest(user: SessionUser, input: RequestInput, opti
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
       [user.id, input.category, input.description, input.postcode, input.preferredTiming, input.urgency, input.budgetMin, input.budgetMax]);
     const postcode4 = input.postcode.replace(/\D/g, '').slice(0, 4);
-    const { rows: ranked } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, matchParams(input.category, postcode4, user.id));
+    const { rows: ranked } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, matchParams(input.category, postcode4, user.id, input.description));
     const candidates = ranked.slice(0, Math.max(1, Math.min(options.maxMatches ?? 10, 10)));
 
     const matched: MatchedBusiness[] = [];

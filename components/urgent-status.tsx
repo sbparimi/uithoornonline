@@ -113,7 +113,7 @@ export default function UrgentStatus({ token, fresh = false, escalateMinutes = 1
 
   if (s.quoteMode) {
     const quotes = (s.quotes ?? []).filter((x) => x.status !== 'withdrawn');
-    const priced = quotes.filter((x) => x.amountCents !== null && x.priceType !== 'visit' && x.priceType !== 'hourly');
+    const priced = quotes.filter((x) => x.amountCents !== null && x.priceType === 'fixed');
     const cheapest = priced.length > 1 ? priced.reduce((a, b) => (a.amountCents! <= b.amountCents! ? a : b)).id : '';
     const rated = quotes.filter((x) => x.rating !== null && x.reviews > 0);
     const best = rated.length > 1 ? rated.reduce((a, b) => ((a.rating ?? 0) >= (b.rating ?? 0) ? a : b)).id : '';

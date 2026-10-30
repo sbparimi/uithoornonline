@@ -224,7 +224,8 @@ export async function acceptJob(requestId: string, businessId: string, via: 'lin
     await email(r.id, biz.id, 'business', 'accepted', biz.owner_email, 'job_won', bl, jobWonEmail(bl, biz.name, job(bl, r), contactOf(r), conversationId, signToken('accept', [r.id, biz.id], 3)));
     const others = await query<{ business_id: string; owner_email: string; owner_locale: Lang }>(
       `select distinct a.business_id, u.email as owner_email, u.locale as owner_locale from job_alerts a join businesses b on b.id = a.business_id join users u on u.id = b.owner_id
-        where a.request_id = $1 and a.audience = 'business' and a.business_id <> $2 and a.status = 'sent'`, [r.id, biz.id]);
+        where a.request_id = $1 and a.audience = 'business' and a.business_id <> $2 and a.status = 'sent'
+          and not exists (select 1 from leads l where l.request_id = a.request_id and l.business_id = a.business_id and l.status = 'declined')`, [r.id, biz.id]);
     for (const o of others) {
       const ol: Lang = o.owner_locale === 'en' ? 'en' : 'nl';
       await email(r.id, o.business_id, 'business', 'taken', o.owner_email, via === 'quote' ? 'quote_not_chosen' : 'job_taken', ol, via === 'quote' ? quoteNotChosenEmail(ol, job(ol, r)) : jobTakenEmail(ol, job(ol, r)));
@@ -238,8 +239,8 @@ async function spoedPool(r: ReqRow) {
   const postcode4 = r.postcode.replace(/\D/g, '').slice(0, 4);
   return query<Biz>(
     `with m as (${MATCH_SQL}) select ${BIZ_COLS} from m join businesses b on b.id = m.id join users u on u.id = b.owner_id
-      where b.spoed_24_7 = true order by (exists (select 1 from leads l where l.request_id = $7 and l.business_id = b.id)) desc, m.tier, m.rating desc, b.featured desc, b.created_at`,
-    [...matchParams(r.category, postcode4, r.customer_id), r.id]);
+      where b.spoed_24_7 = true order by (exists (select 1 from leads l where l.request_id = $8 and l.business_id = b.id)) desc, m.tier, m.hinted desc, m.rating desc, b.featured desc, b.created_at`,
+    [...matchParams(r.category, postcode4, r.customer_id, r.description), r.id]);
 }
 
 async function exhaust(r: ReqRow, pool: number) {

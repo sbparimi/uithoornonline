@@ -36,19 +36,40 @@ export const MATCH_RULES: Record<string, Rule> = {
   'Professional services': { primary: ['Professionele diensten'], secondary: ['Administratie & financiën', 'Marketing & webdesign', 'Juridisch advies'], kw: String.raw`\m(zakelijk\w*|advies\w*|consult\w*|marketing)\M` },
 };
 
+// Within one request category, which business category fits the resident's own words best
+// ("schilderen" -> painter before contractor; "badkamer verbouwen" -> contractor before painter).
+const HINTS: [RegExp, string][] = [
+  [/schilder|verf|lak|behang|stuc|sauzen|paint|plaster|wallpaper/i, 'Schilder & stukadoor'],
+  [/verbouw|badkamer|keuken|aanbouw|uitbouw|dakkapel|\bdak\b|renov|fundering|muur|bathroom|kitchen|extension|roof/i, 'Bouw & aannemer'],
+  [/fysio|therap|massage|physio|psycholo|diëtist|dietist/i, 'Gezondheid & therapie'],
+  [/thuiszorg|verpleeg|wassen|aankleden|home care|nursing|ouderen|elderly/i, 'Zorg & thuiszorg'],
+  [/oppas|kinderopvang|gastouder|babysit|childcare/i, 'Kinderopvang & gastouderopvang'],
+  [/catering|hapjes|buffet|diner|food|eten/i, 'Eten & catering'],
+  [/foto|video|film|photo/i, 'Fotografie & video'],
+  [/boekhoud|belasting|administrat|tax|accountant/i, 'Administratie & financiën'],
+  [/website|marketing|logo|drukwerk|social media/i, 'Marketing & webdesign'],
+  [/advocaat|jurid|contract|notaris|legal/i, 'Juridisch advies'],
+];
+
+/** Business categories the resident's words point at (ranking hint inside a request category). */
+export function preferredCategories(description: string): string[] {
+  return HINTS.filter(([re]) => re.test(description)).map(([, c]) => c);
+}
+
 /** Every category value a business can pick (known ids). Businesses outside this list typed their own. */
 export const KNOWN_BUSINESS_CATEGORIES = [...BUSINESS_CATEGORIES, ...LEGACY_CATEGORIES].map((c) => c.value);
 
 /**
  * Candidate businesses for a request, best first. Parameters (see matchParams):
  * $1 primary category ids, $2 secondary ids, $3 keyword pattern for custom categories, $4 known ids,
- * $5 first 4 postcode digits, $6 the customer's user id (a business never gets its owner's own request).
- * Ranking: category fit (primary, secondary, custom-keyword), then rating from verified reviews
+ * $5 first 4 postcode digits, $6 the customer's user id (a business never gets its owner's own request),
+ * $7 business categories the resident's own words point at (ranking hint, may be empty).
+ * Ranking: category fit (primary, secondary, custom-keyword), then the words hint, then rating from verified reviews
  * (Bayesian: an unreviewed business sits at 3.5, so good ratings rise and poor ones sink), then same
- * postcode area, then featured, then newest. Columns: id, name, owner_id, owner_email, owner_locale, tier, rating, reviews.
+ * postcode area, then featured, then newest. Columns: id, name, owner_id, owner_email, owner_locale, tier, hinted, rating, reviews. Callers add their own parameters from $8.
  */
 export const MATCH_SQL = `
-  select b.id, b.name, b.owner_id, u.email as owner_email, u.locale as owner_locale, f.tier,
+  select b.id, b.name, b.owner_id, u.email as owner_email, u.locale as owner_locale, f.tier, (b.category = any($7::text[])) as hinted,
          round(((coalesce(rv.total, 0) + 7.0) / (coalesce(rv.n, 0) + 2))::numeric, 2)::float as rating, coalesce(rv.n, 0)::int as reviews
     from businesses b join users u on u.id = b.owner_id
     cross join lateral (select case when b.category = any($1::text[]) then 1
@@ -62,11 +83,11 @@ export const MATCH_SQL = `
      and lower(b.category) not like '%workshop%'
      and f.tier is not null
    -- No hard postcode filter (the site only serves Uithoorn & De Kwakel); same postcode ranks higher.
-   order by f.tier, rating desc, case when left(regexp_replace(coalesce(b.postcode, ''), '[^0-9]', '', 'g'), 4) = $5 then 0 else 1 end, b.featured desc, b.created_at desc
+   order by f.tier, hinted desc, rating desc, case when left(regexp_replace(coalesce(b.postcode, ''), '[^0-9]', '', 'g'), 4) = $5 then 0 else 1 end, b.featured desc, b.created_at desc
    limit 25`;
 
 /** Positional parameters for MATCH_SQL. An unknown request category falls back to keyword-only matching. */
-export function matchParams(requestCategory: string, postcode4: string, customerId: string): unknown[] {
+export function matchParams(requestCategory: string, postcode4: string, customerId: string, description = ''): unknown[] {
   const rule = MATCH_RULES[requestCategory];
-  return [rule?.primary ?? [], rule?.secondary ?? [], rule?.kw ?? '', KNOWN_BUSINESS_CATEGORIES, postcode4, customerId];
+  return [rule?.primary ?? [], rule?.secondary ?? [], rule?.kw ?? '', KNOWN_BUSINESS_CATEGORIES, postcode4, customerId, preferredCategories(description)];
 }

@@ -68,6 +68,7 @@ function questionPrompt(lang: Lang) {
     '(for example: size or quantity, which room or object, current state or material, preferred timing, budget range). Skip anything the description already answers.',
     'Never ask for name, address, postcode, phone, email or photos (asked separately). No yes/no questions when a choice list fits better.',
     `Write in ${lang === 'en' ? 'English' : 'Dutch (informal "je")'}. Every question max 90 characters, with 2 to 5 short answer options (max 30 characters each) the resident can tap.`,
+    'Answer options must be realistic for this kind of job in the Netherlands (for a budget question use euro ranges that fit the job, e.g. a bathroom renovation starts around €5,000; include a "weet ik niet"/"no idea" option).',
     'Reply with ONE JSON object only: {"questions":[{"q":"...","options":["...","..."]}]}',
   ].join('\n');
 }
@@ -104,9 +105,9 @@ function briefPrompt(lang: Lang, allowPrice: boolean) {
     'You write a job brief for a local business on Uithoorn.online (Uithoorn / De Kwakel, Netherlands), so it can answer a resident with a quote in one minute.',
     'Use ONLY the facts given. Never invent facts, sizes, brands or dates. If something important is unknown, list it under "ask".',
     `Write in ${lang === 'en' ? 'English' : 'Dutch'}. Reply with ONE JSON object only:`,
-    '{"summary":"2-3 short sentences: what, where (postcode area), when","facts":[["label","value"]] (max 6, from the answers),"ask":["max 3 short questions the business should still ask"],',
+    '{"summary":"2-3 short sentences naming every piece of work the resident asked for, plus where (postcode area) and when","facts":[["label","value"]] (max 6, only from the resident\'s answers and description; do NOT repeat category, postcode or timing),"ask":["max 3 short questions the business should still ask"],',
     allowPrice
-      ? '"price": null OR {"min":number,"max":number,"unit":"total"|"hour","basis":"one short sentence why"} in euros incl. VAT for the Dutch market in 2026. Give a price ONLY when the size/quantity is known well enough for a professional to give a ballpark; otherwise null. Keep the range realistic and not wider than 3x.}'
+      ? '"price": null OR {"min":number,"max":number,"unit":"total"|"hour","basis":"one short sentence why"} in euros incl. VAT, typical Dutch market rates in 2026 for labour plus materials. Base it ONLY on the work described, NEVER on the customer\'s budget (if their budget looks too low, the range must still be the market range). Give a price ONLY when the size/quantity is known well enough for a professional to give a ballpark; otherwise null. Not wider than 3x.}'
       : '"price": null}',
   ].join('\n');
 }
@@ -132,7 +133,8 @@ export async function jobBrief(i: BriefInput): Promise<JobBrief> {
   const d = res.data;
   const summary = clean(d.summary, 500);
   if (!summary) return rulesBrief(i);
-  const facts = (Array.isArray(d.facts) ? d.facts : []).map((f) => (Array.isArray(f) ? [clean(f[0], 60), clean(f[1], 160)] : ['', ''])).filter(([k, v]) => k && v).slice(0, 6) as [string, string][];
+  const dup = /categor|postcode|gebied|area|timing|wanneer|tijdstip|when|urgent/i; // already shown above the brief
+  const facts = (Array.isArray(d.facts) ? d.facts : []).map((f) => (Array.isArray(f) ? [clean(f[0], 60), clean(f[1], 160)] : ['', ''])).filter(([k, v]) => k && v && !dup.test(k)).slice(0, 6) as [string, string][];
   const ask = (Array.isArray(d.ask) ? d.ask : []).map((x) => clean(x, 140)).filter(Boolean).slice(0, 3);
   let price: JobBrief['price'] = null;
   const p = d.price as { min?: unknown; max?: unknown; unit?: unknown; basis?: unknown } | null;

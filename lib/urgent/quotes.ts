@@ -97,8 +97,8 @@ async function nextRound(id: string): Promise<string> {
   const postcode4 = r.postcode.replace(/\D/g, '').slice(0, 4);
   const fresh = await query<{ id: string; owner_id: string; owner_locale: Lang }>(
     `with m as (${MATCH_SQL}) select m.id, m.owner_id, m.owner_locale from m
-      where not exists (select 1 from leads l where l.request_id = $7 and l.business_id = m.id) order by m.tier, m.rating desc limit ${QUOTE_BATCH}`,
-    [...matchParams(r.category, postcode4, r.customer_id), id]);
+      where not exists (select 1 from leads l where l.request_id = $8 and l.business_id = m.id) order by m.tier, m.hinted desc, m.rating desc limit ${QUOTE_BATCH}`,
+    [...matchParams(r.category, postcode4, r.customer_id, r.description), id]);
   if (!fresh.length) return giveUp('exhausted:no_more_businesses');
   const round = r.match_round + 1;
   await transaction(async (c) => {
