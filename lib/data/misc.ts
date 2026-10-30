@@ -11,7 +11,7 @@ export async function createCommunitySubmission(input: { kind: string; name: str
     [input.kind, input.name, input.email, input.phone, input.title, input.description, input.category, input.postcode, input.website]);
 }
 
-export const ANALYTICS_EVENTS = new Set(['page_view', 'search', 'search_result_click', 'business_view', 'business_contact', 'phone_click', 'whatsapp_click', 'website_click', 'request_started', 'request_submitted', 'lead_created', 'promotion_impression', 'promotion_click']);
+export const ANALYTICS_EVENTS = new Set(['page_view', 'search', 'search_result_click', 'business_view', 'business_contact', 'phone_click', 'whatsapp_click', 'website_click', 'request_started', 'request_submitted', 'lead_created', 'promotion_impression', 'promotion_click', 'chat_open', 'chat_lead', 'ai_profile_generated']);
 
 /** Anonymous first-party counters. No cookie, no IP, no session id is stored. */
 export async function trackEvent(name: string, businessId: string | null, requestId: string | null, metadata: Record<string, unknown>) {

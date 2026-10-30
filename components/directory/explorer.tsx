@@ -8,7 +8,7 @@ import { CATEGORIES, CATEGORY_BY_SLUG, PLACES, SECTIONS, SECTION_BY_ID, type Pla
 import type { DirectoryCard, DirectoryPayload } from '../../lib/directory/data';
 import { SectionIcon } from './icons';
 
-export type ExplorerState = { q: string; section: SectionId | null; category: string | null; place: PlaceId | null; has: ('website' | 'phone')[]; sort: 'relevance' | 'az' | 'newest' };
+export type ExplorerState = { q: string; section: SectionId | null; category: string | null; place: PlaceId | null; has: ('website' | 'phone' | 'open')[]; sort: 'relevance' | 'az' | 'newest' };
 
 type Props = {
   lang: Locale;
@@ -57,7 +57,7 @@ function stateFromLocation(): ExplorerState {
   const category = slug && CATEGORY_BY_SLUG.has(slug) ? slug : null;
   const section = !category && slug && SECTION_BY_ID.has(slug as SectionId) ? (slug as SectionId) : null;
   const place = (['uithoorn', 'de-kwakel', 'omgeving'] as const).find((p) => p === url.searchParams.get('plaats')) ?? null;
-  const has = (url.searchParams.get('met') || '').split(',').filter((h): h is 'website' | 'phone' => h === 'website' || h === 'phone');
+  const has = (url.searchParams.get('met') || '').split(',').filter((h): h is 'website' | 'phone' | 'open' => h === 'website' || h === 'phone' || h === 'open');
   const sortRaw = url.searchParams.get('sort');
   return { q: url.searchParams.get('q') || url.searchParams.get('search') || '', section, category, place, has, sort: sortRaw === 'az' || sortRaw === 'newest' ? sortRaw : 'relevance' };
 }
@@ -218,6 +218,15 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
           ))}
         </div>
       </div>
+      {(data.withHours > 0 || state.has.includes('open')) && (
+        <div className="dir2-filter-group">
+          <h3>{t.openFilterTitle}</h3>
+          <label className="dir2-check">
+            <input type="checkbox" checked={state.has.includes('open')} onChange={(e) => update({ has: e.target.checked ? [...state.has, 'open'] : state.has.filter((x) => x !== 'open') })} />
+            <span>{t.openNow}</span>
+          </label>
+        </div>
+      )}
       <div className="dir2-filter-group">
         <h3>{t.contact}</h3>
         {(['phone', 'website'] as const).map((h) => (
@@ -392,7 +401,7 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
                 {state.category && <button type="button" onClick={() => chooseCategory(null)}>{catLabel(state.category)} <X aria-hidden="true" /></button>}
                 {state.section && !state.category && <button type="button" onClick={() => chooseSection(null)}>{secLabel(state.section)} <X aria-hidden="true" /></button>}
                 {state.place && <button type="button" onClick={() => update({ place: null })}>{PLACES.find((p) => p.id === state.place)?.[lang]} <X aria-hidden="true" /></button>}
-                {state.has.map((h) => <button key={h} type="button" onClick={() => update({ has: state.has.filter((x) => x !== h) })}>{h === 'website' ? t.hasWebsite : t.hasPhone} <X aria-hidden="true" /></button>)}
+                {state.has.map((h) => <button key={h} type="button" onClick={() => update({ has: state.has.filter((x) => x !== h) })}>{h === 'website' ? t.hasWebsite : h === 'open' ? t.openNow : t.hasPhone} <X aria-hidden="true" /></button>)}
                 <button type="button" className="dir2-active-reset" onClick={() => update({ q: '', section: null, category: null, place: null, has: [], sort: 'relevance' })}>{t.resetFilters}</button>
               </div>
             )}
@@ -496,11 +505,12 @@ function Card({ b, lang }: { b: DirectoryCard; lang: Locale }) {
           <span className="dir2-card-name">{b.name}{b.verified && <BadgeCheck className="dir2-verified" aria-label={t.verified} />}</span>
           {b.line && <span className="dir2-card-line">{b.line}</span>}
           <span className="dir2-card-where"><MapPin aria-hidden="true" /> {where}</span>
+          {b.openNow !== null && <span className={`dir2-open ${b.openNow ? 'is-open' : 'is-closed'}`}>{b.openNow ? t.openNow : t.closedNow}</span>}
         </span>
       </a>
       <div className="dir2-card-actions">
-        {b.phone && <a className="dir2-btn dir2-btn-sm" href={`tel:${b.phone.replace(/[^\d+]/g, '')}`} aria-label={t.callAria(b.name)}><Phone aria-hidden="true" /> {t.call}</a>}
-        {b.website && <a className="dir2-btn dir2-btn-sm" href={b.website} target="_blank" rel="noopener noreferrer" aria-label={t.websiteAria(b.name)}><Globe aria-hidden="true" /> {t.website}</a>}
+        {b.phone && <a className="dir2-btn dir2-btn-sm" href={`tel:${b.phone.replace(/[^\d+]/g, '')}`} aria-label={t.callAria(b.name)} data-track="phone_click" data-biz={b.id}><Phone aria-hidden="true" /> {t.call}</a>}
+        {b.website && <a className="dir2-btn dir2-btn-sm" href={b.website} target="_blank" rel="noopener noreferrer" aria-label={t.websiteAria(b.name)} data-track="website_click" data-biz={b.id}><Globe aria-hidden="true" /> {t.website}</a>}
         <a className="dir2-btn dir2-btn-sm dir2-btn-ghost" href={href}>{t.view} <ArrowRight aria-hidden="true" /></a>
       </div>
     </article>

@@ -2,6 +2,7 @@ import 'server-only';
 import { query, DbUnavailableError } from '../db';
 import { FALLBACK_BUSINESSES } from '../data/businesses';
 import { localizeText, spiceIndiaId } from '../business-content';
+import { isOpenNow } from '../hours';
 import { buildIndex, searchDirectory, toEntry, type DirectoryEntry, type DirectoryIndex, type DirectoryQuery, type DirectorySource } from './search';
 import { CATEGORY_BY_SLUG, SECTION_BY_ID, type PlaceId, type SectionId } from './taxonomy';
 
@@ -22,13 +23,23 @@ async function load(): Promise<{ index: DirectoryIndex; source: 'database' | 'fa
     rows = FALLBACK_BUSINESSES.map((b) => ({ ...b, address: null, created_at: '' }));
     source = 'fallback';
   }
+  // Opening hours (migration 0006) in their own query, merged by id: no hours before the migration,
+  // and the main listing query above stays untouched for the other lanes.
+  if (source === 'database') {
+    const withHours = await query<{ id: string; opening_hours: unknown }>(`select id, opening_hours from businesses where opening_hours is not null and moderation_status = 'approved' and active = true`)
+      .catch((e) => { if ((e as { code?: string })?.code === '42703' || e instanceof DbUnavailableError) return []; throw e; });
+    const byId = new Map(withHours.map((h) => [h.id, h.opening_hours]));
+    if (byId.size) rows = rows.map((r) => (byId.has(r.id) ? { ...r, opening_hours: byId.get(r.id) } : r));
+  }
   const entries = rows.map((r) => toEntry({ ...r, descriptionNl: localizeText(r.description, 'nl'), categoryNl: localizeText(r.category, 'nl') }));
   return { index: buildIndex(entries), source };
 }
 
 export async function getDirectoryIndex(): Promise<{ index: DirectoryIndex; source: 'database' | 'fallback' }> {
   const cached = globalThis.__uoDirectory;
-  if (cached && Date.now() - cached.at < TTL_MS) return cached;
+  // A fallback index (database briefly unreachable, e.g. a cold start) is only kept for 15 s, so one blip
+  // doesn't show the sample listings for the whole cache window.
+  if (cached && Date.now() - cached.at < (cached.source === 'fallback' ? 15_000 : TTL_MS)) return cached;
   if (cached) {
     // Serve the previous index while one refresh runs in the background.
     if (!cached.pending) cached.pending = load().then((next) => { globalThis.__uoDirectory = { ...next, at: Date.now() }; }).catch((e) => { console.error('[directory] refresh failed', e instanceof Error ? e.message : e); cached.at = Date.now(); }).finally(() => { if (globalThis.__uoDirectory) globalThis.__uoDirectory.pending = undefined; });
@@ -42,6 +53,8 @@ export async function getDirectoryIndex(): Promise<{ index: DirectoryIndex; sour
 export type DirectoryCard = {
   id: string; name: string; category: string; categorySlug: string; section: SectionId; line: string;
   town: string | null; place: PlaceId; postcode: string | null; phone: string | null; website: string | null; verified: boolean; featured: boolean;
+  /** true/false from the business's opening hours (Europe/Amsterdam), null when it has none. */
+  openNow: boolean | null;
 };
 
 function shortLine(text: string, max = 150) {
@@ -58,6 +71,7 @@ export function toCard(e: DirectoryEntry, lang: 'nl' | 'en'): DirectoryCard {
     id: e.id, name: e.name, category, categorySlug: e.category.slug, section: e.section,
     line: shortLine(lang === 'nl' ? e.descriptionNl : e.description),
     town: e.town, place: e.place, postcode: e.postcode, phone: e.phone, website: e.website, verified: e.verified, featured: e.featured,
+    openNow: isOpenNow(e.hours),
   };
 }
 
@@ -66,13 +80,15 @@ export type DirectoryPayload = {
   facets: { sections: Record<string, number>; categories: Record<string, number>; places: Record<string, number>; all: number };
   suggestions: { categories: { slug: string; count: number }[]; sections: { id: SectionId; count: number }[] };
   totalListed: number; source: 'database' | 'fallback';
+  /** How many listings have opening hours (the "Nu open" filter only shows when some do). */
+  withHours: number;
 };
 
 export async function runDirectoryQuery(query: DirectoryQuery, lang: 'nl' | 'en'): Promise<DirectoryPayload> {
   const { index, source } = await getDirectoryIndex();
   const offset = query.offset ?? 0, limit = query.limit ?? 24;
   const result = searchDirectory(index, { ...query, offset, limit, pinId: spiceIndiaId });
-  return { ...result, offset, limit, items: result.items.map((e) => toCard(e, lang)), totalListed: index.entries.length, source };
+  return { ...result, offset, limit, items: result.items.map((e) => toCard(e, lang)), totalListed: index.entries.length, source, withHours: index.entries.filter((e) => e.hours).length };
 }
 
 /** Parse URL search params (shared by the pages and the API) into a query. */
@@ -85,7 +101,7 @@ export function parseDirectoryParams(sp: Record<string, string | string[] | unde
   const category = catRaw && CATEGORY_BY_SLUG.has(catRaw) ? catRaw : null;
   const placeRaw = one('plaats');
   const place = (['uithoorn', 'de-kwakel', 'omgeving'] as const).find((p) => p === placeRaw) ?? null;
-  const has = one('met').split(',').filter((h): h is 'website' | 'phone' => h === 'website' || h === 'phone');
+  const has = one('met').split(',').filter((h): h is 'website' | 'phone' | 'open' => h === 'website' || h === 'phone' || h === 'open');
   const sortRaw = one('sort');
   const sort = sortRaw === 'az' || sortRaw === 'newest' ? sortRaw : 'relevance';
   const page = Math.min(500, Math.max(1, Number.parseInt(one('pagina') || '1', 10) || 1));

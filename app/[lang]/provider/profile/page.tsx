@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '../../../../lib/auth/session';
 import { getOwnBusiness } from '../../../../lib/data/businesses';
-import ProviderProfileForm from '../../../../components/provider-profile-form';
+import { ProfileStudio } from '../../../../components/ai-business/profile-studio';
+import { getOwnExtras } from '../../../../lib/ai-business/profile';
+import { llmProviders } from '../../../../lib/urgent/llm';
+import '../../../ai-business.css';
 import AlertSettingsForm from '../../../../components/alert-settings-form';
 import { emailAlertsEnabled, intakeEnabled } from '../../../../lib/urgent/flags';
 import '../../../urgent.css';
@@ -23,5 +26,6 @@ export default async function ProviderProfilePage({ params }: { params: Promise<
   if (!user) redirect(`${lp(lang, '/login')}?next=${encodeURIComponent(lp(lang, '/provider/profile'))}`);
   const business = await getOwnBusiness(user);
   if (!business) redirect(lp(lang, '/signup/account?role=provider'));
-  return <div className="ds-page"><AppHeader links={[[lp(lang, '/provider'), t.common.backToDashboard]]} /><main id="main" className="platform-shell ds-platform"><div className="platform-dashboard"><div className="platform-dashboard-head"><div><span className="uo-kicker">{t.provider.profileKicker}</span><h1>{t.provider.profileTitle}</h1><p>{t.provider.profileIntro}</p></div></div><ProviderProfileForm business={business} />{emailAlertsEnabled() || intakeEnabled() ? <AlertSettingsForm /> : null}</div></main></div>;
+  const extras = await getOwnExtras(user);
+  return <div className="ds-page"><AppHeader links={[[lp(lang, '/provider'), t.common.backToDashboard]]} /><main id="main" className="platform-shell ds-platform"><div className="platform-dashboard"><div className="platform-dashboard-head"><div><span className="uo-kicker">{t.provider.profileKicker}</span><h1>{t.provider.profileTitle}</h1><p>{t.provider.profileIntro}</p></div></div><ProfileStudio business={business} extras={extras} aiAvailable={llmProviders().length > 0} />{emailAlertsEnabled() || intakeEnabled() ? <AlertSettingsForm /> : null}</div></main></div>;
 }
