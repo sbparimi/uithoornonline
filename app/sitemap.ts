@@ -2,11 +2,12 @@ import type { MetadataRoute } from 'next';
 import { SITE_URL, lp } from '../lib/i18n/config';
 import { listPublicBusinesses } from '../lib/data/businesses';
 import { getDirectoryIndex } from '../lib/directory/data';
+import { filledServiceTownPaths } from '../lib/seo/listings';
 
 // Rebuilt at most hourly so new approved businesses appear without a deploy.
 export const revalidate = 3600;
 
-const routes = ['/', '/businesses', '/request', '/voor-bedrijven', '/deals', '/jobs', '/food', '/signup', '/privacy', '/cookies', '/voorwaarden', '/contact', '/diensten/loodgieter-uithoorn', '/diensten/elektricien-uithoorn', '/diensten/tuinman-uithoorn', '/diensten/schoonmaker-uithoorn', '/diensten/handyman-uithoorn', '/diensten/verhuizer-uithoorn'];
+const routes = ['/', '/businesses', '/request', '/voor-bedrijven', '/deals', '/jobs', '/food', '/signup', '/privacy', '/cookies', '/voorwaarden', '/contact', '/diensten'];
 
 function entries(route: string, lastModified: Date, nlPriority: number, enPriority: number): MetadataRoute.Sitemap {
   const nl = `${SITE_URL}${route === '/' ? '' : route}`;
@@ -39,5 +40,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (error) {
     console.error('[sitemap] categories unavailable', error instanceof Error ? error.message : error);
   }
-  return [...pages, ...categories, ...businesses];
+  // Service × town landing pages (/diensten/<service>/<plaats>) for services with at least one listing.
+  let services: MetadataRoute.Sitemap = [];
+  try {
+    services = (await filledServiceTownPaths()).flatMap((path) => entries(path, now, 0.6, 0.4));
+  } catch (error) {
+    console.error('[sitemap] service pages unavailable', error instanceof Error ? error.message : error);
+  }
+  return [...pages, ...services, ...categories, ...businesses];
 }

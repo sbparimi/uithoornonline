@@ -4,7 +4,8 @@ import { clientIp, LIMITS, rateLimit } from '@/lib/security/rate-limit';
 import { looksLikeSpam } from '@/lib/security/spam';
 import { cleanRequestInput, createRequest } from '@/lib/data/requests';
 import { sendEmail } from '@/lib/email/send';
-import { newLeadEmail, requestConfirmationEmail } from '@/lib/email/templates';
+import { requestConfirmationEmail } from '@/lib/email/templates';
+import { sendInstantLeadAlerts } from '@/lib/leads/instant';
 import { after } from 'next/server';
 import { notify } from '@/lib/notify';
 
@@ -24,9 +25,8 @@ export async function POST(request: Request) {
     const lang = body.lang === 'en' ? 'en' : 'nl';
     after(async () => {
       await sendEmail({ to: user.email, kind: 'request_confirmation', lang, ...requestConfirmationEmail(lang, value.category, result.delivered) });
-      for (const m of result.matched) {
-        await sendEmail({ to: m.ownerEmail, kind: m.locked ? 'lead_locked' : 'new_lead', lang: m.ownerLocale, ...newLeadEmail(m.ownerLocale, m.name, value.category, m.locked) });
-      }
+      // Instant lead alerts: job details + one-tap reply link by email, plus push if switched on.
+      await sendInstantLeadAlerts(result.id, result.matched);
     });
     after(() => notify('new_request', `${value.category} (${value.postcode})`, { requestId: result.id, matched: result.matched.length, delivered: result.delivered, overLimit: result.matched.filter((m) => m.locked).map((m) => m.name).join(', ') }));
     return json({ id: result.id, matched: result.delivered, status: result.delivered ? 'matched' : 'open' }, 201);

@@ -11,6 +11,7 @@ import type { Lang } from '../email/templates';
 import { signToken } from './tokens';
 import { callGapMinutes, emailAlertsEnabled, escalateAfterMinutes, escalationEnabled, voiceAlertsEnabled } from './flags';
 import { placeCall, sendSms, sendWhatsApp, type ChannelResult } from './channels';
+import { pushToBusiness } from '../push/subscriptions';
 import { acceptUrl, customerAcceptedEmail, customerEscalationEmail, intakeConfirmationEmail, jobAlertEmail, jobTakenEmail, jobWonEmail, urgencyLabel } from './mail';
 import type { UrgencyLevel } from './llm';
 
@@ -85,7 +86,7 @@ const contactOf = (r: ReqRow) => ({ name: r.contact_name || r.customer_name, pho
 type Biz = { id: string; name: string; owner_email: string; owner_locale: Lang; phone: string | null; website: string | null; alert_email: boolean; alert_sms: boolean; alert_whatsapp: boolean; alert_phone: string | null; spoed_24_7: boolean; quiet_start: string | null; quiet_end: string | null };
 const BIZ_COLS = `b.id, b.name, u.email as owner_email, u.locale as owner_locale, b.phone, b.website, b.alert_email, b.alert_sms, b.alert_whatsapp, b.alert_phone, b.spoed_24_7, b.quiet_start::text, b.quiet_end::text`;
 
-async function logAlert(requestId: string, businessId: string | null, audience: 'business' | 'customer' | 'admin', channel: 'email' | 'sms' | 'whatsapp' | 'voice', stage: string, r: { status: string; id: string | null; error: string | null; to: string | null }) {
+async function logAlert(requestId: string, businessId: string | null, audience: 'business' | 'customer' | 'admin', channel: 'email' | 'sms' | 'whatsapp' | 'voice' | 'push', stage: string, r: { status: string; id: string | null; error: string | null; to: string | null }) {
   await query(`insert into job_alerts(request_id, business_id, audience, channel, stage, status, recipient, provider_id, error) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [requestId, businessId, audience, channel, stage, r.status === 'skipped' ? 'skipped' : r.status, r.to?.slice(0, 254) ?? null, r.id?.slice(0, 200) ?? null, r.error?.slice(0, 500) ?? null]).catch((e) => console.error('[alerts] log failed', e?.message));
 }
@@ -122,6 +123,15 @@ async function alertBusiness(r: ReqRow, b: Biz, stage: 'initial' | 'escalation')
   if (b.alert_email || stage === 'escalation') {
     const res = await email(r.id, b.id, 'business', stage, b.owner_email, 'job_alert', lang, jobAlertEmail(lang, b.name, job(lang, r), token, stage === 'escalation'));
     out.email = res.status;
+  }
+  // Free browser/PWA push (lib/push), when the business switched it on. Logged as channel 'push'.
+  const push = await pushToBusiness(b.id, {
+    title: `${stage === 'escalation' ? (lang === 'en' ? 'Still open! ' : 'Nog open! ') : ''}${r.urgency_level === 'spoed' ? (lang === 'en' ? '🚨 URGENT: ' : '🚨 SPOED: ') : ''}${categoryLabel(lang, r.category)} (${r.postcode.slice(0, 4)})`,
+    body: job(lang, r).summary.slice(0, 120), url: acceptUrl(lang, token).replace(site(), ''), tag: `job-${r.id.slice(0, 8)}`,
+  });
+  if (push.devices) {
+    await logAlert(r.id, b.id, 'business', 'push', stage, { status: push.sent ? 'sent' : 'failed', id: null, error: push.error, to: `${push.devices} device(s)` });
+    out.push = push.sent ? 'sent' : 'failed';
   }
   // SMS/WhatsApp: the business opted in; quiet hours hold them back, except escalation to a 24/7 business.
   const quiet = inQuietHours(b) && !(stage === 'escalation' && b.spoed_24_7);

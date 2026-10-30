@@ -11,6 +11,9 @@ import { dateLocale, isLocale, lp, type Locale } from '../../../lib/i18n/config'
 import { getDictionary, statusLabel } from '../../../lib/i18n/dictionaries';
 import type { Metadata } from 'next';
 import { BUSINESS_OFFER_ANCHOR, PRICING_ENABLED } from '../../../lib/pricing';
+import { FirstLeadsFree } from '../../../components/first-leads-free';
+import { PushOptIn } from '../../../components/push-optin';
+import { vapidPublicKey } from '../../../lib/push/webpush';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
@@ -38,6 +41,9 @@ export default async function ProviderPage({ params }: { params: Promise<{ lang:
     <div className="provider-profile-strip"><div className="provider-avatar"><BriefcaseBusiness aria-hidden="true" /></div><div><span className="uo-kicker">{p.kicker}</span><h1>{business.name}</h1><p>{business.category} · {business.postcode || t.common.town}</p></div><span className={`verification-pill ${business.verified ? 'verified' : ''}`}>{business.verified ? t.common.verified : p.inReview}</span></div>
     {business.moderation_status !== 'approved' && <div className="platform-notice" role="status"><strong>{business.moderation_status === 'rejected' ? b.leads.rejectedTitle : b.leads.pendingTitle}</strong><p>{business.moderation_status === 'rejected' ? b.leads.rejectedText : b.leads.pendingText}</p></div>}
     <p className="platform-usage">{PRICING_ENABLED ? b.leads.usage(usage.usedThisMonth, usage.includedLeads, usage.planName) : b.leads.usageFree(usage.usedThisMonth)}</p>
+    {/* Growth (lane C): first-leads-free notice + free push notifications for new requests. */}
+    <FirstLeadsFree lang={lang} compact />
+    <PushOptIn lang={lang} publicKey={vapidPublicKey()} />
     <div className="monetization-metrics"><div><span>{p.views}</span><strong>{views || 0}</strong><small>{p.last30}</small></div><div><span>{p.contacts}</span><strong>{contacts || 0}</strong><small>{p.contactsSub}</small></div><div><span>{p.leads}</span><strong>{leadCount}</strong><small>{p.leadsSub}</small></div><div><span>{p.plan}</span><strong>{PRICING_ENABLED ? activePlan.name : p.freePlan}</strong><small>{PRICING_ENABLED ? p.included(activePlan.included_leads) : p.unlimited}</small></div></div>
     <section className="business-growth-card"><div><span className="uo-kicker">{p.growthKicker}</span><h2>{p.growthTitle}</h2><p>{p.growthText}</p></div>{PRICING_ENABLED ? <a href={L('/voor-bedrijven')}>{p.viewPlans} <ArrowRight aria-hidden="true" /></a> : <a href={L('/provider/profile')}>{p.completeProfile} <ArrowRight aria-hidden="true" /></a>}</section>
     <section className="dashboard-grid"><div className="dashboard-main">

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AccountSignup from '../../../../components/account-signup';
+import { FirstLeadsFree } from '../../../../components/first-leads-free';
 import { SiteHeader } from '../../../../components/site-header';
 import { SiteFooter } from '../../../../components/site-footer';
 import { isLocale, seo, type Locale } from '../../../../lib/i18n/config';
@@ -17,5 +18,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AccountSignupPage({ params, searchParams }: Props) {
   const [{ lang: raw }, sp] = await Promise.all([params, searchParams]);
   const lang: Locale = isLocale(raw) ? raw : 'nl';
-  return <div className="ds-page"><SiteHeader /><main id="main" className="platform-shell ds-platform"><AccountSignup initialRole={sp.role === 'provider' ? 'provider' : 'customer'} /></main><SiteFooter lang={lang} /></div>;
+  return <div className="ds-page"><SiteHeader /><main id="main" className="platform-shell ds-platform">{sp.role === 'provider' ? <div className="first-leads-free-wrap"><FirstLeadsFree lang={lang} /></div> : null}<AccountSignup initialRole={sp.role === 'provider' ? 'provider' : 'customer'} /></main><SiteFooter lang={lang} /></div>;
 }

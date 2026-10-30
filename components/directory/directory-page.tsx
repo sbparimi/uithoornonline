@@ -4,9 +4,9 @@ import { DirectoryExplorer, type ExplorerState } from './explorer';
 import { getDirectoryIndex, parseDirectoryParams, runDirectoryQuery } from '../../lib/directory/data';
 import { CATEGORY_BY_SLUG, SECTION_BY_ID, type SectionId } from '../../lib/directory/taxonomy';
 import { lp, SITE_URL, type Locale } from '../../lib/i18n/config';
-import { getDictionary } from '../../lib/i18n/dictionaries';
 import { directoryText } from '../../lib/directory/i18n';
 import { jsonLd } from '../../lib/json-ld';
+import { SEO_SERVICES } from '../../lib/seo/services';
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -23,8 +23,8 @@ export async function DirectoryPage({ lang, searchParams, fixed }: { lang: Local
     categoryTotals[e.category.slug] = (categoryTotals[e.category.slug] ?? 0) + 1;
   }
   const state: ExplorerState = { q: parsed.q ?? '', section: parsed.category ? null : parsed.section ?? null, category: parsed.category ?? null, place: parsed.place ?? null, has: parsed.has ?? [], sort: parsed.sort ?? 'relevance' };
-  const t = getDictionary(lang);
-  const seoLinks = Object.entries(t.service.services).map(([slug, v]) => ({ href: lp(lang, `/diensten/${slug}`), label: (v as readonly string[])[2] ?? slug }));
+  // Service × town landing pages (lib/seo/services.ts): the most searched services in Uithoorn.
+  const seoLinks = SEO_SERVICES.slice(0, 8).map((s) => ({ href: lp(lang, `/diensten/${s.slug}/uithoorn`), label: s[lang].title }));
 
   const d = directoryText[lang];
   const scopeLabel = parsed.category ? CATEGORY_BY_SLUG.get(parsed.category)?.[lang] : parsed.section ? SECTION_BY_ID.get(parsed.section)?.[lang] : null;

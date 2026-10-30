@@ -6,8 +6,7 @@ import { looksLikeSpam } from '@/lib/security/spam';
 import { normalizeEmail } from '@/lib/data/users';
 import { normalizePhone } from '@/lib/phone';
 import { REQUEST_CATEGORIES } from '@/lib/request-options';
-import { sendEmail } from '@/lib/email/send';
-import { newLeadEmail } from '@/lib/email/templates';
+import { sendInstantLeadAlerts } from '@/lib/leads/instant';
 import { notify } from '@/lib/notify';
 import { emailAlertsEnabled, intakeEnabled } from '@/lib/urgent/flags';
 import { categoryLabel, createIntakeRequest, dispatchInitialAlerts, sendIntakeConfirmation } from '@/lib/urgent/alerts';
@@ -81,7 +80,7 @@ export async function POST(request: Request) {
     after(async () => {
       let alerted = created.delivered;
       if (alertsOn) alerted = (await dispatchInitialAlerts(created.id)).alerted;
-      else for (const m of created.matched) await sendEmail({ to: m.ownerEmail, kind: m.locked ? 'lead_locked' : 'new_lead', lang: m.ownerLocale, ...newLeadEmail(m.ownerLocale, m.name, category, m.locked) });
+      else await sendInstantLeadAlerts(created.id, created.matched);
       await sendIntakeConfirmation(created.id, alerted);
       await notify('new_request', `${level === 'spoed' ? '🚨 SPOED · ' : ''}${categoryLabel('nl', category)} (${postcode}) via hulp-assistent`, { requestId: created.id, matched: created.matched.length, urgentie: level, klant: name, telefoon: phone ?? '' });
     });
