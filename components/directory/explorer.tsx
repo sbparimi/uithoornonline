@@ -171,6 +171,12 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
 
   const heading = state.category ? catLabel(state.category) : state.section ? secLabel(state.section) : null;
   const totalInScope = state.category ? (categoryTotals[state.category] ?? 0) : state.section ? (sectionTotals[state.section] ?? 0) : data.totalListed;
+  // Nothing listed at all yet (not merely filtered away): shown as "still open", not greyed out.
+  const secOpen = (id: SectionId) => (sectionTotals[id] ?? 0) === 0;
+  const catOpen = (slug: string) => (categoryTotals[slug] ?? 0) === 0;
+  const signupHref = lp(lang, '/signup/account?role=provider');
+  // A section or category with nothing listed yet (and no search or filters narrowing it): invite businesses.
+  const inviteScope = !state.q.trim() && !state.place && state.has.length === 0 && totalInScope === 0 && heading ? heading : null;
   const filterCount = (state.place ? 1 : 0) + state.has.length + (state.sort !== 'relevance' ? 1 : 0);
   const requestHref = lp(lang, `/request${state.q.trim() || state.category ? `?query=${encodeURIComponent(state.q.trim() || (state.category ? catLabel(state.category) : ''))}` : ''}`);
 
@@ -185,14 +191,14 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
             const on = currentSection === s.id;
             return (
               <li key={s.id}>
-                <button type="button" className={on ? 'is-active' : ''} aria-pressed={on} onClick={() => chooseSection(s.id)} disabled={!n && !on}>
-                  <SectionIcon name={s.icon} className="dir2-filter-icon" /><span>{s[lang]}</span><em>{n}</em>
+                <button type="button" className={`${on ? 'is-active' : ''}${secOpen(s.id) ? ' is-open' : ''}`} aria-pressed={on} onClick={() => chooseSection(s.id)} disabled={!n && !on && !secOpen(s.id)}>
+                  <SectionIcon name={s.icon} className="dir2-filter-icon" /><span>{s[lang]}</span><em>{secOpen(s.id) ? t.chipOpen : n}</em>
                 </button>
                 {on && (
                   <ul className="dir2-filter-sub">
                     <li><button type="button" className={!state.category ? 'is-active' : ''} aria-pressed={!state.category} onClick={() => chooseSection(s.id)}><span>{t.allInSection(s[lang])}</span></button></li>
                     {sectionCats.map((c) => { const cn = data.facets.categories[c.slug] ?? 0; const con = state.category === c.slug; return (
-                      <li key={c.slug}><button type="button" className={con ? 'is-active' : ''} aria-pressed={con} onClick={() => chooseCategory(c.slug)} disabled={!cn && !con}><span>{c[lang]}</span><em>{cn}</em></button></li>
+                      <li key={c.slug}><button type="button" className={`${con ? 'is-active' : ''}${catOpen(c.slug) ? ' is-open' : ''}`} aria-pressed={con} onClick={() => chooseCategory(c.slug)} disabled={!cn && !con && !catOpen(c.slug)}><span>{c[lang]}</span><em>{catOpen(c.slug) ? t.chipOpen : cn}</em></button></li>
                     ); })}
                   </ul>
                 )}
@@ -303,15 +309,27 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
           <div className="dir2-wrap">
             <h2 id="dir2-sections-title">{t.sectionsTitle}</h2>
             <ul className="dir2-tiles">
-              {SECTIONS.map((s) => {
+              {[...SECTIONS].sort((a, b) => Number((sectionTotals[b.id] ?? 0) > 0) - Number((sectionTotals[a.id] ?? 0) > 0)).map((s) => {
                 const n = sectionTotals[s.id] ?? 0;
+                if (!n) {
+                  // Nothing listed yet: the tile invites a business to be the first one here.
+                  return (
+                    <li key={s.id}>
+                      <a href={signupHref} className="dir2-tile is-open" data-section={s.id}>
+                        <span className="dir2-tile-icon"><SectionIcon name={s.icon} /></span>
+                        <span className="dir2-tile-text"><strong>{s[lang]}</strong><span className="dir2-tile-invite">{t.openInvite}</span></span>
+                        <span className="dir2-tile-cta">{t.openCta} <ArrowRight aria-hidden="true" /></span>
+                      </a>
+                    </li>
+                  );
+                }
                 return (
                   <li key={s.id}>
-                    <a href={urlFor(lang, { ...state, section: s.id, category: null })} className={`dir2-tile${n ? '' : ' is-empty'}`} data-section={s.id}
+                    <a href={urlFor(lang, { ...state, section: s.id, category: null })} className="dir2-tile" data-section={s.id}
                       onClick={(e) => { e.preventDefault(); chooseSection(s.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                       <span className="dir2-tile-icon"><SectionIcon name={s.icon} /></span>
                       <span className="dir2-tile-text"><strong>{s[lang]}</strong><small>{lang === 'nl' ? s.blurbNl : s.blurbEn}</small></span>
-                      <span className="dir2-tile-count">{n || '–'}</span>
+                      <span className="dir2-tile-count">{n}</span>
                     </a>
                   </li>
                 );
@@ -329,9 +347,14 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
             {currentSection && (
               <div className="dir2-catchips" role="list">
                 <button type="button" role="listitem" className={!state.category ? 'is-active' : ''} onClick={() => chooseSection(currentSection)}>{t.allInSection(secLabel(currentSection))}</button>
-                {sectionCats.filter((c) => (categoryTotals[c.slug] ?? 0) > 0 || state.category === c.slug).map((c) => (
-                  <button key={c.slug} type="button" role="listitem" className={state.category === c.slug ? 'is-active' : ''} onClick={() => chooseCategory(c.slug)}>{c[lang]} <em>{data.facets.categories[c.slug] ?? 0}</em></button>
-                ))}
+                {[...sectionCats].sort((a, b) => Number((categoryTotals[b.slug] ?? 0) > 0) - Number((categoryTotals[a.slug] ?? 0) > 0)).map((c) => {
+                  const open = (categoryTotals[c.slug] ?? 0) === 0;
+                  return (
+                    <button key={c.slug} type="button" role="listitem" className={`${state.category === c.slug ? 'is-active' : ''}${open ? ' is-open' : ''}`} onClick={() => chooseCategory(c.slug)}>
+                      {c[lang]} <em>{open ? t.chipOpen : (data.facets.categories[c.slug] ?? 0)}</em>
+                    </button>
+                  );
+                })}
               </div>
             )}
             {!currentSection && !browsing && (
@@ -376,7 +399,17 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
 
             {data.partial && items.length > 0 && <p className="dir2-partial">{t.partial}</p>}
 
-            {items.length === 0 ? (
+            {items.length === 0 && inviteScope ? (
+              <div className="dir2-empty dir2-invite">
+                <span className="dir2-kicker">{t.inviteKicker}</span>
+                <h2>{t.inviteTitle}</h2>
+                <p>{t.inviteText(inviteScope)}</p>
+                <div className="dir2-empty-actions">
+                  <a className="dir2-btn dir2-btn-primary" href={signupHref}>{t.openCta} <ArrowRight aria-hidden="true" /></a>
+                </div>
+                <p className="dir2-invite-customer">{t.inviteCustomer} <a href={requestHref}>{t.inviteCustomerCta} <ArrowRight aria-hidden="true" /></a></p>
+              </div>
+            ) : items.length === 0 ? (
               <div className="dir2-empty">
                 <Search aria-hidden="true" />
                 <h2>{t.emptyTitle(state.q.trim())}</h2>
@@ -415,7 +448,7 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
               <div><span className="dir2-kicker">{t.leadKicker}</span><h2>{t.leadTitle}</h2><p>{t.leadText}</p></div>
               <a className="dir2-btn dir2-btn-primary" href={requestHref}><MessageCircle aria-hidden="true" /> {t.leadCta} <ArrowRight aria-hidden="true" /></a>
             </div>
-            <p className="dir2-grow">{t.growText} <a href={lp(lang, '/signup/account?role=provider')}>{t.growCta} <ArrowRight aria-hidden="true" /></a></p>
+            <p className="dir2-grow">{t.growText} <a href={signupHref}>{t.growCta} <ArrowRight aria-hidden="true" /></a></p>
           </div>
         </div>
       </section>

@@ -31,6 +31,14 @@ Comfortable up to a few thousand listings (index builds in milliseconds; queries
 not every listing). Past ~20k listings, move the text match into Postgres (`pg_trgm` + GIN index).
 
 ## Typography
-Inter (variable, self-hosted, SIL OFL: `app/fonts/Inter-OFL.txt`) is the only typeface site-wide,
+Plus Jakarta Sans (variable, self-hosted, SIL OFL: `app/fonts/PlusJakartaSans-OFL.txt`, subset to latin + latin-ext
+for Dutch diacritics) is the only typeface site-wide,
 loaded in `app/[lang]/layout.tsx`; `app/typography.css` maps the theme's font tokens to it and sets
 16px body / 1.6 line-height and AA-contrast text colours.
+
+## Empty sections and categories
+A section or category with no listings yet is shown as an invitation, not greyed out: the tile reads
+"Nog vrij — wordt jouw bedrijf hier de eerste?" (EN "Still open — could your business be the first here?")
+with a "Meld je bedrijf aan" / "List your business" link to `/signup/account?role=provider`. Empty category
+chips and sidebar entries say "nog vrij" / "open"; an empty category page shows the invitation plus a
+"Hulp aanvragen" link for customers. Empty category pages stay `noindex` until something is listed.

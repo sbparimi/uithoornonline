@@ -218,3 +218,24 @@
   .dir2 *, .dir2-drawer-sheet { animation: none !important; transition: none !important; }
 }
 @media (min-width: 960px) { .dir2-catchips { display: none !important; } }
+
+/* ---------- "still open" invitations (sections / categories with nothing listed yet) ---------- */
+.dir2-tile.is-open { background: #fbfcfe; border: 1px dashed #b7c4e6; flex-direction: column; align-items: flex-start; gap: 8px; }
+.dir2-tile.is-open:hover { border-style: solid; border-color: var(--dir-blue); }
+.dir2-tile.is-open .dir2-tile-icon { background: #fff; border: 1px dashed #b7c4e6; }
+.dir2-tile-invite { font-size: 14px; line-height: 1.4; color: var(--dir-muted); }
+.dir2-tile-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: auto; font-size: 14px; font-weight: 650; color: var(--dir-blue); }
+.dir2-tile-cta svg { width: 15px; height: 15px; transition: transform .15s; }
+.dir2-tile.is-open:hover .dir2-tile-cta svg { transform: translateX(2px); }
+@media (min-width: 560px) and (max-width: 1139px) { .dir2-tile.is-open { flex-direction: row; flex-wrap: wrap; align-items: center; } .dir2-tile.is-open .dir2-tile-cta { flex-basis: 100%; padding-left: 56px; } }
+@media (max-width: 559px) { .dir2-tile-invite { font-size: 13.5px; } .dir2-tile-cta { font-size: 13.5px; } }
+.dir2-catchips button.is-open { border-style: dashed; border-color: #b7c4e6; background: #fbfcfe; }
+.dir2-catchips button.is-open em { color: var(--dir-blue); font-weight: 600; }
+.dir2-catchips button.is-open.is-active em { color: rgba(255,255,255,.85); }
+.dir2-filter-list button.is-open em { color: var(--dir-blue); font-weight: 600; }
+.dir2-invite .dir2-kicker { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dir-blue); }
+.dir2-invite { border-style: dashed; border-color: #b7c4e6; padding: 32px 20px; }
+.dir2-invite .dir2-btn-primary { flex: 0 1 auto; min-width: 220px; }
+.dir2-invite-customer { margin: 16px auto 0 !important; font-size: 15px; color: var(--dir-muted) !important; }
+.dir2-invite-customer a { color: var(--dir-blue) !important; font-weight: 650; display: inline-flex; align-items: center; gap: 4px; }
+.dir2-invite-customer a svg { width: 15px; height: 15px; }
