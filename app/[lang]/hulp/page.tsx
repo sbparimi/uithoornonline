@@ -9,7 +9,7 @@ import { getCurrentUser } from '../../../lib/auth/session';
 import { isLocale, seo, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
 import { REQUEST_CATEGORIES } from '../../../lib/request-options';
-import { intakeEnabled } from '../../../lib/urgent/flags';
+import { intakeEnabled, whatsappContactNumber } from '../../../lib/urgent/flags';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,7 @@ export default async function HulpPage({ params }: Props) {
             <ul className="ui-trust">{c.trust.map(([title, text], i) => { const Icon = icons[i]; return <li key={title}><Icon aria-hidden="true" /><div><strong>{title}</strong><small>{text}</small></div></li>; })}</ul>
           </div>
           <div className="ui-card">
-            <UrgentIntake user={user && user.role !== 'provider' ? { name: user.fullName, email: user.email, phone: user.phone } : null} categories={categories} />
+            <UrgentIntake user={user && user.role !== 'provider' ? { name: user.fullName, email: user.email, phone: user.phone } : null} categories={categories} whatsapp={whatsappContactNumber()} />
           </div>
         </section>
       </main>

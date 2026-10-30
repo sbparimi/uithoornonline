@@ -1,6 +1,6 @@
 import type { SessionUser } from '../../../../lib/auth/session';
-import { listUrgent, urgentBusinesses, urgentDetail } from '../../../../lib/admin/urgent';
-import { urgentStatus } from '../../../../lib/urgent/flags';
+import { listUrgent, urgentBusinesses, urgentDetail, whatsappFallbackStats } from '../../../../lib/admin/urgent';
+import { urgentStatus, whatsappContactNumber } from '../../../../lib/urgent/flags';
 import { channelReadiness } from '../../../../lib/urgent/channels';
 import { llmProvider } from '../../../../lib/urgent/llm';
 import { signToken } from '../../../../lib/urgent/tokens';
@@ -45,7 +45,9 @@ export default async function Urgent({ ctx, user }: { ctx: Ctx; user: SessionUse
       </Card>
     </>;
   }
-  const [rows, businesses] = await Promise.all([listUrgent(user), urgentBusinesses(user)]);
+  const [rows, businesses, waClicks] = await Promise.all([listUrgent(user), urgentBusinesses(user), whatsappFallbackStats(user)]);
+  const waNumber = whatsappContactNumber();
+  const waTotal = (k: 'last_7d' | 'last_30d') => waClicks.reduce((n, r) => n + r[k], 0);
   const flags = urgentStatus(); const ch = channelReadiness(); const llm = llmProvider();
   const yes = (b: boolean) => (b ? t('aan', 'on') : t('uit', 'off'));
   return <>
@@ -54,6 +56,7 @@ export default async function Urgent({ ctx, user }: { ctx: Ctx; user: SessionUse
         <li><span>{t('Hulp-assistent (/hulp)', 'Help assistant (/hulp)')}: <strong>{yes(flags.intake)}</strong> · AI: <strong>{llm ? llm.name : t('geen sleutel, regels', 'no key, rules')}</strong></span></li>
         <li><span>{t('E-mailmeldingen met accepteerlink', 'Email alerts with accept link')}: <strong>{yes(flags.email)}</strong> · {t('escalatie', 'escalation')}: <strong>{yes(flags.escalation)}</strong> ({t('na', 'after')} {flags.escalateAfterMinutes} min)</span></li>
         <li><span>SMS: <strong>{yes(ch.sms.flag)}</strong> / {t('sleutels', 'keys')} {yes(ch.sms.credentials)} · WhatsApp ({ch.whatsapp.provider}): <strong>{yes(ch.whatsapp.flag)}</strong> / {yes(ch.whatsapp.credentials)} · {t('Bellen', 'Voice')}: <strong>{yes(ch.voice.flag)}</strong> / {yes(ch.voice.credentials)}</span></li>
+        <li><span>{t('WhatsApp-terugval ("Lukt het niet?")', 'WhatsApp fallback ("Not working?")')}: <strong>{waNumber ? `+${waNumber}` : t('uit (WHATSAPP_CONTACT_NUMBER niet ingesteld)', 'off (WHATSAPP_CONTACT_NUMBER not set)')}</strong> · {t('kliks', 'clicks')} 7 {t('dagen', 'days')}: <strong>{waTotal('last_7d')}</strong> · 30 {t('dagen', 'days')}: <strong>{waTotal('last_30d')}</strong>{waClicks.length ? ` (${waClicks.map((r) => `${r.reason} ${r.last_30d}`).join(', ')})` : ''}</span></li>
         {process.env.EMAIL_REDIRECT_TO ? <li><span><Pill tone="danger">TEST</Pill> {t('Alle e-mail gaat naar', 'All email goes to')} {process.env.EMAIL_REDIRECT_TO}</span></li> : null}
       </ul>
     </Card>

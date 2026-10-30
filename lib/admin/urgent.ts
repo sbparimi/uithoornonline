@@ -49,3 +49,14 @@ export async function urgentBusinesses(user: SessionUser) {
     `select id, name, category, alert_email, alert_sms, alert_whatsapp, alert_phone, spoed_24_7, quiet_start::text, quiet_end::text
        from businesses where moderation_status = 'approved' and active order by spoed_24_7 desc, name`), []);
 }
+
+/** Clicks on the help assistant's WhatsApp fallback (analytics_events 'intake_whatsapp_fallback'). */
+export async function whatsappFallbackStats(user: SessionUser) {
+  assertAdmin(user);
+  return optional(() => query<{ reason: string; last_7d: number; last_30d: number; last_at: string | null }>(
+    `select coalesce(metadata->>'reason', 'unknown') as reason,
+            count(*) filter (where created_at > now() - interval '7 days')::int as last_7d,
+            count(*)::int as last_30d, max(created_at) as last_at
+       from analytics_events where event_name = 'intake_whatsapp_fallback' and created_at > now() - interval '30 days'
+      group by 1 order by 3 desc`), [] as { reason: string; last_7d: number; last_30d: number; last_at: string | null }[]);
+}

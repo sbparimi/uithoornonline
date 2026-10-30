@@ -35,3 +35,13 @@ export function urgentStatus() {
     voice: voiceAlertsEnabled(), escalation: escalationEnabled(), escalateAfterMinutes: escalateAfterMinutes(),
   };
 }
+
+/**
+ * WhatsApp fallback for the help assistant (/hulp): the number residents can message when the chat
+ * fails. E.164 digits from WHATSAPP_CONTACT_NUMBER ("+31612345678", "31612345678" and "0031…" all
+ * work). Unset or invalid = the WhatsApp buttons are hidden.
+ */
+export function whatsappContactNumber(): string | null {
+  const digits = (process.env.WHATSAPP_CONTACT_NUMBER || '').replace(/\D/g, '').replace(/^00/, '');
+  return /^[1-9]\d{7,14}$/.test(digits) ? digits : null;
+}

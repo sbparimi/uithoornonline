@@ -6,6 +6,7 @@ import { lp } from '../lib/i18n/config';
 import { useLang } from './lang-context';
 import { useSpamTrap } from './spam-trap';
 import UrgentStatus from './urgent-status';
+import WhatsAppFallback, { type WaContext } from './whatsapp-fallback';
 
 // "Hulp nodig?" — chat-style intake (docs/URGENT_HANDLING.md). The assistant asks what is wrong,
 // classifies it (AI when configured, rules otherwise), then asks how urgent, where and how to reach
@@ -29,6 +30,9 @@ const T = {
     levels: { spoed: ['🚨 Spoed', 'nu meteen hulp nodig'], today: ['Vandaag', 'liefst vandaag nog'], week: ['Deze week', 'binnen een paar dagen'], flexible: ['Flexibel', 'geen haast'] } as Record<Level, [string, string]>,
     fields: { what: 'Wat', category: 'Categorie', when: 'Wanneer', where: 'Postcode', who: 'Contact' }, danger: 'Direct gevaar (brand, gas, letsel)? Bel eerst 112.',
     tooShort: 'Vertel iets meer (minstens een paar woorden).', photoNote: 'max. 3 foto’s',
+    photoErr: 'Deze foto kon niet worden toegevoegd. Probeer een andere foto, of ga verder zonder.',
+    aiDown: 'De assistent is even niet bereikbaar. Kies hieronder zelf de juiste categorie.', aiDownWa: 'De assistent is even niet bereikbaar. Kies hieronder zelf de juiste categorie, of stuur ons direct een WhatsApp.',
+    timeout: 'Het versturen duurt te lang. Controleer je internetverbinding en probeer het opnieuw.',
   },
   en: {
     hello: "Hi! I'm the help assistant of Uithoorn.online. Briefly describe what's wrong and I'll find a local professional right away.",
@@ -41,6 +45,9 @@ const T = {
     levels: { spoed: ['🚨 Urgent', 'need help right now'], today: ['Today', 'preferably today'], week: ['This week', 'within a few days'], flexible: ['Flexible', 'no rush'] } as Record<Level, [string, string]>,
     fields: { what: 'What', category: 'Category', when: 'When', where: 'Postcode', who: 'Contact' }, danger: 'Immediate danger (fire, gas, injury)? Call 112 first.',
     tooShort: 'Tell me a bit more (at least a few words).', photoNote: 'max. 3 photos',
+    photoErr: "This photo couldn't be added. Try another photo, or continue without one.",
+    aiDown: "The assistant isn't available right now. Please pick the right category below.", aiDownWa: "The assistant isn't available right now. Please pick the right category below, or message us on WhatsApp.",
+    timeout: 'Sending is taking too long. Check your internet connection and try again.',
   },
 };
 
@@ -56,7 +63,9 @@ async function compress(file: File): Promise<string | null> {
   } catch { return null; }
 }
 
-export default function UrgentIntake({ user, categories }: { user: IntakeUser; categories: [string, string][] }) {
+const timeout = (ms: number) => (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : undefined);
+
+export default function UrgentIntake({ user, categories, whatsapp = null }: { user: IntakeUser; categories: [string, string][]; whatsapp?: string | null }) {
   const lang = useLang();
   const t = T[lang === 'en' ? 'en' : 'nl'];
   const label = (v: string) => categories.find(([k]) => k === v)?.[1] ?? v;
@@ -76,6 +85,7 @@ export default function UrgentIntake({ user, categories }: { user: IntakeUser; c
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState('');
   const [statusToken, setStatusToken] = useState('');
+  const [trouble, setTrouble] = useState(''); // why the WhatsApp fallback is shown prominently (ai_failed, …)
   const endRef = useRef<HTMLDivElement>(null);
   const say = (m: Msg | Msg[]) => setMsgs((prev) => [...prev, ...(Array.isArray(m) ? m : [m])]);
 
@@ -84,26 +94,33 @@ export default function UrgentIntake({ user, categories }: { user: IntakeUser; c
   async function addPhotos(files: FileList | null) {
     if (!files) return;
     const out: string[] = [];
-    for (const f of Array.from(files).slice(0, 3 - photos.length)) { const d = await compress(f); if (d) out.push(d); }
+    let failed = false;
+    for (const f of Array.from(files).slice(0, 3 - photos.length)) { const d = await compress(f); if (d) out.push(d); else failed = true; }
     setPhotos((p) => [...p, ...out].slice(0, 3));
+    if (failed) { setError(t.photoErr); setTrouble('photo_failed'); }
   }
 
   async function sendProblem(e: FormEvent) {
-    e.preventDefault(); setError('');
+    e.preventDefault(); setError(''); if (trouble === 'photo_failed') setTrouble('');
     const text = problem.trim();
     if (text.length < 8) { setError(t.tooShort); return; }
     say({ from: 'me', text: text + (photos.length ? ` (+${photos.length} 📷)` : '') });
     setStep('thinking');
     let c: Classification;
+    let aiDown = false;
     try {
-      const r = await fetch('/api/intake/classify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, lang }) });
+      const r = await fetch('/api/intake/classify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, lang }), signal: timeout(25_000) });
       if (!r.ok) throw new Error(String(r.status));
       c = await r.json();
-    } catch { c = { category: categories[0][0], urgency: 'flexible', summary: text.slice(0, 200), tip: null, followUp: null, source: 'rules' }; }
+      if (!c || typeof c.category !== 'string' || !categories.some(([k]) => k === c.category)) throw new Error('bad_answer');
+    } catch {
+      c = { category: categories[0][0], urgency: 'flexible', summary: text.slice(0, 200), tip: null, followUp: null, source: 'rules' };
+      aiDown = true; setTrouble('ai_failed');
+    }
     setAi(c); setCategory(c.category); setLevel(c.urgency);
-    const out: Msg[] = [{ from: 'bot', text: `${t.sounds}: ${label(c.category)}${c.urgency === 'spoed' ? (lang === 'en' ? ' — and it sounds urgent.' : ' — en het klinkt als spoed.') : '.'}` }];
+    const out: Msg[] = aiDown ? [{ from: 'bot', text: whatsapp ? t.aiDownWa : t.aiDown }] : [{ from: 'bot', text: `${t.sounds}: ${label(c.category)}${c.urgency === 'spoed' ? (lang === 'en' ? ' — and it sounds urgent.' : ' — en het klinkt als spoed.') : '.'}` }];
     if (c.tip) out.push({ from: 'bot', text: c.tip, tone: 'tip' });
-    out.push({ from: 'bot', text: t.right });
+    if (!aiDown) out.push({ from: 'bot', text: t.right });
     say(out); setStep('category');
   }
 
@@ -136,18 +153,31 @@ export default function UrgentIntake({ user, categories }: { user: IntakeUser; c
   async function submit() {
     setError(''); setStep('sending');
     try {
-      const r = await fetch('/api/intake/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      const r = await fetch('/api/intake/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: timeout(45_000), body: JSON.stringify({
         ...spamFields, lang, category, description: problem.trim(), followUpAnswer: answer.trim(), followUp: ai?.followUp ?? '', summary: ai?.summary ?? '',
         level, postcode, name: name.trim(), phone: phone.trim(), email: email.trim(), acceptTerms: terms, photos,
         ai: ai?.source === 'ai', provider: ai?.provider ?? '', suggestedCategory: ai?.category ?? '', suggestedLevel: ai?.urgency ?? '',
       }) });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) { setError((t.errors as Record<string, string>)[data.error] ?? t.errors.generic); setStep('review'); return; }
+      if (!r.ok || !data.statusToken) { setError((t.errors as Record<string, string>)[data.error] ?? t.errors.generic); setTrouble(`submit_${data.error || r.status}`); setStep('review'); return; }
       setStatusToken(String(data.statusToken)); setStep('done');
-    } catch { setError(t.errors.generic); setStep('review'); }
+    } catch (err) {
+      const slow = err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      setError(slow ? t.timeout : t.errors.generic); setTrouble(slow ? 'submit_timeout' : 'submit_network'); setStep('review');
+    }
   }
 
-  if (step === 'done' && statusToken) return <UrgentStatus token={statusToken} fresh />;
+  // Everything the resident has typed so far, for the WhatsApp fallback (nothing is lost if the chat fails).
+  const waCtx: WaContext = {
+    problem: [problem.trim(), answer.trim()].filter(Boolean).join(' — '),
+    category: ai || category ? label(category) : '',
+    level: ['category', 'followup', 'urgency', 'thinking', 'problem'].includes(step) ? '' : t.levels[level][0].replace('🚨 ', ''),
+    postcode: /^\d{4} [A-Z]{2}$/.test(postcode) ? postcode : postcode.trim(),
+    name: name.trim(), phone: phone.trim(), email: user ? user.email : email.trim(),
+  };
+  const waReason = error ? (trouble || `error_${step}`) : trouble;
+
+  if (step === 'done' && statusToken) return <UrgentStatus token={statusToken} fresh whatsapp={whatsapp} labels={categories} waCtx={waCtx} />;
 
   return <div className="ui-chat" aria-live="polite">{trap}
     <div className="ui-log">
@@ -203,12 +233,14 @@ export default function UrgentIntake({ user, categories }: { user: IntakeUser; c
           <div><dt>{t.fields.who}</dt><dd>{[name, phone, user ? user.email : email].filter(Boolean).join(' · ')}</dd></div>
         </dl>
         <div className="ui-row">
-          <button type="button" className="ui-ghost" disabled={step === 'sending'} onClick={() => { setMsgs([{ from: 'bot', text: t.hello }]); setStep('problem'); setAi(null); setAnswer(''); setError(''); }}>{t.edit}</button>
+          <button type="button" className="ui-ghost" disabled={step === 'sending'} onClick={() => { setMsgs([{ from: 'bot', text: t.hello }]); setStep('problem'); setAi(null); setAnswer(''); setError(''); setTrouble(''); }}>{t.edit}</button>
           <button className="primary" type="button" disabled={step === 'sending'} onClick={submit}>{step === 'sending' ? t.sending : t.confirm} <ArrowRight aria-hidden="true" /></button>
         </div>
       </div>}
 
       {error ? <p className="platform-error" role="alert">{error}</p> : null}
+      {whatsapp && (error || trouble) ? <WhatsAppFallback number={whatsapp} lang={lang} ctx={waCtx} reason={waReason || 'error'} /> : null}
     </div>
+    {whatsapp && !error && !trouble ? <WhatsAppFallback number={whatsapp} lang={lang} ctx={waCtx} reason={`link_${step}`} variant="link" /> : null}
   </div>;
 }
