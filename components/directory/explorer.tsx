@@ -240,6 +240,7 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
             <a href={lp(lang, '/')}>{t.breadcrumbHome}</a><span aria-hidden="true">/</span>
             {heading ? <><a href={lp(lang, '/businesses')} onClick={(e) => { e.preventDefault(); update({ section: null, category: null }); }}>{t.breadcrumbAll}</a>
               {state.category && currentSection && <><span aria-hidden="true">/</span><a href={urlFor(lang, { ...state, category: null, section: currentSection })} onClick={(e) => { e.preventDefault(); chooseSection(currentSection); }}>{secLabel(currentSection)}</a></>}
+              <span aria-hidden="true">/</span><span aria-current="page">{heading}</span>
             </> : <span aria-current="page">{t.breadcrumbAll}</span>}
           </nav>
           <h1 id="dir2-title">{heading ? <>{heading} <span>{t.titleAccent}</span></> : <>{t.title} <span>{t.titleAccent}</span></>}</h1>

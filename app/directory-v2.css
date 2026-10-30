@@ -149,9 +149,9 @@
 .dir2-card-icon svg { width: 22px; height: 22px; }
 .dir2-card-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .dir2-card-cat { font-size: 13px; font-weight: 650; color: var(--dir-blue); letter-spacing: .01em; }
-.dir2-card-name { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.015em; color: var(--dir-ink); line-height: 1.3; }
+.dir2-card-name { display: block; font-size: 18px; font-weight: 700; letter-spacing: -0.015em; color: var(--dir-ink); line-height: 1.3; }
 .dir2-card-main:hover .dir2-card-name { color: var(--dir-blue); }
-.dir2-verified { width: 18px; height: 18px; color: var(--dir-blue); }
+.dir2-verified { display: inline-block; width: 18px; height: 18px; color: var(--dir-blue); margin-left: 6px; vertical-align: -3px; }
 .dir2-card-line { font-size: 15px; line-height: 1.5; color: var(--dir-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dir2-card-where { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 14px; color: var(--dir-muted); }
 .dir2-card-where svg { width: 15px; height: 15px; }
