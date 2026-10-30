@@ -1,14 +1,14 @@
 import { SiteHeader } from '../site-header';
 import { SiteFooter } from '../site-footer';
 import { DirectoryExplorer, type ExplorerState } from './explorer';
+import { ClickTracker } from '../ai-business/click-tracker';
+import '../../app/ai-business.css';
 import { getDirectoryIndex, parseDirectoryParams, runDirectoryQuery } from '../../lib/directory/data';
 import { CATEGORY_BY_SLUG, SECTION_BY_ID, type SectionId } from '../../lib/directory/taxonomy';
 import { lp, SITE_URL, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 import { directoryText } from '../../lib/directory/i18n';
 import { jsonLd } from '../../lib/json-ld';
-import { ClickTracker } from '../ai-business/click-tracker';
-import '../../app/ai-business.css';
 
 type SP = Record<string, string | string[] | undefined>;
 

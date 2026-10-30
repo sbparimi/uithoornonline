@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import '../../ai-business.css';
 import { ArrowRight, BarChart3, BriefcaseBusiness, Check, CreditCard, MessageCircle, Sparkles } from 'lucide-react';
 import { getCurrentUser } from '../../../lib/auth/session';
 import { getProviderDashboard } from '../../../lib/data/dashboards';
@@ -11,7 +12,6 @@ import { dateLocale, isLocale, lp, type Locale } from '../../../lib/i18n/config'
 import { getDictionary, statusLabel } from '../../../lib/i18n/dictionaries';
 import type { Metadata } from 'next';
 import { BUSINESS_OFFER_ANCHOR, PRICING_ENABLED } from '../../../lib/pricing';
-import '../../ai-business.css';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
