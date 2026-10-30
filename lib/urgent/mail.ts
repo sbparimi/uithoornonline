@@ -7,8 +7,11 @@ export const URGENCY_LABEL: Record<string, [string, string]> = {
   spoed: ['🚨 SPOED (nu)', '🚨 URGENT (now)'], today: ['Vandaag', 'Today'], week: ['Deze week', 'This week'], flexible: ['Flexibel', 'Flexible'],
 };
 export const urgencyLabel = (lang: Lang, level: string | null) => URGENCY_LABEL[level ?? 'flexible']?.[lang === 'en' ? 1 : 0] ?? (level ?? '');
-export const acceptUrl = (lang: Lang, token: string) => `${siteUrl()}${localPath(lang, `/klus/${token}`)}`;
-export const statusUrl = (lang: Lang, token: string) => `${siteUrl()}${localPath(lang, `/hulp/status/${token}`)}`;
+// Previews sit behind Vercel's login; PREVIEW_LINK_QUERY (e.g. "_vercel_share=…", previews only) is added
+// to links in alerts so a tester can open them on a phone. Never set in production.
+const pq = () => (process.env.PREVIEW_LINK_QUERY ? `?${process.env.PREVIEW_LINK_QUERY}` : '');
+export const acceptUrl = (lang: Lang, token: string) => `${siteUrl()}${localPath(lang, `/klus/${token}`)}${pq()}`;
+export const statusUrl = (lang: Lang, token: string) => `${siteUrl()}${localPath(lang, `/hulp/status/${token}`)}${pq()}`;
 
 type Job = { category: string; categoryLabel: string; summary: string; postcode: string; urgency: string | null; createdAt: string };
 

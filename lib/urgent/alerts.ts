@@ -11,7 +11,7 @@ import type { Lang } from '../email/templates';
 import { signToken } from './tokens';
 import { callGapMinutes, emailAlertsEnabled, escalateAfterMinutes, escalationEnabled, voiceAlertsEnabled } from './flags';
 import { placeCall, sendSms, sendWhatsApp, type ChannelResult } from './channels';
-import { customerAcceptedEmail, customerEscalationEmail, intakeConfirmationEmail, jobAlertEmail, jobTakenEmail, jobWonEmail, urgencyLabel } from './mail';
+import { acceptUrl, customerAcceptedEmail, customerEscalationEmail, intakeConfirmationEmail, jobAlertEmail, jobTakenEmail, jobWonEmail, urgencyLabel } from './mail';
 import type { UrgencyLevel } from './llm';
 
 // 24/7 urgent handling: intake request creation, instant multi-channel job alerts with a signed
@@ -111,7 +111,7 @@ function smsText(lang: Lang, r: ReqRow, token: string, escalation: boolean) {
   const j = job(lang, r);
   const head = r.urgency_level === 'spoed' ? (lang === 'en' ? 'URGENT job' : 'SPOEDKLUS') : (lang === 'en' ? 'New job' : 'Nieuwe klus');
   const tail = lang === 'en' ? 'First to accept gets it:' : 'Wie het eerst accepteert, krijgt de klus:';
-  return `${escalation ? (lang === 'en' ? 'Still open! ' : 'Nog open! ') : ''}${head} via Uithoorn.online: ${j.categoryLabel}, ${j.postcode.slice(0, 4)}. "${j.summary.slice(0, 120)}" ${tail} ${site()}${lang === 'en' ? '/en' : ''}/klus/${token}`;
+  return `${escalation ? (lang === 'en' ? 'Still open! ' : 'Nog open! ') : ''}${head} via Uithoorn.online: ${j.categoryLabel}, ${j.postcode.slice(0, 4)}. "${j.summary.slice(0, 120)}" ${tail} ${acceptUrl(lang, token)}`;
 }
 
 /** Sends one business every channel it allows for this stage. */
