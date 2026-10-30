@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL, lp } from '../lib/i18n/config';
 import { listPublicBusinesses } from '../lib/data/businesses';
+import { getDirectoryIndex } from '../lib/directory/data';
 
 // Rebuilt at most hourly so new approved businesses appear without a deploy.
 export const revalidate = 3600;
@@ -28,5 +29,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (error) {
     console.error('[sitemap] businesses unavailable', error instanceof Error ? error.message : error);
   }
-  return [...pages, ...businesses];
+  // Directory sections and categories that have at least one listing.
+  let categories: MetadataRoute.Sitemap = [];
+  try {
+    const { index } = await getDirectoryIndex();
+    const slugs = new Set<string>();
+    for (const e of index.entries) { slugs.add(e.section); slugs.add(e.category.slug); }
+    categories = [...slugs].flatMap((slug) => entries(`/businesses/categorie/${slug}`, now, 0.6, 0.4));
+  } catch (error) {
+    console.error('[sitemap] categories unavailable', error instanceof Error ? error.message : error);
+  }
+  return [...pages, ...categories, ...businesses];
 }
