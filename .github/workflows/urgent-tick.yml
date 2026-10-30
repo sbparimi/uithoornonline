@@ -1,0 +1,23 @@
+# Spoed escalation scheduler for uithoorn.online (docs/URGENT_HANDLING.md).
+# Vercel's Hobby plan only runs crons once a day, so this calls the escalation endpoint every 5 minutes
+# (GitHub may delay scheduled runs by a few minutes). The endpoint is cheap and does nothing when no
+# spoed request is due. Needs the repository secret CRON_SECRET (same value as on Vercel).
+# For exact 1-minute timing add an external cron (e.g. cron-job.org) calling the same URL with the same header.
+name: urgent-tick
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Advance spoed escalations
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          URL: ${{ vars.URGENT_TICK_URL || 'https://uithoorn.online/api/cron/urgent' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET secret not set; skipping"; exit 0; fi
+          curl -fsS -m 50 -H "Authorization: Bearer $CRON_SECRET" "$URL" || echo "tick failed (will retry next run)"

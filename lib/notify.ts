@@ -7,7 +7,7 @@ import { adminAlertEmail, siteUrl } from './email/templates';
 // site's operations inbox (uithoorn.online@mail.tab.bot) and to OWNER_NOTIFY_EMAIL when set.
 const OPS_INBOX = 'uithoorn.online@mail.tab.bot';
 
-export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted' | 'new_issue' | 'new_inbound_email' | 'business_updated';
+export type NotifyEvent = 'new_request' | 'new_signup' | 'new_business' | 'new_review' | 'new_contact' | 'new_submission' | 'payment' | 'account_deleted' | 'new_issue' | 'new_inbound_email' | 'business_updated' | 'spoed_unhandled';
 
 const titles: Record<NotifyEvent, string> = {
   new_request: 'Nieuwe hulpvraag',
@@ -21,11 +21,12 @@ const titles: Record<NotifyEvent, string> = {
   account_deleted: 'Account verwijderd',
   new_issue: 'Nieuw issue',
   new_inbound_email: 'Nieuwe e-mail ontvangen',
+  spoed_unhandled: 'SPOED: niemand heeft geaccepteerd',
 };
 
 const adminTab: Partial<Record<NotifyEvent, string>> = {
   new_request: 'requests', new_signup: 'users', new_business: 'businesses', new_contact: 'contacts', new_submission: 'contacts',
-  payment: 'payments', new_issue: 'issues', new_inbound_email: 'contacts', new_review: 'reviews', account_deleted: 'users',
+  payment: 'payments', new_issue: 'issues', new_inbound_email: 'contacts', new_review: 'reviews', account_deleted: 'users', spoed_unhandled: 'urgent',
 };
 
 export function notifyRecipients() {

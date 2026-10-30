@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
-import { ArrowLeft, Check, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MessageCircle, Siren, Sparkles } from 'lucide-react';
 import RequestForm from './RequestForm';
 import { SiteHeader } from '../../../components/site-header';
 import { SiteFooter } from '../../../components/site-footer';
 import { isLocale, seo, lp, type Locale } from '../../../lib/i18n/config';
 import { getDictionary } from '../../../lib/i18n/dictionaries';
+import { intakeEnabled } from '../../../lib/urgent/flags';
+import '../../urgent.css';
 
 type Props = { params: Promise<{ lang: string }>; searchParams: Promise<{ category?: string; query?: string }> };
 
@@ -43,6 +45,7 @@ export default async function RequestPage({ params, searchParams }: Props) {
                   <h2>{t.formTitle}</h2>
                 </div>
               </div>
+              {intakeEnabled() ? <a className="ui-banner" href={lp(lang, '/hulp')}><Siren aria-hidden="true" /><span><strong>{lang === 'en' ? 'Urgent, or rather chat?' : 'Spoed, of liever chatten?'}</strong> {lang === 'en' ? 'Our help assistant alerts local professionals right away, 24/7.' : 'Onze hulp-assistent waarschuwt direct lokale vakmensen, 24/7.'}</span><ArrowRight aria-hidden="true" /></a> : null}
               <p className="request-form-note"><MessageCircle aria-hidden="true" /> {t.formNote}</p>
               <RequestForm initialCategory={sp.category ?? ''} initialQuery={sp.query ?? ''} />
             </div>

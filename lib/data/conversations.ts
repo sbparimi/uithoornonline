@@ -79,6 +79,10 @@ export async function acceptRequest(user: SessionUser, requestId: string) {
       where l.request_id = $1 and b.owner_id = $2 and b.active and b.moderation_status = 'approved' limit 1`, [requestId, user.id]);
   if (!lead || lead.hidden) return { error: 'request_not_available' as const };
   if (lead.status === 'locked' && PRICING_ENABLED) return { error: 'lead_limit_reached' as const };
+  // 24/7 intake requests are first-come-first-served (lib/urgent/alerts.ts): once another business
+  // accepted, the job is gone. Tolerates a database without migration 0005.
+  const taken = await queryOne<{ accepted_business_id: string | null }>('select accepted_business_id from service_requests where id = $1', [requestId]).catch(() => null);
+  if (taken?.accepted_business_id && taken.accepted_business_id !== lead.business_id) return { error: 'request_not_available' as const };
   const conversationId = await transaction(async (client) => {
     await client.query(`update request_providers set status = 'accepted', responded_at = now() where request_id = $1 and business_id = $2`, [requestId, lead.business_id]);
     await client.query(`update leads set status = 'accepted', accepted_at = now() where id = $1`, [lead.lead_id]);
@@ -86,6 +90,12 @@ export async function acceptRequest(user: SessionUser, requestId: string) {
       `insert into conversations(request_id, customer_id, business_id, status) values ($1, $2, $3, 'active')
        on conflict (request_id, business_id) do update set status = 'active', updated_at = now() returning id`, [requestId, lead.customer_id, lead.business_id]);
     await client.query(`update service_requests set status = 'in_conversation' where id = $1`, [requestId]);
+    if (taken) {
+      // First accept on an intake request claims it and stops the spoed escalation.
+      await client.query(`update service_requests set accepted_business_id = $2, accepted_at = now(), accepted_via = 'dashboard', escalation_next_at = null,
+                            escalation_stage = case when escalation_stage = 'none' then 'none' else 'done' end
+                          where id = $1 and source = 'intake' and accepted_business_id is null`, [requestId, lead.business_id]);
+    }
     const acc = notificationText('accepted', lead.customer_locale);
     await client.query(`insert into notifications(user_id, type, title, body, conversation_id, request_id) values ($1, 'request_update', $4, $5, $2, $3)`, [lead.customer_id, conv.id, requestId, acc.title, acc.body]);
     return conv.id;

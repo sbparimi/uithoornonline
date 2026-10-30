@@ -15,11 +15,12 @@ import Emails from './_sections/emails';
 import Audit from './_sections/audit';
 import Settings from './_sections/settings';
 import Reviews from './_sections/reviews';
+import Urgent from './_sections/urgent';
 
 export const metadata: Metadata = { title: 'Admin · Uithoorn.online', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
-const TABS = ['dashboard', 'businesses', 'users', 'requests', 'payments', 'contacts', 'issues', 'reviews', 'emails', 'audit', 'settings'] as const;
+const TABS = ['dashboard', 'businesses', 'users', 'requests', 'urgent', 'payments', 'contacts', 'issues', 'reviews', 'emails', 'audit', 'settings'] as const;
 type Tab = (typeof TABS)[number];
 // Old tab names keep working.
 const ALIASES: Record<string, Tab> = { stats: 'dashboard', inbox: 'contacts', leads: 'requests' };
@@ -53,12 +54,12 @@ export default async function AdminPage({ params, searchParams }: { params: Prom
   const keep = new URLSearchParams(); for (const [k, v] of Object.entries(sp)) if (v && k !== 'ok' && k !== 'err') keep.set(k, v); keep.set('tab', tab);
   const ctx: Ctx = { lang, base, sp: { ...sp, tab }, ret: `${base}?${keep}` };
   const labels: Record<Tab, string> = {
-    dashboard: t('Overzicht', 'Overview'), businesses: t('Bedrijven', 'Businesses'), users: t('Accounts', 'Accounts'), requests: t('Aanvragen', 'Requests'), payments: t('Betalingen', 'Payments'),
+    dashboard: t('Overzicht', 'Overview'), businesses: t('Bedrijven', 'Businesses'), users: t('Accounts', 'Accounts'), requests: t('Aanvragen', 'Requests'), urgent: t('Spoed', 'Urgent'), payments: t('Betalingen', 'Payments'),
     contacts: t('Contact', 'Contacts'), issues: t('Issues', 'Issues'), reviews: t('Reviews', 'Reviews'), emails: t('E-mails', 'Emails'), audit: t('Logboek', 'Audit log'), settings: t('Instellingen', 'Settings'),
   };
   const flash = sp.ok ? FLASH[sp.ok]?.[lang === 'en' ? 1 : 0] ?? t('Gelukt.', 'Done.') : null;
   const error = sp.err ? ERRORS[sp.err]?.[lang === 'en' ? 1 : 0] ?? `${t('Fout', 'Error')}: ${sp.err}` : null;
-  const Section = { dashboard: Dashboard, businesses: Businesses, users: Users, requests: Requests, payments: Payments, contacts: Contacts, issues: Issues, reviews: Reviews, emails: Emails, audit: Audit, settings: Settings }[tab];
+  const Section = { dashboard: Dashboard, businesses: Businesses, users: Users, requests: Requests, urgent: Urgent, payments: Payments, contacts: Contacts, issues: Issues, reviews: Reviews, emails: Emails, audit: Audit, settings: Settings }[tab];
 
   return <div className="ds-page adm-page"><AppHeader /><main id="main" className="platform-shell ds-platform adm-main"><div className="platform-dashboard admin-dashboard adm-shell">
     <header className="adm-head">
