@@ -365,7 +365,7 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
               </div>
             )}
 
-            <div className="dir2-toolbar">
+            {!inviteScope && <div className="dir2-toolbar">
               <p className="dir2-count" aria-live="polite">
                 <strong>{t.results(data.total)}</strong>{state.q.trim() ? t.forQuery(state.q.trim()) : ''}
                 {loading && <span className="dir2-sr"> {t.loading}</span>}
@@ -384,7 +384,7 @@ export function DirectoryExplorer({ lang, initial, initialState, page, sectionTo
                   <ChevronDown aria-hidden="true" />
                 </label>
               </div>
-            </div>
+            </div>}
 
             {(state.place || state.has.length > 0 || scoped || state.q.trim()) && (
               <div className="dir2-active">

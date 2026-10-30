@@ -20,6 +20,7 @@ body.ds, body.ds.folk {
   font-size: 16px;
   line-height: 1.6;
   font-optical-sizing: auto;
+  word-spacing: 0.02em; /* Plus Jakarta Sans sets words close together; a hair more space reads easier on phones */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -28,8 +29,9 @@ body.ds, body.ds.folk {
 .folk input, .folk select, .folk textarea { font-size: max(16px, 1em); } /* no iOS zoom on focus */
 
 /* Headings: same family, tighter tracking and heavier weight read as premium. */
-.folk h1, .folk h2, .folk h3, .folk h4 { font-family: var(--f-text); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; }
-.folk h1 { letter-spacing: -0.03em; line-height: 1.08; }
+/* Plus Jakarta Sans is already compact: light negative tracking plus a touch of word spacing keeps headings crisp but airy. */
+.folk h1, .folk h2, .folk h3, .folk h4 { font-family: var(--f-text); font-weight: 700; letter-spacing: -0.01em; word-spacing: 0.04em; line-height: 1.2; text-wrap: balance; }
+.folk h1 { letter-spacing: -0.02em; line-height: 1.08; }
 .folk p { line-height: 1.6; text-wrap: pretty; }
 
 /* The theme's handwritten kickers become small, confident labels. */
@@ -44,7 +46,7 @@ body.ds, body.ds.folk {
 @media (max-width: 600px) { .f-photo figcaption { font-size: 12.5px; } }
 
 /* Display sizes set by the theme in the old serif: keep the scale, fix the tracking for a sans. */
-.f-hero h1 { letter-spacing: -0.035em; line-height: 1.02; }
+.f-hero h1 { letter-spacing: -0.025em; word-spacing: 0.04em; line-height: 1.02; }
 .f-hero h1 span { letter-spacing: -0.02em; font-weight: 500; }
 .folk .f-wordmark { letter-spacing: -0.055em; font-weight: 800; }
 .folk .site-brand { letter-spacing: -0.025em; font-weight: 800; }

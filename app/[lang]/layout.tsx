@@ -40,7 +40,7 @@ import { getDictionary } from '../../lib/i18n/dictionaries';
 // One professional, highly legible typeface site-wide: Plus Jakarta Sans (variable 200–800,
 // self-hosted, SIL OFL — app/fonts/PlusJakartaSans-OFL.txt). Subset to latin + latin-ext, so Dutch
 // diacritics (é, ë, ï, ü, ĳ) and € are covered. See app/typography.css.
-const sans = localFont({
+const plusJakartaSans = localFont({
   src: [{ path: '../fonts/plus-jakarta-sans-latin-ext-var.woff2', weight: '200 800', style: 'normal' }],
   variable: '--font-sans',
   display: 'swap',
@@ -77,7 +77,7 @@ export default async function RootLayout({ children, params }: Readonly<{ childr
   if (!isLocale(lang)) notFound();
   const t = getDictionary(lang);
   return (
-    <html lang={lang === 'nl' ? 'nl-NL' : 'en'} className={sans.variable}>
+    <html lang={lang === 'nl' ? 'nl-NL' : 'en'} className={plusJakartaSans.variable}>
       <body className="ds folk">
         <a className="skip-link" href="#main">{t.common.skip}</a>
         <LangProvider lang={lang}>

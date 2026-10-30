@@ -239,3 +239,4 @@
 .dir2-invite-customer { margin: 16px auto 0 !important; font-size: 15px; color: var(--dir-muted) !important; }
 .dir2-invite-customer a { color: var(--dir-blue) !important; font-weight: 650; display: inline-flex; align-items: center; gap: 4px; }
 .dir2-invite-customer a svg { width: 15px; height: 15px; }
+.dir2-catchips button.is-open.is-active { background: var(--dir-ink); border-style: solid; border-color: var(--dir-ink); color: #fff; }
