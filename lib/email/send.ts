@@ -77,10 +77,37 @@ function redirected(email: Email, recipients: string[]): { email: Email; recipie
   return { email: { ...email, adminCopy: false, subject: `[TEST → ${recipients.join(', ')}] ${email.subject}` }, recipients: [to] };
 }
 
+/**
+ * Previews only: Vercel puts previews behind its login, and a link opened from an email (Gmail app,
+ * another browser) has no share cookie yet. PREVIEW_LINK_QUERY (e.g. "_vercel_share=…", set on the
+ * preview env only) is added to every link to this site in the email, so each one opens without the
+ * Vercel wall. Unset (production) = emails unchanged.
+ */
+export function withPreviewLinks(value: string, html?: boolean): string;
+export function withPreviewLinks(value: string | undefined, html?: boolean): string | undefined;
+export function withPreviewLinks(value: string | undefined, html = false) {
+  const pq = (process.env.PREVIEW_LINK_QUERY || '').trim().replace(/^[?&]/, '');
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
+  if (!value || !pq || !/^https:\/\/[^/]+\.vercel\.app$/.test(site)) return value;
+  const esc = site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const key = pq.split('=')[0];
+  const urlRe = new RegExp(`${esc}(?![\\w.-])[^\\s"'<>)]*`, 'g');
+  const add = (match: string) => {
+    const tail = /[.,;:!?]+$/.exec(match)?.[0] ?? '';
+    const url = tail ? match.slice(0, -tail.length) : match;
+    if (url.includes(`${key}=`)) return match;
+    const [base, hash] = url.split('#');
+    return `${base}${base.includes('?') ? (html ? '&amp;' : '&') : '?'}${pq}${hash !== undefined ? `#${hash}` : ''}${tail}`;
+  };
+  // HTML: only link targets (the visible text stays as written). Text: every link.
+  return html ? value.replace(/href="([^"]*)"/g, (_m, href: string) => `href="${href.replace(urlRe, add)}"`) : value.replace(urlRe, add);
+}
+
 export async function sendEmailDetailed(original: Email): Promise<SendResult> {
   const originalRecipients = [...new Set((Array.isArray(original.to) ? original.to : [original.to]).map((s) => String(s || '').trim()).filter(Boolean))];
   if (!originalRecipients.length) return { status: 'skipped', id: null, error: 'no recipient' };
-  const { email, recipients } = redirected(original, originalRecipients);
+  const linked = { ...original, text: withPreviewLinks(original.text), html: withPreviewLinks(original.html, true) };
+  const { email, recipients } = redirected(linked, originalRecipients);
   const admin = adminEmail();
   // Sign-in and reset links are credentials for someone else's account: never copy them to the admin.
   const bcc = email.adminCopy === false || NO_ADMIN_COPY.has(email.kind) || recipients.some((r) => r.toLowerCase() === admin) ? null : admin;
