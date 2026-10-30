@@ -1,2 +1,3 @@
-# The Expo mobile app is built separately (see mobile/README.md); not part of the website deploy.
-mobile
+# The Expo mobile app (top-level /mobile) is built separately (see mobile/README.md); not part of the website deploy.
+# Leading slash: only the top-level folder, NOT app/api/mobile.
+/mobile
