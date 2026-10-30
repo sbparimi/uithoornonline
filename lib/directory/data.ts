@@ -32,7 +32,9 @@ async function load(): Promise<{ index: DirectoryIndex; source: 'database' | 'fa
 
 export async function getDirectoryIndex(): Promise<{ index: DirectoryIndex; source: 'database' | 'fallback' }> {
   const cached = globalThis.__uoDirectory;
-  if (cached && Date.now() - cached.at < TTL_MS) return cached;
+  // A fallback index (database briefly unreachable, e.g. a cold start) is only kept for 15 s, so one blip
+  // doesn't show the sample listings for the whole cache window.
+  if (cached && Date.now() - cached.at < (cached.source === 'fallback' ? 15_000 : TTL_MS)) return cached;
   if (cached) {
     // Serve the previous index while one refresh runs in the background.
     if (!cached.pending) cached.pending = load().then((next) => { globalThis.__uoDirectory = { ...next, at: Date.now() }; }).catch((e) => { console.error('[directory] refresh failed', e instanceof Error ? e.message : e); cached.at = Date.now(); }).finally(() => { if (globalThis.__uoDirectory) globalThis.__uoDirectory.pending = undefined; });
