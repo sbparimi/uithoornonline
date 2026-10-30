@@ -68,6 +68,7 @@ Test safety (previews only, never production):
 | --- | --- |
 | `EMAIL_REDIRECT_TO` | Every email goes to this address instead, original recipient in the subject |
 | `ALERTS_REDIRECT_PHONE` | Every SMS/WhatsApp/call goes to this number instead |
+| `PREVIEW_LINK_QUERY` | Added to accept/status links (e.g. `_vercel_share=…`) so testers can open preview links on a phone |
 
 ## Scheduler
 
