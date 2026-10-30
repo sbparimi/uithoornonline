@@ -7,7 +7,7 @@ import { useLang } from './lang-context';
 import WhatsAppFallback, { type WaContext } from './whatsapp-fallback';
 
 // Live status of an intake request (polls /api/intake/status, which also advances spoed escalation).
-type Status = { category: string; level: string | null; postcode: string; createdAt: string; stage: string; status: string; alerted: number; escalated: number; alertsSentAt: string | null;
+type Status = { category: string; level: string | null; postcode: string; createdAt: string; stage: string; status: string; alerted: number; escalated: number; alertsSentAt: string | null; escalateMinutes?: number;
   accepted: { name: string; phone: string | null; website: string | null; at: string } | null };
 
 const T = {
@@ -39,11 +39,16 @@ export default function UrgentStatus({ token, fresh = false, escalateMinutes = 1
         if (!r.ok) throw new Error();
         const data: Status = await r.json();
         if (!stop) { setS(data); setErr(false); }
-        if (!stop && !data.accepted) timer = setTimeout(load, data.level === 'spoed' ? 15000 : 30000);
+        if (!stop && !data.accepted) timer = setTimeout(load, !data.alertsSentAt && Date.now() - new Date(data.createdAt).getTime() < 60000 ? 2500 : data.level === 'spoed' ? 15000 : 30000);
       } catch { if (!stop) { setErr(true); timer = setTimeout(load, 30000); } }
     }
     load();
-    return () => { stop = true; clearTimeout(timer); };
+    // Phones pause a page in the background (e.g. while the customer checks Gmail). Refresh the moment it
+    // is back on screen: that poll also advances a due spoed escalation, so nothing waits for the timer.
+    const onVisible = () => { if (document.visibilityState === 'visible' && !stop) { clearTimeout(timer); load(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => { stop = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); };
   }, [token]);
 
   const time = (v: string) => new Date(v).toLocaleTimeString(lang === 'en' ? 'en-GB' : 'nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
@@ -58,13 +63,19 @@ export default function UrgentStatus({ token, fresh = false, escalateMinutes = 1
   };
   if (!s) return <div className="ui-status">{err ? <><p className="platform-error" role="alert">{t.error}</p>{wa('status_error')}</> : <p><Loader2 className="ui-spin" aria-hidden="true" /> …</p>}</div>;
   const spoed = s.level === 'spoed';
+  // Alerts go out right after the request is saved; until they are all out, show "alerting" rather than a partial count.
+  const alertsDone = Boolean(s.alertsSentAt) || (s.alerted > 0 && Date.now() - new Date(s.createdAt).getTime() > 60000);
+  const stage = s.stage && s.stage !== 'none' ? s.stage : '';
+  const waiting = stage === 'waiting' || (!stage && !s.alertsSentAt);
+  // No stage once alerts are out = escalation is switched off for this site: no promise about it.
+  const spoedRow = spoed && !s.accepted && (Boolean(stage) || !s.alertsSentAt);
 
   return <div className="ui-status" role="status">
     <div className="ui-status-head"><CheckCircle2 aria-hidden="true" /><div><h2>{t.got}</h2><p>{t.level[s.level ?? 'flexible'] ?? s.level} · {s.postcode} · {t.yours} {time(s.createdAt)}</p></div></div>
     <ol className="ui-steps">
       <li className="done"><CheckCircle2 aria-hidden="true" /><span>{t.got}</span></li>
-      <li className={s.alertsSentAt || s.alerted ? 'done' : 'now'}>{s.alertsSentAt || s.alerted ? <Users aria-hidden="true" /> : <Loader2 className="ui-spin" aria-hidden="true" />}<span>{s.alertsSentAt || s.alerted ? t.alerted(s.alerted) : t.alerting}</span></li>
-      {spoed && !s.accepted ? <li className={s.stage === 'waiting' ? 'now' : 'done'}><Siren aria-hidden="true" /><span>{s.stage === 'waiting' ? t.spoedWait(escalateMinutes) : s.stage === 'exhausted' ? t.exhausted : t.escalated(s.escalated)}</span></li> : null}
+      <li className={alertsDone ? 'done' : 'now'}>{alertsDone ? <Users aria-hidden="true" /> : <Loader2 className="ui-spin" aria-hidden="true" />}<span>{alertsDone ? t.alerted(s.alerted) : t.alerting}</span></li>
+      {spoedRow ? <li className={waiting ? 'now' : 'done'}><Siren aria-hidden="true" /><span>{waiting ? t.spoedWait(s.escalateMinutes ?? escalateMinutes) : s.stage === 'exhausted' ? t.exhausted : t.escalated(s.escalated)}</span></li> : null}
       {s.accepted
         ? <li className="done ui-won"><CheckCircle2 aria-hidden="true" /><span><strong>{s.accepted.name}</strong> {t.accepted}{s.accepted.phone ? <a className="primary platform-button-link ui-call" href={`tel:${s.accepted.phone}`}><Phone aria-hidden="true" /> {t.call} {s.accepted.phone}</a> : null}</span></li>
         : s.stage !== 'exhausted' ? <li className="now"><Clock aria-hidden="true" /><span>{t.waiting}</span></li> : null}

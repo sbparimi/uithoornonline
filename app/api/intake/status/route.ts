@@ -1,6 +1,7 @@
 import { errorJson, handle, json } from '@/lib/http';
 import { verifyToken } from '@/lib/urgent/tokens';
 import { requestStatus, tickQuietly } from '@/lib/urgent/alerts';
+import { escalateAfterMinutes } from '@/lib/urgent/flags';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     if (!r) return errorJson('not_found', 404);
     return json({
       category: r.category, level: r.urgency_level, postcode: r.postcode, createdAt: r.created_at, stage: r.escalation_stage, status: r.status,
-      alerted: r.alerted, escalated: r.escalated, alertsSentAt: r.alerts_sent_at,
+      alerted: r.alerted, escalated: r.escalated, alertsSentAt: r.alerts_sent_at, escalateMinutes: escalateAfterMinutes(),
       accepted: r.biz_name ? { name: r.biz_name, phone: r.biz_phone, website: r.biz_website, at: r.accepted_at } : null,
     });
   }, 'intake/status');
