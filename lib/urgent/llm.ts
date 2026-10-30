@@ -24,7 +24,7 @@ type Provider = { name: string; kind: 'openai' | 'anthropic'; baseUrl: string; k
 function configured(): Record<string, Provider | null> {
   const model = process.env.INTAKE_LLM_MODEL;
   return {
-    groq: process.env.GROQ_API_KEY ? { name: 'groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', key: process.env.GROQ_API_KEY, model: model || 'llama-3.3-70b-versatile' } : null,
+    groq: process.env.GROQ_API_KEY ? { name: 'groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', key: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL || model || 'openai/gpt-oss-120b' } : null,
     kimi: process.env.KIMI_API_KEY && process.env.KIMI_BASE_URL ? { name: 'kimi', kind: 'openai', baseUrl: process.env.KIMI_BASE_URL.replace(/\/$/, ''), key: process.env.KIMI_API_KEY, model: model || process.env.KIMI_MODEL || 'moonshot-v1-8k' } : null,
     openai: process.env.OPENAI_API_KEY ? { name: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', key: process.env.OPENAI_API_KEY, model: model || 'gpt-4o-mini' } : null,
     anthropic: process.env.ANTHROPIC_API_KEY ? { name: 'anthropic', kind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', key: process.env.ANTHROPIC_API_KEY, model: model || 'claude-3-5-haiku-latest' } : null,
@@ -90,6 +90,7 @@ function prompt(lang: 'nl' | 'en') {
     'You are the intake assistant of Uithoorn.online, a local marketplace for Uithoorn and De Kwakel (Netherlands).',
     'A resident describes a problem. Classify it. Reply with ONE JSON object only, no prose, with keys:',
     `"category": exactly one of ${JSON.stringify(REQUEST_CATEGORIES)};`,
+    'Category hints: locked out, locks, keys, alarm, break-in, camera -> "Security & alarm systems"; leaks, drains, blocked toilet, taps, heating, boiler (cv-ketel) -> "Plumber"; no power, sockets, fuses, wiring -> "Electrician & installation"; small repairs and mounting -> "Handyman".',
     '"urgency": "spoed" (needs help right now: leaks, flooding, no power, no heating in winter, locked out, break-in, blocked toilet), "today", "week" or "flexible";',
     `"summary": one short sentence in ${lang === 'en' ? 'English' : 'Dutch'} that a tradesperson understands;`,
     `"tip": for spoed only, one short safety tip in ${lang === 'en' ? 'English' : 'Dutch'} (mention 112 if there is danger), else null;`,

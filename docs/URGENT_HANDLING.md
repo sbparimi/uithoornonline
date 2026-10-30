@@ -54,7 +54,7 @@ Providers:
 
 | Name | For |
 | --- | --- |
-| `GROQ_API_KEY` / `KIMI_API_KEY`+`KIMI_BASE_URL`(+`KIMI_MODEL`) / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | AI classifier (first one found; `INTAKE_LLM_PROVIDER`, `INTAKE_LLM_MODEL` override; none = rules) |
+| `GROQ_API_KEY` / `KIMI_API_KEY`+`KIMI_BASE_URL`(+`KIMI_MODEL`) / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | AI classifier (tried in this order until one answers; `INTAKE_LLM_PROVIDER` pins one, `INTAKE_LLM_MODEL` / `GROQ_MODEL` set the model (Groq default `openai/gpt-oss-120b`; if a model is retired the best available one is picked automatically); no key = rules) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | SMS + voice (a Dutch number that can do both, E.164, e.g. `+3197…`) |
 | `WHATSAPP_PROVIDER` (`twilio` default or `meta`) | WhatsApp route |
 | `TWILIO_WHATSAPP_FROM` (e.g. `whatsapp:+31…`) | WhatsApp via Twilio |

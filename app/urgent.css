@@ -106,7 +106,9 @@
 .ui-quiet legend { padding: 0 6px; color: #5f6168; font-size: .92rem; }
 
 @media (max-width: 860px) {
-  .ui-hero { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 20px 14px 48px; }
+  .ui-hero { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px 14px 48px; }
+  .ui-hero > .ui-card { order: -1; } /* on phones the chat comes first; the explanation follows */
+  .ui-intro h1 { font-size: 1.7rem; }
   .ui-card { padding: 16px; border-radius: 20px; }
   .ui-log { max-height: none; }
   .ui-levels { grid-template-columns: minmax(0, 1fr); }
