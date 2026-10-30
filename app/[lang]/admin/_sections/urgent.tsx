@@ -39,8 +39,8 @@ export default async function Urgent({ ctx, user }: { ctx: Ctx; user: SessionUse
         </Card>
       </div>
       <Card title={t('Meldingen per kanaal', 'Alert log per channel')}>
-        {log.length ? <table className="adm-table"><thead><tr><th>{t('Tijd', 'Time')}</th><th>{t('Aan', 'To')}</th><th>{t('Kanaal', 'Channel')}</th><th>{t('Fase', 'Stage')}</th><th>Status</th><th>{t('Ontvanger', 'Recipient')}</th><th>{t('Fout', 'Error')}</th></tr></thead>
-          <tbody>{log.map((a) => <tr key={a.id}><td>{fmtDate(ctx.lang, a.created_at)}</td><td>{a.business_name ?? a.audience}</td><td>{a.channel}</td><td>{a.stage}</td><td><Pill tone={a.status === 'sent' ? 'approved' : a.status === 'failed' ? 'rejected' : 'grey'}>{a.status}</Pill></td><td>{a.recipient ?? '–'}</td><td>{a.error ?? ''}</td></tr>)}</tbody></table>
+        {log.length ? <div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>{t('Tijd', 'Time')}</th><th>{t('Aan', 'To')}</th><th>{t('Kanaal', 'Channel')}</th><th>{t('Fase', 'Stage')}</th><th>Status</th><th>{t('Ontvanger', 'Recipient')}</th><th>{t('Fout', 'Error')}</th></tr></thead>
+          <tbody>{log.map((a) => <tr key={a.id}><td>{fmtDate(ctx.lang, a.created_at)}</td><td>{a.business_name ?? a.audience}</td><td>{a.channel}</td><td>{a.stage}</td><td><Pill tone={a.status === 'sent' ? 'approved' : a.status === 'failed' ? 'rejected' : 'grey'}>{a.status}</Pill></td><td>{a.recipient ?? '–'}</td><td>{a.error ?? ''}</td></tr>)}</tbody></table></div>
           : <Empty>{t('Nog geen meldingen.', 'No alerts yet.')}</Empty>}
       </Card>
     </>;
@@ -61,7 +61,7 @@ export default async function Urgent({ ctx, user }: { ctx: Ctx; user: SessionUse
       </ul>
     </Card>
     <Card title={t('Aanvragen met meldingen', 'Requests with alerts')}>
-      {rows.length ? <table className="adm-table"><thead><tr><th>{t('Geplaatst', 'Posted')}</th><th>{t('Categorie', 'Category')}</th><th>{t('Urgentie', 'Urgency')}</th><th>{t('Meldingen', 'Alerts')}</th><th>{t('Escalatie', 'Escalation')}</th><th>{t('Geaccepteerd', 'Accepted')}</th></tr></thead>
+      {rows.length ? <div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>{t('Geplaatst', 'Posted')}</th><th>{t('Categorie', 'Category')}</th><th>{t('Urgentie', 'Urgency')}</th><th>{t('Meldingen', 'Alerts')}</th><th>{t('Escalatie', 'Escalation')}</th><th>{t('Geaccepteerd', 'Accepted')}</th></tr></thead>
         <tbody>{rows.map((r) => <tr key={r.id}>
           <td><a href={`${list}&id=${r.id}`}>{fmtDate(ctx.lang, r.created_at)}</a></td>
           <td>{categoryLabel(ctx.lang, r.category)} · {r.postcode}{r.photos ? ' 📷' : ''}</td>
@@ -69,11 +69,11 @@ export default async function Urgent({ ctx, user }: { ctx: Ctx; user: SessionUse
           <td>{r.businesses} {t('bedr.', 'biz')} · ✉ {r.email_sent} · sms {r.sms_sent} · wa {r.whatsapp_sent} · ☎ {r.voice_sent}{r.failed ? ` · ⚠ ${r.failed}` : ''}</td>
           <td>{r.escalation_stage}</td>
           <td>{r.business_name ? `${r.business_name} (${mins(r.created_at, r.accepted_at)})` : '–'}</td>
-        </tr>)}</tbody></table> : <Empty>{t('Nog geen aanvragen via de hulp-assistent.', 'No requests via the help assistant yet.')}</Empty>}
+        </tr>)}</tbody></table></div> : <Empty>{t('Nog geen aanvragen via de hulp-assistent.', 'No requests via the help assistant yet.')}</Empty>}
     </Card>
     <Card title={t('Meldingsinstellingen bedrijven', 'Business alert settings')}>
-      {businesses.length ? <table className="adm-table"><thead><tr><th>{t('Bedrijf', 'Business')}</th><th>{t('Categorie', 'Category')}</th><th>E-mail</th><th>SMS</th><th>WhatsApp</th><th>{t('Mobiel', 'Mobile')}</th><th>24/7</th><th>{t('Stil', 'Quiet')}</th></tr></thead>
-        <tbody>{businesses.map((b) => <tr key={b.id}><td>{b.name}</td><td>{b.category}</td><td>{b.alert_email ? '✓' : ''}</td><td>{b.alert_sms ? '✓' : ''}</td><td>{b.alert_whatsapp ? '✓' : ''}</td><td>{b.alert_phone ?? ''}</td><td>{b.spoed_24_7 ? '🚨' : ''}</td><td>{b.quiet_start ? `${b.quiet_start.slice(0, 5)}–${b.quiet_end?.slice(0, 5)}` : ''}</td></tr>)}</tbody></table> : <Empty>–</Empty>}
+      {businesses.length ? <div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>{t('Bedrijf', 'Business')}</th><th>{t('Categorie', 'Category')}</th><th>E-mail</th><th>SMS</th><th>WhatsApp</th><th>{t('Mobiel', 'Mobile')}</th><th>24/7</th><th>{t('Stil', 'Quiet')}</th></tr></thead>
+        <tbody>{businesses.map((b) => <tr key={b.id}><td>{b.name}</td><td>{b.category}</td><td>{b.alert_email ? '✓' : ''}</td><td>{b.alert_sms ? '✓' : ''}</td><td>{b.alert_whatsapp ? '✓' : ''}</td><td>{b.alert_phone ?? ''}</td><td>{b.spoed_24_7 ? '🚨' : ''}</td><td>{b.quiet_start ? `${b.quiet_start.slice(0, 5)}–${b.quiet_end?.slice(0, 5)}` : ''}</td></tr>)}</tbody></table></div> : <Empty>–</Empty>}
     </Card>
   </>;
 }
