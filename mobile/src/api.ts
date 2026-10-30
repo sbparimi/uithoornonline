@@ -28,7 +28,7 @@ export async function api<T = any>(path: string, options: { method?: string; bod
   return data as T;
 }
 
-export type Business = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean; featured: boolean };
+export type Business = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; public_email?: string | null; verified: boolean; featured: boolean };
 export type Review = { id: string; rating: number; body: string; created_at: string; author: string };
 export type Option = { value: string; nl: string; en: string; other?: boolean };
 export type Meta = { businessCategories: Option[]; requestCategories: Option[]; timing: Option[]; urgency: Option[]; contactEmail: string; links: Record<string, { nl: string; en: string }> };

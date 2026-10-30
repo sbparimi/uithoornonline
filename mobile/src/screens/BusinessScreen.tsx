@@ -26,8 +26,9 @@ export default function BusinessScreen() {
   const mapQuery = encodeURIComponent(`${b.name} ${b.postcode ?? ''} Uithoorn`);
   const actions = [
     b.phone && { key: 'call', icon: '✆', label: t.business.call, onPress: () => Linking.openURL(`tel:${b.phone!.replace(/\s/g, '')}`) },
+    b.public_email && { key: 'mail', icon: '✉', label: t.business.email, onPress: () => Linking.openURL(`mailto:${b.public_email}`) },
     b.website && { key: 'web', icon: '🌐', label: t.business.website, onPress: () => Linking.openURL(b.website!) },
-    { key: 'map', icon: '⌖', label: t.business.map, onPress: () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`) },
+    { key: 'map', icon: '📍', label: t.business.map, onPress: () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`) },
     { key: 'share', icon: '↗', label: t.business.share, onPress: () => Share.share({ message: `${b.name} – ${SITE_URL}${lang === 'en' ? '/en' : ''}/businesses/${b.id}` }) },
   ].filter(Boolean) as { key: string; icon: string; label: string; onPress: () => void }[];
 
@@ -56,6 +57,7 @@ export default function BusinessScreen() {
         ))}
       </View>
       {b.phone ? <Text style={st.contactLine} onPress={() => Linking.openURL(`tel:${b.phone!.replace(/\s/g, '')}`)}>✆  {displayPhone(b.phone)}</Text> : null}
+      {b.public_email ? <Text style={st.contactLine} onPress={() => Linking.openURL(`mailto:${b.public_email}`)}>✉  {b.public_email}</Text> : null}
       {b.website ? <Text style={st.contactLine} onPress={() => Linking.openURL(b.website!)}>🌐  {displayUrl(b.website)}</Text> : null}
 
       <Card style={{ marginTop: 16 }}>

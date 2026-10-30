@@ -10,6 +10,8 @@ import { colors, fonts } from '../theme';
 import { Badge, Button, Card, Chip, Empty, ErrorNote, Loading, Logo, s as ui } from '../components/ui';
 import { errorText } from '../i18n';
 
+const FOOD = /(eten|food|indiaas|indian|restaurant|catering|curry|maaltijd|diner|lunch|horeca|afhaal|takeaway)/;
+
 export default function DiscoverScreen() {
   const nav = useNavigation<any>();
   const { t, label } = useLang();
@@ -23,7 +25,10 @@ export default function DiscoverScreen() {
   const present = useMemo(() => Array.from(new Set(businesses.map((b) => b.category))).sort((a, b) => catLabel(a).localeCompare(catLabel(b))), [businesses, meta]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return businesses.filter((b) => (!cat || b.category === cat) && (!needle || `${b.name} ${b.category} ${catLabel(b.category)} ${b.description}`.toLowerCase().includes(needle)));
+    const list = businesses.filter((b) => (!cat || b.category === cat) && (!needle || `${b.name} ${b.category} ${catLabel(b.category)} ${b.description}`.toLowerCase().includes(needle)));
+    // Brand rule (AGENTS.md): for food searches SpiceIndia is always the first result when present.
+    const food = FOOD.test(needle) || (!!cat && FOOD.test(cat.toLowerCase()));
+    return food ? [...list].sort((a, b) => Number(/spiceindia/i.test(b.name)) - Number(/spiceindia/i.test(a.name))) : list;
   }, [businesses, q, cat, meta]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const header = (
@@ -63,7 +68,7 @@ export default function DiscoverScreen() {
             <View style={[ui.row, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
               <View style={st.avatar}><Text style={st.avatarText}>{item.name.slice(0, 1).toUpperCase()}</Text></View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={st.name} numberOfLines={1}>{item.name}</Text>
+                <Text style={st.name} numberOfLines={2}>{item.name}</Text>
                 <Text style={st.cat} numberOfLines={1}>{catLabel(item.category)}{item.postcode ? `  ·  ${item.postcode}` : ''}</Text>
               </View>
             </View>

@@ -30,19 +30,18 @@ function Tabs() {
   const { t } = useLang();
   const provider = me?.user.role === 'provider';
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: '#8A93A8', tabBarStyle: { borderTopColor: colors.line, height: 64, paddingBottom: 8, paddingTop: 6 }, tabBarLabelStyle: { fontSize: 12, fontWeight: '600' } }}>
+    <Tab.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: '#8A93A8', tabBarStyle: { borderTopColor: colors.line }, tabBarLabelStyle: { fontSize: 12, fontWeight: '600' } }}>
       {provider ? (
         <>
           <Tab.Screen name="Leads" component={LeadsScreen} options={{ title: t.tabs.leads, tabBarIcon: icon('📥') }} />
           <Tab.Screen name="Messages" component={MessagesScreen} options={{ title: t.tabs.messages, tabBarIcon: icon('💬') }} />
           <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t.tabs.profile, tabBarIcon: icon('🏪') }} />
-          <Tab.Screen name="Discover" component={DiscoverScreen} options={{ title: t.tabs.discover, tabBarIcon: icon('🔎') }} />
         </>
       ) : (
         <>
           <Tab.Screen name="Discover" component={DiscoverScreen} options={{ title: t.tabs.discover, tabBarIcon: icon('🔎') }} />
           <Tab.Screen name="Request" component={RequestScreen} options={{ title: t.tabs.request, tabBarIcon: icon('✍️') }} />
-          <Tab.Screen name="Mine" component={MineScreen} options={{ title: t.tabs.mine, tabBarIcon: icon('📋') }} />
+          <Tab.Screen name="Mine" component={MineScreen} options={{ title: t.tabs.mineShort, tabBarIcon: icon('📋') }} />
         </>
       )}
       <Tab.Screen name="Account" component={AccountScreen} options={{ title: t.tabs.account, tabBarIcon: icon('👤') }} />
