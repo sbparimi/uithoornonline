@@ -15,13 +15,13 @@ type Status = { category: string; level: string | null; postcode: string; create
 type Quote = { id: string; businessId: string; business: string; verified: boolean; amountCents: number | null; priceType: string; message: string; availableFrom: string | null; status: string; at: string; rating: number | null; reviews: number };
 
 const Q = {
-  nl: { sent: (n: number, round: number) => round > 1 ? `Ook naar ${n} andere bedrijven gestuurd` : `Naar de ${n} best passende ${n === 1 ? 'bedrijf' : 'bedrijven'} gestuurd`, none: 'We zoeken passende bedrijven…',
+  nl: { sent: (n: number, round: number) => round > 1 ? `${n} bedrijven gevraagd (ronde ${round} van 3)` : `Naar de ${n} best passende ${n === 1 ? 'bedrijf' : 'bedrijven'} gestuurd`, none: 'We zoeken passende bedrijven…',
     waitQuotes: (h: number) => `Wachten op offertes. Komt er binnen ${h >= 1 ? `${Math.round(h)} uur` : `${Math.max(1, Math.round(h * 60))} minuten`} geen offerte, dan vragen we automatisch de volgende 3 bedrijven.`,
     quotes: (n: number) => n === 1 ? '1 offerte ontvangen' : `${n} offertes ontvangen`, compare: 'Vergelijk en kies', choose: 'Kies deze offerte', choosing: 'Bezig…', confirm: (b: string) => `Kies je de offerte van ${b}? Het bedrijf krijgt dan je contactgegevens en de anderen horen dat je gekozen hebt.`,
     visit: 'Prijs na bezichtiging', from: 'vanaf', hour: 'per uur', start: 'Kan starten', noReviews: 'Nog geen beoordelingen', reviews: (n: number) => `${n} ${n === 1 ? 'beoordeling' : 'beoordelingen'}`, view: 'Bekijk bedrijf',
     cheapest: 'Laagste prijs', best: 'Best beoordeeld', verified: 'Geverifieerd', chosen: 'gekozen', more: 'Er kunnen nog meer offertes binnenkomen. Je contactgegevens gaan pas naar een bedrijf als je kiest.',
     done: 'Is de klus klaar?', doneBtn: 'Ja, de klus is klaar', doneOk: 'Fijn dat de klus klaar is!', rate: (b: string) => `Hoe heeft ${b} het gedaan?`, rated: 'Bedankt voor je beoordeling!', chooseErr: 'Kiezen lukte niet. Probeer het opnieuw.' },
-  en: { sent: (n: number, round: number) => round > 1 ? `Also sent to ${n} other businesses` : `Sent to the ${n} best-matching ${n === 1 ? 'business' : 'businesses'}`, none: 'Finding matching businesses…',
+  en: { sent: (n: number, round: number) => round > 1 ? `Asked ${n} businesses so far (round ${round} of 3)` : `Sent to the ${n} best-matching ${n === 1 ? 'business' : 'businesses'}`, none: 'Finding matching businesses…',
     waitQuotes: (h: number) => `Waiting for quotes. If no quote comes in within ${h >= 1 ? `${Math.round(h)} hours` : `${Math.max(1, Math.round(h * 60))} minutes`}, we automatically ask the next 3 businesses.`,
     quotes: (n: number) => n === 1 ? '1 quote received' : `${n} quotes received`, compare: 'Compare and choose', choose: 'Choose this quote', choosing: 'Working…', confirm: (b: string) => `Choose the quote from ${b}? The business then gets your contact details and the others hear you have chosen.`,
     visit: 'Price after a visit', from: 'from', hour: 'per hour', start: 'Can start', noReviews: 'No reviews yet', reviews: (n: number) => `${n} ${n === 1 ? 'review' : 'reviews'}`, view: 'View business',

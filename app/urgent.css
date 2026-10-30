@@ -201,3 +201,6 @@
   .ui-quotes { grid-template-columns: 1fr; }
   .ui-quote-price { font-size: 1.35rem; }
 }
+
+/* chosen business: call button on its own line */
+.ui-won .ui-call { display: flex; width: fit-content; margin-top: 10px; }
