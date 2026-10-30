@@ -7,6 +7,8 @@ import { lp, SITE_URL, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 import { directoryText } from '../../lib/directory/i18n';
 import { jsonLd } from '../../lib/json-ld';
+import { ClickTracker } from '../ai-business/click-tracker';
+import '../../app/ai-business.css';
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -54,6 +56,7 @@ export async function DirectoryPage({ lang, searchParams, fixed }: { lang: Local
       <SiteHeader active="businesses" />
       <DirectoryExplorer lang={lang} initial={initial} initialState={state} page={parsed.page} sectionTotals={sectionTotals} categoryTotals={categoryTotals} seoLinks={seoLinks} />
       <SiteFooter lang={lang} />
+      <ClickTracker />
     </div>
   );
 }

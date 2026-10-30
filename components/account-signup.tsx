@@ -8,6 +8,8 @@ import { lp } from '../lib/i18n/config';
 import { useDict, useLang } from './lang-context';
 // Category values are stored as-is; labels are translated (lib/categories.ts, shared with the provider profile form).
 import { OTHER_CATEGORY, categoryLabel, categoryOptions } from '../lib/categories';
+import { SignupAiFill } from './ai-business/signup-ai-fill';
+import '../app/ai-business.css';
 
 type Role = 'customer' | 'provider';
 
@@ -53,6 +55,7 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
       <label>{b.password}<input type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /><small>{b.passwordHint}</small></label>
       <label>{t.common.phone}<input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder={s.phonePlaceholder} /><small>{en ? 'e.g. 06 12345678. We add +31 ourselves.' : 'Bijv. 06 12345678. De +31 zetten we er zelf voor.'}</small></label>
       {role === 'provider' && <>
+        <SignupAiFill lang={lang} onFill={(d) => setForm((v) => ({ ...v, business: v.business || d.name || '', category: d.category && providerCategories.includes(d.category) ? d.category : v.category, description: d.description || v.description, website: d.website || v.website, postcode: d.postcode || v.postcode, publicEmail: d.publicEmail || v.publicEmail }))} />
         <label>{t.common.businessName}<input required autoComplete="organization" value={form.business} onChange={(e) => update('business', e.target.value)} /></label>
         <label>{t.common.category}<select required value={form.category} onChange={(e) => update('category', e.target.value)}><option value="" disabled>{en ? 'Choose your category…' : 'Kies je categorie…'}</option>{providerCategories.map((value) => <option key={value} value={value}>{categoryLabel(value, lang)}</option>)}</select><small>{en ? 'Nothing fits? Choose "Other" and type your own.' : 'Staat je branche er niet tussen? Kies "Anders / overig" en typ je eigen categorie.'}</small></label>
         {form.category === OTHER_CATEGORY && <label>{en ? 'Your category' : 'Jouw categorie'}<input required minLength={2} maxLength={80} value={form.otherCategory} onChange={(e) => update('otherCategory', e.target.value)} placeholder={en ? 'e.g. Piano tuner, Driving school' : 'Bijv. Pianostemmer, Rijschool'} /></label>}

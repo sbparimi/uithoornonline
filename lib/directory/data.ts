@@ -2,6 +2,7 @@ import 'server-only';
 import { query, DbUnavailableError } from '../db';
 import { FALLBACK_BUSINESSES } from '../data/businesses';
 import { localizeText, spiceIndiaId } from '../business-content';
+import { isOpenNow } from '../hours';
 import { buildIndex, searchDirectory, toEntry, type DirectoryEntry, type DirectoryIndex, type DirectoryQuery, type DirectorySource } from './search';
 import { CATEGORY_BY_SLUG, SECTION_BY_ID, type PlaceId, type SectionId } from './taxonomy';
 
@@ -15,8 +16,11 @@ type Row = DirectorySource & { created_at: string };
 async function load(): Promise<{ index: DirectoryIndex; source: 'database' | 'fallback' }> {
   let rows: Row[]; let source: 'database' | 'fallback' = 'database';
   try {
-    rows = await query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at
-                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`);
+    rows = await query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at, opening_hours
+                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`)
+      // Before migration 0006 there is no opening_hours column: same list without it.
+      .catch((e) => { if ((e as { code?: string })?.code !== '42703') throw e; return query<Row>(`select id, name, category, description, postcode, address, website, phone, verified, featured, created_at
+                               from businesses where moderation_status = 'approved' and active = true order by featured desc, name`); });
   } catch (error) {
     if (!(error instanceof DbUnavailableError)) throw error;
     rows = FALLBACK_BUSINESSES.map((b) => ({ ...b, address: null, created_at: '' }));
@@ -42,6 +46,8 @@ export async function getDirectoryIndex(): Promise<{ index: DirectoryIndex; sour
 export type DirectoryCard = {
   id: string; name: string; category: string; categorySlug: string; section: SectionId; line: string;
   town: string | null; place: PlaceId; postcode: string | null; phone: string | null; website: string | null; verified: boolean; featured: boolean;
+  /** true/false from the business's opening hours (Europe/Amsterdam), null when it has none. */
+  openNow: boolean | null;
 };
 
 function shortLine(text: string, max = 150) {
@@ -58,6 +64,7 @@ export function toCard(e: DirectoryEntry, lang: 'nl' | 'en'): DirectoryCard {
     id: e.id, name: e.name, category, categorySlug: e.category.slug, section: e.section,
     line: shortLine(lang === 'nl' ? e.descriptionNl : e.description),
     town: e.town, place: e.place, postcode: e.postcode, phone: e.phone, website: e.website, verified: e.verified, featured: e.featured,
+    openNow: isOpenNow(e.hours),
   };
 }
 
@@ -66,13 +73,15 @@ export type DirectoryPayload = {
   facets: { sections: Record<string, number>; categories: Record<string, number>; places: Record<string, number>; all: number };
   suggestions: { categories: { slug: string; count: number }[]; sections: { id: SectionId; count: number }[] };
   totalListed: number; source: 'database' | 'fallback';
+  /** How many listings have opening hours (the "Nu open" filter only shows when some do). */
+  withHours: number;
 };
 
 export async function runDirectoryQuery(query: DirectoryQuery, lang: 'nl' | 'en'): Promise<DirectoryPayload> {
   const { index, source } = await getDirectoryIndex();
   const offset = query.offset ?? 0, limit = query.limit ?? 24;
   const result = searchDirectory(index, { ...query, offset, limit, pinId: spiceIndiaId });
-  return { ...result, offset, limit, items: result.items.map((e) => toCard(e, lang)), totalListed: index.entries.length, source };
+  return { ...result, offset, limit, items: result.items.map((e) => toCard(e, lang)), totalListed: index.entries.length, source, withHours: index.entries.filter((e) => e.hours).length };
 }
 
 /** Parse URL search params (shared by the pages and the API) into a query. */
@@ -85,7 +94,7 @@ export function parseDirectoryParams(sp: Record<string, string | string[] | unde
   const category = catRaw && CATEGORY_BY_SLUG.has(catRaw) ? catRaw : null;
   const placeRaw = one('plaats');
   const place = (['uithoorn', 'de-kwakel', 'omgeving'] as const).find((p) => p === placeRaw) ?? null;
-  const has = one('met').split(',').filter((h): h is 'website' | 'phone' => h === 'website' || h === 'phone');
+  const has = one('met').split(',').filter((h): h is 'website' | 'phone' | 'open' => h === 'website' || h === 'phone' || h === 'open');
   const sortRaw = one('sort');
   const sort = sortRaw === 'az' || sortRaw === 'newest' ? sortRaw : 'relevance';
   const page = Math.min(500, Math.max(1, Number.parseInt(one('pagina') || '1', 10) || 1));

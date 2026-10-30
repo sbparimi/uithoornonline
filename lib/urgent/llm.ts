@@ -115,36 +115,36 @@ async function discoverModel(p: Provider): Promise<string | null> {
   } catch { return null; }
 }
 
-async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
-  try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs); }
+export async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
+  try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs, maxTokens); }
   catch (e) {
     if (p0.kind !== 'openai' || !/ 404$| 400$/.test(e instanceof Error ? e.message : '')) throw e;
     const model = await discoverModel(p0);
     if (!model || model === p0.model) throw e;
-    return callOnce({ ...p0, model }, system, user, timeoutMs);
+    return callOnce({ ...p0, model }, system, user, timeoutMs, maxTokens);
   }
 }
 
-async function callOnce(p: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
+async function callOnce(p: Provider, system: string, user: string, timeoutMs: number, maxTokens = 400): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     if (p.kind === 'anthropic') {
       const r = await fetch(`${p.baseUrl}/messages`, { method: 'POST', signal: ctrl.signal, headers: { 'x-api-key': p.key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: p.model, max_tokens: 400, system, messages: [{ role: 'user', content: user }] }) });
+        body: JSON.stringify({ model: p.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
       if (!r.ok) throw new Error(`${p.name} ${r.status}`);
       const j = await r.json();
       return String(j?.content?.[0]?.text ?? '');
     }
     const r = await fetch(`${p.baseUrl}/chat/completions`, { method: 'POST', signal: ctrl.signal, headers: { Authorization: `Bearer ${p.key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: p.model, temperature: 0.1, max_tokens: 400, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+      body: JSON.stringify({ model: p.model, temperature: 0.1, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
     if (!r.ok) throw new Error(`${p.name} ${r.status}`);
     const j = await r.json();
     return String(j?.choices?.[0]?.message?.content ?? '');
   } finally { clearTimeout(timer); }
 }
 
-function parseJson(text: string): Record<string, unknown> | null {
+export function parseJson(text: string): Record<string, unknown> | null {
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   try { const v = JSON.parse(m[0]); return v && typeof v === 'object' ? v as Record<string, unknown> : null; } catch { return null; }
@@ -178,4 +178,21 @@ async function classifyWith(p: Provider, text: string, lang: 'nl' | 'en', rules:
     console.warn('[intake] llm failed:', p.name, e instanceof Error ? e.message : e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * Generic JSON call on the same providers/fallback chain as the intake (used by the AI business tools:
+ * profile builder, page chat). Returns null when no provider is configured or every provider failed,
+ * so callers always keep a rule-based path.
+ */
+export async function llmJson(system: string, user: string, opts: { maxTokens?: number; timeoutMs?: number } = {}): Promise<{ data: Record<string, unknown>; provider: string } | null> {
+  for (const p of llmProviders()) {
+    try {
+      const out = parseJson(await callLlm(p, system, user, opts.timeoutMs ?? 15000, opts.maxTokens ?? 1200));
+      if (out) return { data: out, provider: `${p.name}/${discovered.get(p.name) ?? p.model}` };
+    } catch (e) {
+      console.warn('[llmJson] provider failed:', p.name, e instanceof Error ? e.message : e);
+    }
+  }
+  return null;
 }
