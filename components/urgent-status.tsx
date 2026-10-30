@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock, Loader2, Phone, Siren, Users } from 'lucide-react';
 import { lp } from '../lib/i18n/config';
 import { useLang } from './lang-context';
+import WhatsAppFallback, { type WaContext } from './whatsapp-fallback';
 
 // Live status of an intake request (polls /api/intake/status, which also advances spoed escalation).
 type Status = { category: string; level: string | null; postcode: string; createdAt: string; stage: string; status: string; alerted: number; escalated: number; alertsSentAt: string | null;
@@ -22,7 +23,9 @@ const T = {
     level: { spoed: '🚨 Urgent', today: 'Today', week: 'This week', flexible: 'Flexible' } as Record<string, string>, error: 'Could not load the status.' },
 };
 
-export default function UrgentStatus({ token, fresh = false, escalateMinutes = 10 }: { token: string; fresh?: boolean; escalateMinutes?: number }) {
+export default function UrgentStatus({ token, fresh = false, escalateMinutes = 10, whatsapp = null, labels = [], waCtx = {} }: {
+  token: string; fresh?: boolean; escalateMinutes?: number; whatsapp?: string | null; labels?: [string, string][]; waCtx?: WaContext;
+}) {
   const lang = useLang();
   const t = T[lang === 'en' ? 'en' : 'nl'];
   const [s, setS] = useState<Status | null>(null);
@@ -44,7 +47,16 @@ export default function UrgentStatus({ token, fresh = false, escalateMinutes = 1
   }, [token]);
 
   const time = (v: string) => new Date(v).toLocaleTimeString(lang === 'en' ? 'en-GB' : 'nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
-  if (!s) return <div className="ui-status">{err ? <p className="platform-error">{t.error}</p> : <p><Loader2 className="ui-spin" aria-hidden="true" /> …</p>}</div>;
+  // WhatsApp fallback (docs/URGENT_HANDLING.md): shown when the status cannot be loaded or nobody was found.
+  const wa = (reason: string) => {
+    if (!whatsapp) return null;
+    const ctx: WaContext = s ? {
+      ...waCtx, category: labels.find(([k]) => k === s.category)?.[1] ?? waCtx.category ?? s.category,
+      level: (t.level[s.level ?? 'flexible'] ?? s.level ?? '').replace('🚨 ', ''), postcode: s.postcode, createdAt: time(s.createdAt),
+    } : waCtx;
+    return <WhatsAppFallback number={whatsapp} lang={lang} ctx={ctx} reason={reason} kind="status" />;
+  };
+  if (!s) return <div className="ui-status">{err ? <><p className="platform-error" role="alert">{t.error}</p>{wa('status_error')}</> : <p><Loader2 className="ui-spin" aria-hidden="true" /> …</p>}</div>;
   const spoed = s.level === 'spoed';
 
   return <div className="ui-status" role="status">
@@ -57,6 +69,7 @@ export default function UrgentStatus({ token, fresh = false, escalateMinutes = 1
         ? <li className="done ui-won"><CheckCircle2 aria-hidden="true" /><span><strong>{s.accepted.name}</strong> {t.accepted}{s.accepted.phone ? <a className="primary platform-button-link ui-call" href={`tel:${s.accepted.phone}`}><Phone aria-hidden="true" /> {t.call} {s.accepted.phone}</a> : null}</span></li>
         : s.stage !== 'exhausted' ? <li className="now"><Clock aria-hidden="true" /><span>{t.waiting}</span></li> : null}
     </ol>
+    {!s.accepted && s.stage === 'exhausted' ? wa('status_exhausted') : null}
     <p className="ui-muted">{fresh ? t.mail : t.live}</p>
     {fresh ? <a className="ui-ghost" href={lp(lang, '/account')}>{t.account}</a> : null}
   </div>;

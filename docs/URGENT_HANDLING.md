@@ -62,6 +62,12 @@ Providers:
 | `ALERT_TOKEN_SECRET` | Signs accept/status links (falls back to `CRON_SECRET`) |
 | `SPOED_ESCALATE_AFTER_MIN`, `SPOED_CALL_GAP_MIN` | Timers (defaults 10 and 3) |
 
+WhatsApp fallback (help assistant):
+
+| Name | Effect |
+| --- | --- |
+| `WHATSAPP_CONTACT_NUMBER` | The number residents can WhatsApp when the chat does not work, in international format (`+31612345678`, `31612345678` or `0031…`; spaces are ignored). Unset = no WhatsApp buttons. When set: a small "Lukt het niet? Stuur ons een WhatsApp" link under the chat, a green button whenever the chat hits an error (AI unavailable, sending fails or times out, a validation error, a photo that cannot be added), and on the status page when the status cannot be loaded or nobody was found. The button opens `wa.me` (WhatsApp app on phones, WhatsApp Web on desktop) with everything the resident typed so far filled in. Clicks are counted in Admin → Spoed (`analytics_events` `intake_whatsapp_fallback`, anonymous: reason + language). |
+
 Test safety (previews only, never production):
 
 | Name | Effect |
@@ -86,3 +92,12 @@ or move to Vercel Pro and add `{"path": "/api/cron/urgent", "schedule": "* * * *
 3. Later, with keys: `JOB_ALERTS_SMS_ENABLED=1`, `JOB_ALERTS_WHATSAPP_ENABLED=1`, `JOB_ALERTS_VOICE_ENABLED=1`.
 
 To switch off: remove/blank the flag and redeploy. Data stays; nothing else changes.
+
+## WhatsApp fallback: switching it on in production
+
+1. Vercel → project → Settings → Environment Variables → Add: key `WHATSAPP_CONTACT_NUMBER`, value e.g.
+   `+31612345678` (the WhatsApp number that should receive the messages), environment **Production** only.
+2. Redeploy production (Deployments → latest production deployment → ⋯ → Redeploy), because
+   environment variables are read at deploy time.
+3. Check: with `URGENT_INTAKE_ENABLED=1` the `/hulp` page shows the small WhatsApp link under the chat,
+   and Admin → Spoed shows "WhatsApp-terugval: +31…". Remove the variable (and redeploy) to switch it off.
