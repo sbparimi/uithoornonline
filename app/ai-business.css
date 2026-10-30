@@ -99,7 +99,10 @@
 .aib-hours tr.is-today th, .aib-hours tr.is-today td { font-weight: 750; color: var(--aib-ink); }
 .aib-note { margin: 10px 0 0; color: var(--aib-muted); font-size: 14px; }
 .aib-faq details { border-bottom: 1px solid #eef0f3; padding: 12px 0; }
-.aib-faq summary { cursor: pointer; font-weight: 650; font-size: 16px; list-style-position: outside; }
+.aib-faq summary { cursor: pointer; font-weight: 650; font-size: 16px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.aib-faq summary::-webkit-details-marker { display: none; }
+.aib-faq summary::after { content: '+'; color: var(--aib-blue); font-weight: 700; font-size: 20px; line-height: 1; flex: none; }
+.aib-faq details[open] summary::after { content: '–'; }
 .aib-faq details p { margin: 8px 0 0; color: var(--aib-text); line-height: 1.55; }
 
 /* page chat */
