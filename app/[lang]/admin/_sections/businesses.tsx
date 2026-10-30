@@ -14,6 +14,7 @@ function BusinessForm({ ctx, b, create }: { ctx: Ctx; b?: Partial<B.BusinessDeta
       <Field label={t('Beschrijving', 'Description')} wide><textarea name="description" rows={4} maxLength={3000} defaultValue={b?.description ?? ''} /></Field>
       <Field label={t('Telefoon', 'Phone')}><input name="phone" maxLength={40} defaultValue={b?.phone ?? ''} /></Field>
       <Field label="Website"><input name="website" maxLength={300} defaultValue={b?.website ?? ''} placeholder="https://" /></Field>
+      <Field label={t('E-mailadres (zichtbaar op profiel)', 'Email (shown on profile)')} hint={t('Optioneel. Leeg = geen e-mail op het profiel.', 'Optional. Empty = no email on the profile.')}><input name="public_email" type="email" maxLength={254} defaultValue={b?.public_email ?? ''} placeholder="info@bedrijf.nl" /></Field>
       <Field label={t('Adres', 'Address')}><input name="address" maxLength={200} defaultValue={b?.address ?? ''} /></Field>
       <Field label="Postcode"><input name="postcode" maxLength={10} defaultValue={b?.postcode ?? ''} /></Field>
       <Field label={t('Eigenaar (e-mail)', 'Owner (email)')} hint={t('Moet een bestaand account zijn. Leeg = geen eigenaar.', 'Must be an existing account. Empty = no owner.')}><input name="owner_email" type="email" defaultValue={b?.owner_email ?? ''} /></Field>

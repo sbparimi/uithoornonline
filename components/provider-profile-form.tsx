@@ -5,7 +5,7 @@ import { ArrowRight, Check } from 'lucide-react';
 import { useDict, useLang } from './lang-context';
 import { OTHER_CATEGORY, categoryLabel, categoryOptions } from '../lib/categories';
 
-type Business = { id: string; name: string; category: string; description: string; postcode: string | null; address: string | null; website: string | null; phone: string | null; verified: boolean };
+type Business = { id: string; name: string; category: string; description: string; postcode: string | null; address: string | null; website: string | null; phone: string | null; public_email?: string | null; verified: boolean };
 // Values are stored as-is; labels are translated (lib/categories.ts).
 
 export default function ProviderProfileForm({ business }: { business: Business }) {
@@ -16,16 +16,16 @@ export default function ProviderProfileForm({ business }: { business: Business }
   const categories = categoryOptions(lang);
   const options = categories.includes(business.category) ? categories : [business.category, ...categories];
   const [otherCategory, setOtherCategory] = useState('');
-  const [form, setForm] = useState({ name: business.name, category: business.category, description: business.description, postcode: business.postcode || '', address: business.address || '', website: business.website || '', phone: business.phone || '' });
+  const [form, setForm] = useState({ name: business.name, category: business.category, description: business.description, postcode: business.postcode || '', address: business.address || '', website: business.website || '', phone: business.phone || '', public_email: business.public_email || '' });
   const [saving, setSaving] = useState(false); const [saved, setSaved] = useState(false); const [error, setError] = useState('');
   const update = (key: keyof typeof form, value: string) => { setSaved(false); setForm((current) => ({ ...current, [key]: value })); };
   async function submit(event: FormEvent) {
     event.preventDefault(); if (saving) return; setSaving(true); setError(''); setSaved(false);
     try {
-      const res = await fetch('/api/provider/profile', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.name.trim(), category: form.category === OTHER_CATEGORY ? (otherCategory.trim() || OTHER_CATEGORY) : form.category, description: form.description.trim(), postcode: form.postcode.trim().toUpperCase(), address: form.address.trim(), website: form.website.trim(), phone: form.phone.trim() }) });
+      const res = await fetch('/api/provider/profile', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.name.trim(), category: form.category === OTHER_CATEGORY ? (otherCategory.trim() || OTHER_CATEGORY) : form.category, description: form.description.trim(), postcode: form.postcode.trim().toUpperCase(), address: form.address.trim(), website: form.website.trim(), phone: form.phone.trim(), public_email: form.public_email.trim() }) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error === 'invalid_website' ? t.common.websiteError : data.error === 'invalid_postcode' ? t.common.postcodeError : p.saveError);
+        setError(data.error === 'invalid_website' ? t.common.websiteError : data.error === 'invalid_public_email' ? t.common.publicEmailError : data.error === 'invalid_postcode' ? t.common.postcodeError : p.saveError);
         return;
       }
       setSaved(true);
@@ -40,6 +40,7 @@ export default function ProviderProfileForm({ business }: { business: Business }
     <label>{p.address}<input value={form.address} onChange={(e) => update('address', e.target.value)} /></label>
     <label>{t.common.website}<input type="text" inputMode="url" placeholder="www.jouwbedrijf.nl" value={form.website} onChange={(e) => update('website', e.target.value)} /></label>
     <label>{t.common.phone}<input type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} /></label>
+    <label>{t.common.publicEmail}<input type="email" inputMode="email" autoComplete="email" maxLength={254} placeholder="info@jouwbedrijf.nl" value={form.public_email} onChange={(e) => update('public_email', e.target.value)} /><small>{t.common.publicEmailHint}</small></label>
     {business.verified && <p className="verification-note"><Check aria-hidden="true" /> {p.verifiedNote}</p>}
     {error && <p className="platform-error" role="alert">{error}</p>}
     {saved && <p className="review-success" role="status"><Check aria-hidden="true" /> {p.saved}</p>}

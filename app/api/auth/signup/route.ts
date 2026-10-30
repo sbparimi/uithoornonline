@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     let business: ReturnType<typeof cleanBusinessInput>['value'] | null = null;
     if (role === 'provider') {
-      const cleaned = cleanBusinessInput({ name: body.businessName ?? body.business, category: body.businessCategory ?? body.category, description: body.businessDescription ?? body.description, postcode: body.postcode, website: body.website, phone: body.phone });
+      const cleaned = cleanBusinessInput({ name: body.businessName ?? body.business, category: body.businessCategory ?? body.category, description: body.businessDescription ?? body.description, postcode: body.postcode, website: body.website, phone: body.phone, public_email: body.publicEmail ?? body.public_email });
       if (cleaned.error) return errorJson(cleaned.error, 400);
       if (!cleaned.value.name || !cleaned.value.category) return errorJson('invalid_business', 400);
       if ((cleaned.value.description ?? '').length < 20) return errorJson('invalid_description', 400);

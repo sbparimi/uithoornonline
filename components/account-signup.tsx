@@ -19,7 +19,7 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
   const { fields, trap } = useSpamTrap();
   const [password, setPassword] = useState(''); const [accept, setAccept] = useState(false);
   const [role, setRole] = useState<Role>(initialRole);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', business: '', category: '', otherCategory: '', description: '', website: '', postcode: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', business: '', category: '', otherCategory: '', description: '', website: '', postcode: '', publicEmail: '' });
   const providerCategories = categoryOptions(lang);
   const en = lang === 'en';
   const businessCategory = form.category === OTHER_CATEGORY ? form.otherCategory.trim() : form.category;
@@ -34,10 +34,10 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
     if (!accept) { setError(b.termsRequired); return; }
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...fields, email: form.email.trim(), password, fullName: form.name.trim(), phone: form.phone.trim(), role, businessName: form.business.trim(), businessCategory, businessDescription: form.description.trim(), website: form.website.trim(), postcode: form.postcode.trim().toUpperCase(), acceptTerms: accept, lang }) });
+      const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...fields, email: form.email.trim(), password, fullName: form.name.trim(), phone: form.phone.trim(), role, businessName: form.business.trim(), businessCategory, businessDescription: form.description.trim(), website: form.website.trim(), publicEmail: role === 'provider' ? form.publicEmail.trim() : '', postcode: form.postcode.trim().toUpperCase(), acceptTerms: accept, lang }) });
       const data = await res.json().catch(() => ({}));
       if (res.ok) { window.location.href = data.redirect || lp(lang, role === 'provider' ? '/provider' : '/account'); return; }
-      setError(data.error === 'email_exists' ? s.errExists : data.error === 'password_too_short' ? b.weakPassword : data.error === 'terms_required' ? b.termsRequired : data.error === 'invalid_postcode' ? t.common.postcodeError : data.error === 'invalid_website' ? t.common.websiteError : data.error === 'rate_limited' ? b.rateLimited : s.errFailed);
+      setError(data.error === 'email_exists' ? s.errExists : data.error === 'password_too_short' ? b.weakPassword : data.error === 'terms_required' ? b.termsRequired : data.error === 'invalid_postcode' ? t.common.postcodeError : data.error === 'invalid_website' ? t.common.websiteError : data.error === 'invalid_public_email' ? t.common.publicEmailError : data.error === 'rate_limited' ? b.rateLimited : s.errFailed);
     } catch {
       setError(t.common.network);
     } finally {
@@ -58,6 +58,7 @@ export default function AccountSignup({ initialRole = 'customer' }: { initialRol
         {form.category === OTHER_CATEGORY && <label>{en ? 'Your category' : 'Jouw categorie'}<input required minLength={2} maxLength={80} value={form.otherCategory} onChange={(e) => update('otherCategory', e.target.value)} placeholder={en ? 'e.g. Piano tuner, Driving school' : 'Bijv. Pianostemmer, Rijschool'} /></label>}
         <label>{t.common.description}<textarea required minLength={20} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder={s.descPlaceholder} /><small>{en ? 'At least 20 characters.' : 'Minimaal 20 tekens.'}</small></label>
         <label>{t.common.website}<input type="text" inputMode="url" autoComplete="url" value={form.website} onChange={(e) => update('website', e.target.value)} placeholder={en ? 'www.yourbusiness.nl (optional)' : 'www.jouwbedrijf.nl (optioneel)'} /></label>
+        <label>{t.common.publicEmail}<input type="email" inputMode="email" maxLength={254} value={form.publicEmail} onChange={(e) => update('publicEmail', e.target.value)} placeholder={en ? 'info@yourbusiness.nl (optional)' : 'info@jouwbedrijf.nl (optioneel)'} /><small>{en ? 'Optional. Can be different from your login email; customers see this one.' : 'Optioneel. Mag anders zijn dan je inlog-e-mail; dit adres zien klanten.'}</small></label>
         <label>{t.common.postcode}<input required inputMode="text" autoComplete="postal-code" value={form.postcode} onChange={(e) => update('postcode', e.target.value.toUpperCase())} placeholder="1421 AB" /></label>
       </>}
       <label className="checkbox-row"><input type="checkbox" required checked={accept} onChange={(e) => setAccept(e.target.checked)} /> <span>{b.acceptTerms} <a href={lp(lang, '/voorwaarden')} target="_blank" rel="noopener">{b.terms}</a> {b.and} <a href={lp(lang, '/privacy')} target="_blank" rel="noopener">{b.privacy}</a>{b.read}</span></label>

@@ -2,8 +2,9 @@ import 'server-only';
 import { query, queryOne, transaction, DbUnavailableError } from '../db';
 import type { SessionUser } from '../auth/session';
 import { normalizePhone, normalizeWebsite } from '../phone';
+import { isValidPublicEmail, normalizePublicEmail } from '../public-email';
 
-export type PublicBusiness = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; verified: boolean; featured: boolean };
+export type PublicBusiness = { id: string; name: string; category: string; description: string; postcode: string | null; website: string | null; phone: string | null; public_email?: string | null; verified: boolean; featured: boolean };
 
 // The two real businesses that were already listed on the site. Shown only when the database is
 // unreachable, so the directory never renders empty during an outage. (Also seeded into the DB.)
@@ -12,7 +13,7 @@ export const FALLBACK_BUSINESSES: PublicBusiness[] = [
   { id: '68efa8f0-6e5f-4ea9-ba5b-94fbff1fba35', name: 'Ruslen', category: 'Garden renovation, paving, tiling & fencing', description: 'Local contractor for garden renovation and outdoor works, including paving, tiles and fencing. Contact Ruslen for project details, scope and quotation.', postcode: '1421', website: null, phone: '+31616270233', verified: true, featured: false },
 ];
 
-const PUBLIC_COLUMNS = 'id, name, category, description, postcode, website, phone, verified, featured';
+const PUBLIC_COLUMNS = 'id, name, category, description, postcode, website, phone, public_email, verified, featured';
 const PUBLIC_WHERE = "moderation_status = 'approved' and active = true";
 
 /** Approved, active businesses. Falls back to the built-in list only when the DB is unreachable. */
@@ -62,7 +63,7 @@ export async function getOwnBusiness(user: SessionUser): Promise<OwnBusiness | n
   return queryOne<OwnBusiness>(`select ${PUBLIC_COLUMNS}, address, moderation_status, active, created_at from businesses where owner_id = $1 order by created_at limit 1`, [user.id]);
 }
 
-export type BusinessInput = { name?: string; category?: string; description?: string; postcode?: string | null; address?: string | null; website?: string | null; phone?: string | null };
+export type BusinessInput = { name?: string; category?: string; description?: string; postcode?: string | null; address?: string | null; website?: string | null; phone?: string | null; public_email?: string | null };
 
 export function cleanBusinessInput(raw: Record<string, unknown>): { value: BusinessInput; error: string | null } {
   const s = (k: string, max: number) => (raw[k] === undefined ? undefined : String(raw[k] ?? '').trim().slice(0, max));
@@ -72,17 +73,19 @@ export function cleanBusinessInput(raw: Record<string, unknown>): { value: Busin
     address: s('address', 200) || (raw.address === undefined ? undefined : null),
     website: normalizeWebsite(s('website', 300)) || (raw.website === undefined ? undefined : null),
     phone: normalizePhone(s('phone', 40)).slice(0, 40) || (raw.phone === undefined ? undefined : null),
+    public_email: (raw.public_email === undefined ? undefined : normalizePublicEmail(raw.public_email).slice(0, 254)) || (raw.public_email === undefined ? undefined : null),
   };
   if (value.name !== undefined && value.name.length < 2) return { value, error: 'invalid_name' };
   if (value.website && !/^https?:\/\/[^\s]+\.[^\s]+$/i.test(value.website)) return { value, error: 'invalid_website' };
   if (value.postcode && !/^\d{4}\s?[A-Z]{2}$|^\d{4}$/.test(value.postcode)) return { value, error: 'invalid_postcode' };
+  if (value.public_email && !isValidPublicEmail(value.public_email)) return { value, error: 'invalid_public_email' };
   return { value, error: null };
 }
 
 // Owner-editable columns only. verified / featured / moderation_status / active / owner_id are
 // deliberately absent: only lib/data/admin.ts writes those (this closes the old Supabase hole
 // where an owner could set their own business to verified or promote it).
-const OWNER_EDITABLE = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone'] as const;
+const OWNER_EDITABLE = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone', 'public_email'] as const;
 
 export async function updateOwnBusiness(user: SessionUser, input: BusinessInput) {
   const sets: string[] = []; const params: unknown[] = [];
@@ -99,9 +102,9 @@ export async function updateOwnBusiness(user: SessionUser, input: BusinessInput)
 export async function createBusinessForOwner(ownerId: string, input: Required<Pick<BusinessInput, 'name' | 'category'>> & BusinessInput) {
   return transaction(async (client) => {
     const { rows } = await client.query<{ id: string }>(
-      `insert into businesses(owner_id, name, category, description, postcode, address, website, phone, moderation_status)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,'pending') returning id`,
-      [ownerId, input.name, input.category, input.description ?? '', input.postcode ?? null, input.address ?? null, input.website ?? null, input.phone ?? null]);
+      `insert into businesses(owner_id, name, category, description, postcode, address, website, phone, public_email, moderation_status)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending') returning id`,
+      [ownerId, input.name, input.category, input.description ?? '', input.postcode ?? null, input.address ?? null, input.website ?? null, input.phone ?? null, input.public_email ?? null]);
     return rows[0].id;
   });
 }
