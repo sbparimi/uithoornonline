@@ -10,7 +10,7 @@
   --f-hand: var(--f-text);
   --f-sans: var(--f-text);
   --ds-font: var(--f-text);
-  --f-grey: #4b4d52;   /* body copy: 8.1:1 on white, 7.5:1 on #f5f6f8 */
+  --f-grey: #4b4d52;   /* body copy: 8.5:1 on white, 7.8:1 on #f5f6f8 */
   --f-grey-2: #5e6068; /* secondary copy: 6.3:1 on white */
 }
 

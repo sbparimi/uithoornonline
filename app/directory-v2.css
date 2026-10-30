@@ -28,7 +28,7 @@
 .dir2-searchbox.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .dir2-search-icon { width: 20px; height: 20px; color: var(--dir-muted); }
 .dir2 .dir2-searchbox input, .folk .dir2 .dir2-searchbox input { flex: 1; min-width: 0; width: auto; border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent !important; border-radius: 0 !important; font: 500 17px/1.3 var(--f-text); color: var(--dir-ink); padding: 12px 0 !important; margin: 0; min-height: 0 !important; height: auto; -webkit-appearance: none; appearance: none; }
-.dir2-searchbox input::placeholder { color: #80838c; font-weight: 400; }
+.dir2-searchbox input::placeholder { color: #6b6e76; font-weight: 400; }
 .dir2-searchbox input::-webkit-search-cancel-button { display: none; }
 .dir2-clear { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 999px; background: #eef0f4; color: var(--dir-text); }
 .dir2-clear svg { width: 18px; height: 18px; }
