@@ -2,6 +2,7 @@
 // The value is stored as-is in businesses.category and shown publicly, so it is plain Dutch.
 // Labels are what the dropdown shows. Lead matching (lib/data/requests.ts MATCH_SQL) reads the
 // category and description, so new values should carry words the matcher knows.
+// The public directory groups these into sections: add new values to lib/directory/taxonomy.ts too.
 export type BusinessCategory = { value: string; nl: string; en: string };
 
 /** The free-text choice: the business types its own category. */

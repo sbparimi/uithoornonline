@@ -7,7 +7,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
     ? { title: 'Something went wrong', text: 'Uithoorn.online could not load this page. Please try again in a moment.', retry: 'Try again', home: 'Homepage', href: '/en' }
     : { title: 'Er ging iets mis', text: 'Uithoorn.online kon deze pagina niet laden. Probeer het zo nog eens.', retry: 'Opnieuw proberen', home: 'Homepage', href: '/' };
   return <html lang={en ? 'en' : 'nl-NL'}>
-    <body style={{ margin: 0, fontFamily: 'Georgia, serif', background: '#f7f2ea', color: '#1d1b1d', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+    <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif', background: '#f7f2ea', color: '#1d1b1d', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <main style={{ maxWidth: 460, textAlign: 'center' }} role="alert">
         <title>{`${t.title} — Uithoorn.online`}</title>
         <meta name="robots" content="noindex" />
