@@ -108,8 +108,8 @@
 .aib-chat-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--aib-blue); color: #fff; flex: none; }
 .aib-chat-avatar svg { width: 22px; height: 22px; }
 .aib-chat h2 { margin: 0; font-size: 20px; }
-.aib-chat-head p { margin: 2px 0 0; font-size: 13.5px; color: var(--aib-muted); display: flex; gap: 4px; align-items: center; }
-.aib-chat-head p svg { width: 14px; height: 14px; color: var(--aib-blue); flex: none; }
+.aib-chat-head p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.4; color: var(--aib-muted); }
+.aib-chat-head p svg { width: 14px; height: 14px; color: var(--aib-blue); vertical-align: -2px; margin-right: 3px; }
 .aib-chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; padding: 4px 2px; }
 .aib-chat-hello { margin: 0; padding: 12px 14px; border-radius: 16px; background: #f4f6fa; color: var(--aib-text); font-size: 15px; line-height: 1.5; }
 .aib-msg { max-width: 86%; padding: 10px 14px; border-radius: 18px; font-size: 15.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }

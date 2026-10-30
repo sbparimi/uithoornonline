@@ -63,7 +63,10 @@ export function ProfileStudio({ business, extras, aiAvailable }: { business: Bus
   function applyDraft(d: Draft) {
     const filled: string[] = [];
     const pick = (k: string, v: string | null | undefined, cur: string) => { if (v && v !== cur) { filled.push(k); return v; } return cur; };
-    setF((x) => ({
+    // Computed from the current form right away (not inside a state updater) so the list of filled
+    // fields is complete when we count it and mark the AI badges.
+    const x = f;
+    setF({
       ...x,
       name: x.name || pick('name', d.name, x.name),
       category: d.category && categories.includes(d.category) ? pick('category', d.category, x.category) : x.category,
@@ -72,7 +75,7 @@ export function ProfileStudio({ business, extras, aiAvailable }: { business: Bus
       postcode: pick('postcode', d.postcode, x.postcode), address: pick('address', d.address, x.address),
       website: pick('website', d.website, x.website), phone: pick('phone', d.phone, x.phone),
       public_email: pick('public_email', d.public_email, x.public_email), kvk: pick('kvk', d.kvk_number, x.kvk),
-    }));
+    });
     if (d.services?.length) { setServices(d.services); filled.push('services'); }
     if (d.faqs?.length) { setFaqs(d.faqs); filled.push('faqs'); }
     if (d.opening_hours) { setRows(rowsFromHours(d.opening_hours)); setNote(d.opening_hours.note ?? ''); filled.push('hours'); }
