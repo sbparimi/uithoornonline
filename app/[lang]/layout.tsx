@@ -27,6 +27,8 @@ import '../design-system.css';
 import '../backend.css';
 import '../folk.css';
 import '../admin.css';
+import '../typography.css';
+import '../directory-v2.css';
 import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/next';
@@ -35,16 +37,15 @@ import { SpiceIndiaAd } from '../../components/spiceindia-ad';
 import { alternatesFor, isLocale, locales, ogLocale, SITE_URL, type Locale } from '../../lib/i18n/config';
 import { getDictionary } from '../../lib/i18n/dictionaries';
 
-const folkSerif = localFont({
-  src: [
-    { path: '../fonts/averia-serif-libre-400.woff2', weight: '400', style: 'normal' },
-    { path: '../fonts/averia-serif-libre-700.woff2', weight: '700', style: 'normal' },
-  ],
-  variable: '--font-serif',
+// One professional, highly legible typeface site-wide: Inter (variable, self-hosted, SIL OFL —
+// app/fonts/Inter-OFL.txt). Covers Dutch diacritics (é, ë, ï, ü…). See app/typography.css.
+const inter = localFont({
+  src: [{ path: '../fonts/inter-latin-var.woff2', weight: '100 900', style: 'normal' }],
+  variable: '--font-sans',
   display: 'swap',
-  fallback: ['Georgia', 'serif'],
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+  adjustFontFallback: 'Arial',
 });
-const folkHand = localFont({ src: '../fonts/caveat-600.woff2', weight: '600', variable: '--font-hand', display: 'swap', fallback: ['cursive'] });
 
 export function generateStaticParams() {
   return locales.map((lang) => ({ lang }));
@@ -75,7 +76,7 @@ export default async function RootLayout({ children, params }: Readonly<{ childr
   if (!isLocale(lang)) notFound();
   const t = getDictionary(lang);
   return (
-    <html lang={lang === 'nl' ? 'nl-NL' : 'en'} className={`${folkSerif.variable} ${folkHand.variable}`}>
+    <html lang={lang === 'nl' ? 'nl-NL' : 'en'} className={inter.variable}>
       <body className="ds folk">
         <a className="skip-link" href="#main">{t.common.skip}</a>
         <LangProvider lang={lang}>
