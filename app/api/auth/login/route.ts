@@ -1,7 +1,7 @@
 import { errorJson, handle, json, readJson, sameOrigin } from '@/lib/http';
 import { clientIp, LIMITS, rateLimit } from '@/lib/security/rate-limit';
 import { verifyPassword } from '@/lib/auth/password';
-import { createSession } from '@/lib/auth/session';
+import { createSession, isMobileClient } from '@/lib/auth/session';
 import { findUserByEmail, normalizeEmail } from '@/lib/data/users';
 
 export async function POST(request: Request) {
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     const user = await findUserByEmail(email);
     const valid = await verifyPassword(password, user?.password_hash);
     if (!user || !valid || user.disabled_at) return errorJson('invalid_credentials', 401);
-    await createSession(user.id, 'password');
+    const token = await createSession(user.id, 'password');
     const en = body.lang === 'en';
     const home = user.role === 'admin' ? '/admin' : user.role === 'provider' ? '/provider' : '/account';
-    return json({ ok: true, role: user.role, redirect: en ? `/en${home}` : home });
+    return json({ ok: true, role: user.role, redirect: en ? `/en${home}` : home, ...(isMobileClient(request) ? { token } : {}) });
   }, 'auth/login');
 }

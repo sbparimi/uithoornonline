@@ -5,11 +5,12 @@ import { ArrowRight, Check } from 'lucide-react';
 import { lp } from '../../../lib/i18n/config';
 import { useDict, useLang } from '../../../components/lang-context';
 import { useSpamTrap } from '../../../components/spam-trap';
+import { REQUEST_CATEGORIES, REQUEST_TIMING, REQUEST_URGENCY } from '../../../lib/request-options';
 
 // Option values are stored in the database as-is; only the labels are translated.
-const categories = ['Home improvement & renovation', 'Garden & outdoor', 'Plumber', 'Electrician & installation', 'Handyman', 'Cleaning & household', 'Transport & logistics', 'Security & alarm systems', 'Childcare', 'Care & health', 'Hair & beauty', 'Lessons & tutoring', 'Computer & IT help', 'Pets', 'Photography & video', 'Sport & fitness', 'Property services', 'Automotive', 'Family & personal', 'Events & occasions', 'Food & catering', 'Financial & administration', 'Legal advice', 'Professional services'];
-const timingOptions = ['Today', 'This week', 'Next week', 'This month', 'Flexible'];
-const urgencyOptions = ['As soon as possible', 'Within a week', 'Within a month', 'No urgency'];
+const categories = REQUEST_CATEGORIES;
+const timingOptions = REQUEST_TIMING;
+const urgencyOptions = REQUEST_URGENCY;
 const categoryAliases: Record<string, string> = {
   garden: 'Garden & outdoor', 'tuin & buiten': 'Garden & outdoor', 'tuin & groen': 'Garden & outdoor', 'garden & outdoor': 'Garden & outdoor', tuin: 'Garden & outdoor',
   home: 'Home improvement & renovation', 'huis & klus': 'Home improvement & renovation', 'home improvement': 'Home improvement & renovation', 'home improvement & renovation': 'Home improvement & renovation',

@@ -2,7 +2,7 @@ import { errorJson, handle, json, readJson, sameOrigin, str } from '@/lib/http';
 import { clientIp, LIMITS, rateLimit } from '@/lib/security/rate-limit';
 import { looksLikeSpam } from '@/lib/security/spam';
 import { hashPassword, passwordProblem } from '@/lib/auth/password';
-import { createSession } from '@/lib/auth/session';
+import { createSession, isMobileClient } from '@/lib/auth/session';
 import { createUser, normalizeEmail } from '@/lib/data/users';
 import { cleanBusinessInput, createBusinessForOwner } from '@/lib/data/businesses';
 import { normalizePhone } from '@/lib/phone';
@@ -53,11 +53,11 @@ export async function POST(request: Request) {
         throw error;
       }
     }
-    await createSession(created.id, 'password');
+    const token = await createSession(created.id, 'password');
 
     const mail = welcomeEmail(locale, fullName, role === 'provider');
     after(() => sendEmail({ to: email, kind: 'welcome', lang: locale, ...mail }));
     after(() => notify(role === 'provider' ? 'new_business' : 'new_signup', role === 'provider' ? `${business!.name} (${business!.category})` : `${fullName} (bewoner)`, { email, role, businessId }));
-    return json({ ok: true, role, redirect: locale === 'en' ? (role === 'provider' ? '/en/provider' : '/en/account') : (role === 'provider' ? '/provider' : '/account') }, 201);
+    return json({ ok: true, role, redirect: locale === 'en' ? (role === 'provider' ? '/en/provider' : '/en/account') : (role === 'provider' ? '/provider' : '/account'), ...(isMobileClient(request) ? { token } : {}) }, 201);
   }, 'auth/signup');
 }
