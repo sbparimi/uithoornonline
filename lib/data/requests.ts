@@ -5,6 +5,7 @@ import type { SessionUser } from '../auth/session';
 import { planUsage } from './plans';
 import { consumeCredit } from './credits';
 import { PRICING_ENABLED } from '../pricing';
+import { MATCH_SQL, matchParams } from '../matching';
 
 export type RequestInput = { category: string; description: string; postcode: string; preferredTiming: string; urgency: string; budgetMin: number | null; budgetMax: number | null };
 
@@ -27,67 +28,31 @@ export function cleanRequestInput(body: Record<string, unknown>): { value: Reque
   return { value, error: null };
 }
 
-// Category → keyword regex, ported from the old match_service_request() SQL function.
-export const MATCH_SQL = `
-  select b.id, b.name, b.owner_id, u.email as owner_email, u.locale as owner_locale
-    from businesses b join users u on u.id = b.owner_id
-   where b.moderation_status = 'approved' and b.active = true and u.disabled_at is null
-     and b.owner_id <> $3
-     and lower(b.category) not like '%indian food%'
-     and lower(b.category) not like '%workshop%'
-     -- No hard postcode filter (the site only serves Uithoorn & De Kwakel); same postcode ranks first.
-     and (
-          ($1 like '%garden%' and lower(b.category || ' ' || b.description) ~ '(garden|tuin|hovenier|landschap|bestrating|schutting|buiten)')
-       or ($1 like '%tuin%' and lower(b.category || ' ' || b.description) ~ '(garden|tuin|hovenier|landschap|bestrating|schutting|buiten)')
-       or ($1 like '%plumb%' and lower(b.category || ' ' || b.description) ~ '(plumb|loodgiet|water|lekkage|verwarming|cv)')
-       or ($1 like '%loodgiet%' and lower(b.category || ' ' || b.description) ~ '(plumb|loodgiet|water|lekkage|verwarming|cv)')
-       or ($1 like '%electric%' and lower(b.category || ' ' || b.description) ~ '(elektr|install|electri)')
-       or ($1 like '%elektr%' and lower(b.category || ' ' || b.description) ~ '(elektr|install|electri)')
-       or ($1 like '%clean%' and lower(b.category || ' ' || b.description) ~ '(clean|schoon|huishoud|ramen|window)')
-       or ($1 like '%schoon%' and lower(b.category || ' ' || b.description) ~ '(clean|schoon|huishoud|ramen|window)')
-       or ($1 like '%transport%' and lower(b.category || ' ' || b.description) ~ '(transport|verhuis|moving|koerier|courier|delivery)')
-       or ($1 like '%verhuis%' and lower(b.category || ' ' || b.description) ~ '(transport|verhuis|moving|koerier|courier|delivery)')
-       or ($1 like '%handyman%' and lower(b.category || ' ' || b.description) ~ '(handyman|klus|montage|reparatie|repair|onderhoud)')
-       or ($1 like '%klus%' and lower(b.category || ' ' || b.description) ~ '(handyman|klus|montage|reparatie|repair|onderhoud)')
-       or ($1 like '%home improvement%' and lower(b.category || ' ' || b.description) ~ '(klus|bouw|renov|schilder|timmer|vloer|paving|tiling|fenc)')
-       or ($1 like '%auto%' and lower(b.category || ' ' || b.description) ~ '(auto|garage|car|fiets|bicycle|repair)')
-       or ($1 like '%food%' and lower(b.category || ' ' || b.description) ~ '(food|eten|cater|restaurant|bakery|horeca|bakker)')
-       or ($1 like '%beauty%' and lower(b.category || ' ' || b.description) ~ '(barber|kapper|hair|beauty|salon)')
-       or ($1 like '%security%' and lower(b.category || ' ' || b.description) ~ '(beveilig|alarm|security|camera|slotenmaker|brandmeld)')
-       or ($1 like '%childcare%' and lower(b.category || ' ' || b.description) ~ '(kinderopvang|gastouder|oppas|childcare|peuter|bso)')
-       or ($1 like '%health%' and lower(b.category || ' ' || b.description) ~ '(zorg|health|fysio|therap|gezondheid|verpleeg|massage)')
-       or ($1 like '%tutoring%' and lower(b.category || ' ' || b.description) ~ '(bijles|lessen|onderwijs|tutor|cursus|workshop|huiswerk|rijles|muziekles)')
-       or ($1 like '%computer%' and lower(b.category || ' ' || b.description) ~ '(computer|ict|laptop|netwerk|wifi|website|it-hulp|computerhulp)')
-       or ($1 like 'pets%' and lower(b.category || ' ' || b.description) ~ '(dier|hond|kat|pet|trimsalon|uitlaat)')
-       or ($1 like '%photo%' and lower(b.category || ' ' || b.description) ~ '(foto|photo|video|film)')
-       or ($1 like '%fitness%' and lower(b.category || ' ' || b.description) ~ '(sport|fitness|trainer|yoga|pilates|gym)')
-       or ($1 like '%administration%' and lower(b.category || ' ' || b.description) ~ '(administrat|boekhoud|belasting|financ|accountant)')
-       or ($1 like '%legal%' and lower(b.category || ' ' || b.description) ~ '(jurid|advocaat|notaris|legal|mediat)')
-       or ($1 like '%property%' and lower(b.category || ' ' || b.description) ~ '(makelaar|vastgoed|property|vve|beheer|onderhoud)')
-       or ($1 like '%events%' and lower(b.category || ' ' || b.description) ~ '(evenement|feest|event|party|cater|fotogra|verhuur)')
-       or ($1 like '%family%' and lower(b.category || ' ' || b.description) ~ '(kinderopvang|gastouder|oppas|zorg|persoonlijk)')
-       or ($1 like '%professional%' and lower(b.category || ' ' || b.description) ~ '(zakelijk|professio|administrat|boekhoud|jurid|advies|consult|marketing)')
-       or lower(b.category || ' ' || b.description) like '%' || split_part($1, ' ', 1) || '%'
-     )
-   order by case when left(regexp_replace(coalesce(b.postcode, ''), '[^0-9]', '', 'g'), 4) = $2 then 0 else 1 end, b.featured desc, b.created_at desc
-   limit 10`;
+// Matching (category ids + ranking by verified reviews) lives in lib/matching.ts.
+export { MATCH_SQL, matchParams } from '../matching';
 
 export type MatchedBusiness = { id: string; name: string; ownerEmail: string; ownerLocale: 'nl' | 'en'; locked: boolean };
 
+export type CreateRequestOptions = {
+  /** How many of the best-ranked businesses get a lead (default 10; the AI request flow uses 3). */
+  maxMatches?: number;
+};
+
 /**
- * Saves a resident's request, matches up to 10 approved businesses, and creates one lead per match.
+ * Saves a resident's request, matches up to 10 approved businesses (best first, lib/matching.ts), and creates one lead per match.
  * While pricing is switched on (lib/pricing.ts), plan limits are enforced here, server-side: a business
  * that has used its monthly allowance gets the lead as 'locked' (it sees that demand exists, but not the
  * request details) until it upgrades. With pricing off (the default) every lead is delivered, unlimited.
  */
-export async function createRequest(user: SessionUser, input: RequestInput) {
+export async function createRequest(user: SessionUser, input: RequestInput, options: CreateRequestOptions = {}) {
   return transaction(async (client) => {
     const { rows: [request] } = await client.query<{ id: string }>(
       `insert into service_requests(customer_id, category, description, postcode, preferred_timing, urgency, budget_min, budget_max)
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
       [user.id, input.category, input.description, input.postcode, input.preferredTiming, input.urgency, input.budgetMin, input.budgetMax]);
     const postcode4 = input.postcode.replace(/\D/g, '').slice(0, 4);
-    const { rows: candidates } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, [input.category.toLowerCase().replace(/[\\%_]/g, '\\$&'), postcode4, user.id]);
+    const { rows: ranked } = await client.query<{ id: string; name: string; owner_id: string; owner_email: string; owner_locale: 'nl' | 'en' }>(MATCH_SQL, matchParams(input.category, postcode4, user.id));
+    const candidates = ranked.slice(0, Math.max(1, Math.min(options.maxMatches ?? 10, 10)));
 
     const matched: MatchedBusiness[] = [];
     for (const b of candidates) {

@@ -2,6 +2,7 @@ import { errorJson, handle, json, readJson, sameOrigin } from '@/lib/http';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
 import { verifyToken } from '@/lib/urgent/tokens';
 import { acceptJob } from '@/lib/urgent/alerts';
+import { isQuoteMode } from '@/lib/urgent/quotes';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ export async function POST(request: Request) {
     const body = await readJson(request);
     const ids = verifyToken('accept', String(body.t ?? ''));
     if (!ids) return errorJson('invalid_token', 404);
+    // Quote requests (AI request flow) are answered with a quote, and the customer picks: no first-wins accept.
+    if (await isQuoteMode(ids[0])) return errorJson('quote_mode', 409);
     const result = await acceptJob(ids[0], ids[1], 'link');
     if (!result.ok) return errorJson(result.error, result.error === 'taken' ? 409 : 410);
     return json(result);

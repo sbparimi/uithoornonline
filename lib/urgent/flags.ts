@@ -26,13 +26,30 @@ export function callGapMinutes() {
   return Number.isFinite(n) && n >= 1 && n <= 30 ? n : 3;
 }
 
+/**
+ * AI request flow for all jobs (docs/AI_REQUESTS.md): non-urgent requests from the help assistant get
+ * 2-4 AI follow-up questions, go to the best 3 businesses with an AI job brief, businesses send quotes
+ * that the customer compares and picks, a 24 h "next 3 businesses" fallback, and verified review
+ * requests after a job is done. Needs the email alerts flag too. Off = the help assistant works as before.
+ */
+export const quotesEnabled = () => on('QUOTE_FLOW_ENABLED') && emailAlertsEnabled();
+/** Hours without any quote before the next 3 businesses are invited (default 24; previews may use e.g. 0.05). */
+export function quoteRoundHours() {
+  const n = Number(process.env.QUOTE_ROUND_HOURS || 24);
+  return Number.isFinite(n) && n > 0 && n <= 168 ? n : 24;
+}
+/** How many businesses get a non-urgent request per round (default 3). */
+export const QUOTE_BATCH = 3;
+/** Rounds before the team is asked to help personally (round 1 + up to 2 fallbacks). */
+export const QUOTE_MAX_ROUNDS = 3;
+
 /** Test safety: when set, every SMS/WhatsApp/voice alert goes to this number instead of the business. */
 export const phoneRedirect = () => (process.env.ALERTS_REDIRECT_PHONE || '').trim() || null;
 
 export function urgentStatus() {
   return {
     intake: intakeEnabled(), email: emailAlertsEnabled(), sms: smsAlertsEnabled(), whatsapp: whatsappAlertsEnabled(),
-    voice: voiceAlertsEnabled(), escalation: escalationEnabled(), escalateAfterMinutes: escalateAfterMinutes(),
+    voice: voiceAlertsEnabled(), escalation: escalationEnabled(), escalateAfterMinutes: escalateAfterMinutes(), quotes: quotesEnabled(),
   };
 }
 

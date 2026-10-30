@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { runDueEscalations } from '@/lib/urgent/alerts';
+import { runDueRounds } from '@/lib/urgent/quotes';
 
 function safeEqual(a: string, b: string) {
   const x = Buffer.from(a); const y = Buffer.from(b);
@@ -20,7 +21,10 @@ export async function GET(request: Request) {
   try {
     const out = await runDueEscalations(10);
     if (out.ran) console.log('[cron/urgent]', JSON.stringify(out));
-    return NextResponse.json({ ok: true, ...out });
+    // The same tick also starts due "next 3 businesses" rounds of the AI request flow (no-op when it is off).
+    const rounds = await runDueRounds(10).catch((e) => ({ ran: 0, results: [`error: ${e instanceof Error ? e.message : e}`] }));
+    if (rounds.ran) console.log('[cron/urgent] rounds', JSON.stringify(rounds));
+    return NextResponse.json({ ok: true, ...out, rounds });
   } catch (error) {
     console.error('[cron/urgent] failed', error instanceof Error ? error.message : error);
     return NextResponse.json({ error: 'urgent_tick_failed' }, { status: 500 });

@@ -9,10 +9,12 @@ import { REQUEST_CATEGORIES } from '@/lib/request-options';
 import { sendEmail } from '@/lib/email/send';
 import { newLeadEmail } from '@/lib/email/templates';
 import { notify } from '@/lib/notify';
-import { emailAlertsEnabled, intakeEnabled } from '@/lib/urgent/flags';
+import { emailAlertsEnabled, intakeEnabled, quotesEnabled } from '@/lib/urgent/flags';
 import { categoryLabel, createIntakeRequest, dispatchInitialAlerts, sendIntakeConfirmation } from '@/lib/urgent/alerts';
 import { signToken } from '@/lib/urgent/tokens';
 import type { UrgencyLevel } from '@/lib/urgent/llm';
+import { cleanAnswers } from '@/lib/urgent/ai-request';
+import { dispatchQuoteRequest } from '@/lib/urgent/quotes';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -49,8 +51,12 @@ export async function POST(request: Request) {
     const category = REQUEST_CATEGORIES.includes(s('category', 120)) ? s('category', 120) : '';
     const problem = s('description', 2000);
     const extra = s('followUpAnswer', 600);
-    const description = (extra ? `${problem}\n\n${extra}` : problem).slice(0, 3000);
     const level = LEVELS.includes(body.level as UrgencyLevel) ? body.level as UrgencyLevel : 'flexible';
+    // AI request flow (docs/AI_REQUESTS.md): non-urgent requests go to the best 3 businesses, who send quotes.
+    const quoteMode = quotesEnabled() && level !== 'spoed';
+    const answers = quoteMode ? cleanAnswers(body.answers) : [];
+    const answerText = answers.map((a) => `${a.q} ${a.a}`).join('\n');
+    const description = [problem, extra, answerText].filter(Boolean).join('\n\n').slice(0, 3000);
     const postcode = s('postcode', 10).toUpperCase().replace(/^(\d{4})\s*([A-Z]{2})$/, '$1 $2');
     const name = s('name', 120) || user?.fullName || '';
     const email = user?.email ?? normalizeEmail(body.email);
@@ -71,7 +77,8 @@ export async function POST(request: Request) {
     try {
       created = await createIntakeRequest(user, {
         category, description, postcode, level, name, email, phone, lang, photos,
-        intake: { summary, ai: body.ai === true, provider: s('provider', 20) || null, suggestedCategory: s('suggestedCategory', 120) || null, suggestedLevel: s('suggestedLevel', 20) || null, followUp: s('followUp', 200) || null, photos: photos.length },
+        intake: { summary, ai: body.ai === true, provider: s('provider', 20) || null, suggestedCategory: s('suggestedCategory', 120) || null, suggestedLevel: s('suggestedLevel', 20) || null, followUp: s('followUp', 200) || null, photos: photos.length, ...(quoteMode ? { answers, questionsSource: s('questionsSource', 10) || null } : {}) },
+        quoteMode,
       });
     } catch (e) {
       if (e instanceof Error && e.message === 'account_unavailable') return errorJson('account_unavailable', 403);
@@ -79,12 +86,17 @@ export async function POST(request: Request) {
     }
     const alertsOn = emailAlertsEnabled();
     after(async () => {
+      if (quoteMode) {
+        const { invited } = await dispatchQuoteRequest(created.id);
+        await notify('new_request', `${categoryLabel('nl', category)} (${postcode}) via hulp-assistent · offertes`, { requestId: created.id, matched: invited, urgentie: level, klant: name, telefoon: phone ?? '' });
+        return;
+      }
       let alerted = created.delivered;
       if (alertsOn) alerted = (await dispatchInitialAlerts(created.id)).alerted;
       else for (const m of created.matched) await sendEmail({ to: m.ownerEmail, kind: m.locked ? 'lead_locked' : 'new_lead', lang: m.ownerLocale, ...newLeadEmail(m.ownerLocale, m.name, category, m.locked) });
       await sendIntakeConfirmation(created.id, alerted);
       await notify('new_request', `${level === 'spoed' ? '🚨 SPOED · ' : ''}${categoryLabel('nl', category)} (${postcode}) via hulp-assistent`, { requestId: created.id, matched: created.matched.length, urgentie: level, klant: name, telefoon: phone ?? '' });
     });
-    return json({ id: created.id, statusToken: signToken('status', [created.id], 30), matched: created.delivered, level, alerts: alertsOn }, 201);
+    return json({ id: created.id, statusToken: signToken('status', [created.id], quoteMode ? 60 : 30), matched: created.delivered, level, alerts: alertsOn, quoteMode }, 201);
   }, 'intake/submit');
 }
