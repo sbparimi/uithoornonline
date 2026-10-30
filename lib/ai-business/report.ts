@@ -83,6 +83,15 @@ export function reportEmail(lang: 'nl' | 'en', businessName: string, r: Report, 
   });
 }
 
+/** The email exactly as a business would get it, for a preview (cron route with ?html=1). Sends nothing. */
+export async function previewReportEmail(businessId: string, period: string) {
+  const b = await queryOne<{ name: string; locale: string | null }>(`select b.name, u.locale from businesses b left join users u on u.id = b.owner_id where b.id = $1`, [businessId]);
+  if (!b) return null;
+  const lang = b.locale === 'en' ? 'en' : 'nl';
+  const [r, prev] = await Promise.all([computeReport(businessId, period), computeReport(businessId, previousPeriod(period))]);
+  return reportEmail(lang, b.name, r, prev);
+}
+
 /**
  * Sends the report for `period` to every approved, active business whose owner has an email and has
  * not switched it off. Idempotent: a business+month is claimed in business_report_runs first, so a

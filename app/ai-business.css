@@ -149,10 +149,11 @@
 .aib-months a { flex: none; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--aib-line); background: #fff; color: var(--aib-ink); text-decoration: none; font-weight: 600; font-size: 14.5px; text-transform: capitalize; }
 .aib-months a[aria-current] { background: var(--aib-blue); border-color: var(--aib-blue); color: #fff; }
 .aib-total { padding: 18px; border-radius: 20px; background: linear-gradient(135deg, #2250ce, #1a3fa6); color: #fff; margin-bottom: 14px; }
-.aib-total span { font-weight: 600; opacity: .9; }
+.aib-total span { display: block; font-weight: 600; color: #fff; opacity: .92; }
 .aib-total strong { display: inline-block; font-size: 44px; line-height: 1.1; margin: 6px 10px 0 0; font-weight: 800; }
 .aib-total small { font-weight: 700; }
-.aib-total p { margin: 6px 0 0; font-size: 14px; opacity: .85; }
+.aib-total p { margin: 6px 0 0; font-size: 14px; color: rgba(255,255,255,.86) !important; }
+.aib-total small, .aib-total small * { color: #fff !important; opacity: .95; }
 .aib-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 @media (min-width: 760px) { .aib-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .aib-metric { display: grid; gap: 4px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid var(--aib-line); }
