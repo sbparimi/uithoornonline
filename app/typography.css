@@ -41,7 +41,7 @@ body.ds, body.ds.folk {
 .folk .ds-page .f-sticker-hand, .f-sticker-hand { font: 700 18px/1.15 var(--f-text) !important; letter-spacing: -0.01em; }
 .folk .ds-page .f-mock-note, .f-mock-note { font: 600 14px/1.2 var(--f-text) !important; }
 .folk .ds-page .f-plans-note, .f-plans-note { font: 600 15px/1.3 var(--f-text) !important; }
-.f-photo figcaption { font: 600 15px/1.2 var(--f-text); }
+.f-photo figcaption { font: 600 14px/1.2 var(--f-text); letter-spacing: -0.01em; }
 
 /* Display sizes set by the theme in the old serif: keep the scale, fix the tracking for a sans. */
 .f-hero h1 { letter-spacing: -0.035em; line-height: 1.02; }
