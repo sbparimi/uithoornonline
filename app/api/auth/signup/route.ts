@@ -5,6 +5,7 @@ import { hashPassword, passwordProblem } from '@/lib/auth/password';
 import { createSession } from '@/lib/auth/session';
 import { createUser, normalizeEmail } from '@/lib/data/users';
 import { cleanBusinessInput, createBusinessForOwner } from '@/lib/data/businesses';
+import { normalizePhone } from '@/lib/phone';
 import { sendEmail } from '@/lib/email/send';
 import { welcomeEmail } from '@/lib/email/templates';
 import { notify } from '@/lib/notify';
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     const email = normalizeEmail(body.email);
     const password = String(body.password ?? '');
     const fullName = str(body.fullName ?? body.name, 120);
-    const phone = str(body.phone, 40) || null;
+    const phone = normalizePhone(str(body.phone, 40)).slice(0, 40) || null;
     const role = body.role === 'provider' ? 'provider' : 'customer';
     const locale = body.lang === 'en' ? 'en' : 'nl';
     if (!email) return errorJson('invalid_email', 400);
