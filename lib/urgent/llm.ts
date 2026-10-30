@@ -21,19 +21,27 @@ export type Classification = {
 
 type Provider = { name: string; kind: 'openai' | 'anthropic'; baseUrl: string; key: string; model: string };
 
-export function llmProvider(): Provider | null {
-  const forced = (process.env.INTAKE_LLM_PROVIDER || '').toLowerCase();
-  if (forced === 'none') return null;
+function configured(): Record<string, Provider | null> {
   const model = process.env.INTAKE_LLM_MODEL;
-  const all: Record<string, () => Provider | null> = {
-    groq: () => process.env.GROQ_API_KEY ? { name: 'groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', key: process.env.GROQ_API_KEY, model: model || 'llama-3.3-70b-versatile' } : null,
-    kimi: () => process.env.KIMI_API_KEY && process.env.KIMI_BASE_URL ? { name: 'kimi', kind: 'openai', baseUrl: process.env.KIMI_BASE_URL.replace(/\/$/, ''), key: process.env.KIMI_API_KEY, model: model || process.env.KIMI_MODEL || 'moonshot-v1-8k' } : null,
-    openai: () => process.env.OPENAI_API_KEY ? { name: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', key: process.env.OPENAI_API_KEY, model: model || 'gpt-4o-mini' } : null,
-    anthropic: () => process.env.ANTHROPIC_API_KEY ? { name: 'anthropic', kind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', key: process.env.ANTHROPIC_API_KEY, model: model || 'claude-3-5-haiku-latest' } : null,
+  return {
+    groq: process.env.GROQ_API_KEY ? { name: 'groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', key: process.env.GROQ_API_KEY, model: model || 'llama-3.3-70b-versatile' } : null,
+    kimi: process.env.KIMI_API_KEY && process.env.KIMI_BASE_URL ? { name: 'kimi', kind: 'openai', baseUrl: process.env.KIMI_BASE_URL.replace(/\/$/, ''), key: process.env.KIMI_API_KEY, model: model || process.env.KIMI_MODEL || 'moonshot-v1-8k' } : null,
+    openai: process.env.OPENAI_API_KEY ? { name: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', key: process.env.OPENAI_API_KEY, model: model || 'gpt-4o-mini' } : null,
+    anthropic: process.env.ANTHROPIC_API_KEY ? { name: 'anthropic', kind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', key: process.env.ANTHROPIC_API_KEY, model: model || 'claude-3-5-haiku-latest' } : null,
   };
-  if (forced && all[forced]) return all[forced]();
-  for (const k of ['groq', 'kimi', 'openai', 'anthropic']) { const p = all[k](); if (p) return p; }
-  return null;
+}
+
+/** Every configured provider in the order they are tried (INTAKE_LLM_PROVIDER pins one; "none" = rules only). */
+export function llmProviders(): Provider[] {
+  const forced = (process.env.INTAKE_LLM_PROVIDER || '').toLowerCase();
+  if (forced === 'none') return [];
+  const all = configured();
+  if (forced && forced in all) return all[forced] ? [all[forced]!] : [];
+  return ['groq', 'kimi', 'openai', 'anthropic'].map((k) => all[k]).filter((p): p is Provider => Boolean(p));
+}
+
+export function llmProvider(): Provider | null {
+  return llmProviders()[0] ?? null;
 }
 
 // ---------- rule-based fallback ----------
@@ -90,7 +98,33 @@ function prompt(lang: 'nl' | 'en') {
   ].join('\n');
 }
 
-async function callLlm(p: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
+// When a provider no longer serves the configured model (404), ask its /models list once and use the
+// best chat model it offers (OpenAI-compatible providers only). Cached per server instance.
+const discovered = new Map<string, string>();
+const PREFER = ['gpt-oss-120b', 'llama-3.3-70b', 'llama-4-maverick', 'llama-4-scout', 'kimi-k2', 'qwen3', 'qwen', 'gpt-oss-20b', 'llama-3.1-8b', 'moonshot', 'gpt-4o-mini'];
+async function discoverModel(p: Provider): Promise<string | null> {
+  if (discovered.has(p.name)) return discovered.get(p.name)!;
+  try {
+    const r = await fetch(`${p.baseUrl}/models`, { headers: { Authorization: `Bearer ${p.key}` }, signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const ids: string[] = ((await r.json())?.data ?? []).map((m: { id?: string }) => String(m.id ?? '')).filter((id: string) => id && !/whisper|tts|guard|embed|vision-only|playai|distil/i.test(id));
+    const pick = PREFER.map((want) => ids.find((id) => id.toLowerCase().includes(want))).find(Boolean) ?? ids[0] ?? null;
+    if (pick) discovered.set(p.name, pick);
+    return pick;
+  } catch { return null; }
+}
+
+async function callLlm(p0: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
+  try { return await callOnce({ ...p0, model: discovered.get(p0.name) ?? p0.model }, system, user, timeoutMs); }
+  catch (e) {
+    if (p0.kind !== 'openai' || !/ 404$| 400$/.test(e instanceof Error ? e.message : '')) throw e;
+    const model = await discoverModel(p0);
+    if (!model || model === p0.model) throw e;
+    return callOnce({ ...p0, model }, system, user, timeoutMs);
+  }
+}
+
+async function callOnce(p: Provider, system: string, user: string, timeoutMs: number): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -120,17 +154,27 @@ const debug = (provider: string, why: string) => (process.env.VERCEL_ENV === 'pr
 
 export async function classifyIntake(text: string, lang: 'nl' | 'en' = 'nl'): Promise<Classification> {
   const rules = classifyByRules(text, lang);
-  const p = llmProvider();
-  if (!p) return { ...rules, ...(process.env.VERCEL_ENV === 'production' ? {} : { debug: 'no LLM key in this environment' }) };
+  const providers = llmProviders();
+  if (!providers.length) return { ...rules, ...(process.env.VERCEL_ENV === 'production' ? {} : { debug: 'no LLM key in this environment' }) };
+  const errors: string[] = [];
+  for (const p of providers) {
+    const r = await classifyWith(p, text, lang, rules);
+    if ('category' in r) return r;
+    errors.push(`${p.name}: ${r.error}`);
+  }
+  return { ...rules, ...debug('ai', errors.join('; ')) };
+}
+
+async function classifyWith(p: Provider, text: string, lang: 'nl' | 'en', rules: Classification): Promise<Classification | { error: string }> {
   try {
     const out = parseJson(await callLlm(p, prompt(lang), text.slice(0, 2000), 8000));
-    if (!out) return { ...rules, ...debug(p.name, 'unparseable answer') };
+    if (!out) return { error: 'unparseable answer' };
     const category = REQUEST_CATEGORIES.includes(String(out.category)) ? String(out.category) : rules.category;
     const urgency = LEVELS.includes(out.urgency as UrgencyLevel) ? out.urgency as UrgencyLevel : rules.urgency;
     const s = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().toLowerCase() !== 'null' ? v.trim().slice(0, max) : null);
-    return { category, urgency, summary: s(out.summary, 240) ?? rules.summary, tip: urgency === 'spoed' ? (s(out.tip, 240) ?? rules.tip) : null, followUp: s(out.followUp, 200), source: 'ai', provider: p.name };
+    return { category, urgency, summary: s(out.summary, 240) ?? rules.summary, tip: urgency === 'spoed' ? (s(out.tip, 240) ?? rules.tip) : null, followUp: s(out.followUp, 200), source: 'ai', provider: `${p.name}/${discovered.get(p.name) ?? p.model}` };
   } catch (e) {
-    console.warn('[intake] llm failed, using rules:', e instanceof Error ? e.message : e);
-    return { ...rules, ...debug(p.name, e instanceof Error ? e.message : String(e)) };
+    console.warn('[intake] llm failed:', p.name, e instanceof Error ? e.message : e);
+    return { error: e instanceof Error ? e.message : String(e) };
   }
 }
