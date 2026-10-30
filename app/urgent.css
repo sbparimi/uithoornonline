@@ -118,7 +118,8 @@
 /* WhatsApp fallback ("Lukt het niet? Stuur ons een WhatsApp") */
 .ui-wa { display: grid; gap: 6px; justify-items: start; margin-top: 10px; }
 .ui-wa-btn { display: inline-flex; align-items: center; gap: 8px; background: #0f7a43; color: #fff; border-radius: 999px; padding: 12px 18px; font-weight: 600; text-decoration: none; line-height: 1.25; max-width: 100%; box-sizing: border-box; }
-.ui-wa-btn:hover { background: #0b6136; color: #fff; }
+.ui-wa a.ui-wa-btn, .ui-wa a.ui-wa-btn:visited, .ui-wa a.ui-wa-btn:hover { color: #fff !important; }
+.ui-wa a.ui-wa-btn:hover { background: #0b6136; }
 .ui-wa-btn:focus-visible, .ui-wa-small a:focus-visible { outline: 3px solid rgba(15, 122, 67, .35); outline-offset: 2px; }
 .ui-wa-btn svg { width: 20px; height: 20px; flex: none; }
 .ui-wa small { color: #5b5f6a; font-size: 13px; }
