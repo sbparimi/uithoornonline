@@ -1,0 +1,74 @@
+/* Service × town landing pages (/diensten). Builds on directory-v2.css (dir2-*). */
+.seo-svc-head { display: flex; align-items: flex-start; gap: 14px; }
+.seo-svc-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: var(--dir-blue-50); color: var(--dir-blue); flex: none; margin-top: 4px; }
+.seo-svc-icon svg { width: 26px; height: 26px; }
+.seo-svc-icon.sm { width: 36px; height: 36px; border-radius: 10px; margin: 0 10px 0 0; display: inline-grid; vertical-align: middle; }
+.seo-svc-icon.sm svg { width: 19px; height: 19px; }
+.seo-svc-intro { max-width: 720px; font-size: 17px; line-height: 1.6; }
+.seo-svc-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 4px 0 16px; }
+.seo-svc-cta-note { font-size: 14px; color: var(--dir-muted); }
+.seo-svc-towns { display: flex; flex-wrap: wrap; gap: 8px; }
+.seo-svc-towns a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--dir-line); background: #fff; font-size: 15px; font-weight: 600; color: var(--dir-text); }
+.seo-svc-towns a svg { width: 15px; height: 15px; color: var(--dir-blue); }
+.seo-svc-towns a.is-active { background: var(--dir-blue); border-color: var(--dir-blue); color: #fff; }
+.seo-svc-towns a.is-active svg { color: #fff; }
+.seo-svc-body { padding-top: 24px; padding-bottom: 40px; display: flex; flex-direction: column; gap: 20px; }
+.seo-svc-section .dir2-cards { margin-bottom: 8px; }
+.seo-svc-listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.seo-svc h2 { margin: 0; font-size: clamp(20px, 4.6vw, 24px); line-height: 1.25; letter-spacing: -0.015em; font-weight: 750; color: var(--dir-ink); }
+.seo-svc-subhead { margin: 18px 0 10px; font-size: 17px; font-weight: 700; color: var(--dir-text); }
+.seo-svc-muted { color: var(--dir-muted); font-size: 15px; line-height: 1.55; margin: 6px 0 12px; }
+.seo-svc-more { margin: 8px 0 0; }
+.seo-svc-more a, .seo-svc-links a { color: var(--dir-blue); font-weight: 650; display: inline-flex; align-items: center; gap: 6px; }
+.seo-svc-more a svg { width: 16px; height: 16px; }
+.seo-svc-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.seo-svc-panel { background: #fff; border: 1px solid var(--dir-line); border-radius: var(--dir-radius); padding: 20px 18px; }
+.seo-svc-panel > h2 { margin-bottom: 12px; }
+.seo-svc-panel p { color: var(--dir-text); font-size: 16px; line-height: 1.65; margin: 0 0 14px; }
+.seo-svc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.seo-svc-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 16px; line-height: 1.5; color: var(--dir-text); }
+.seo-svc-list svg { width: 18px; height: 18px; color: var(--dir-blue); margin-top: 3px; }
+.seo-svc-tips { margin: 0; padding-left: 22px; display: grid; gap: 10px; color: var(--dir-text); font-size: 16px; line-height: 1.55; }
+.seo-svc-tips li::marker { color: var(--dir-blue); font-weight: 700; }
+.seo-svc-town { background: var(--dir-blue-50); border-color: var(--dir-blue-100); }
+.seo-svc-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.seo-svc-steps li { display: flex; gap: 12px; align-items: flex-start; }
+.seo-svc-steps strong { display: block; font-size: 16px; color: var(--dir-ink); margin-bottom: 2px; }
+.seo-svc-steps p { margin: 0; font-size: 15px; }
+.seo-svc-step-n { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: var(--dir-blue); color: #fff; font-weight: 750; flex: none; }
+.seo-svc-faq details { border-top: 1px solid var(--dir-line); }
+.seo-svc-faq details:first-child { border-top: 0; }
+.seo-svc-faq summary { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 0; font-weight: 650; font-size: 16px; color: var(--dir-ink); cursor: pointer; list-style: none; }
+.seo-svc-faq summary::-webkit-details-marker { display: none; }
+.seo-svc-faq summary svg { width: 18px; height: 18px; color: var(--dir-blue); transition: transform .15s; flex: none; }
+.seo-svc-faq details[open] summary svg { transform: rotate(180deg); }
+.seo-svc-faq details p { margin: 0 0 14px; font-size: 15px; }
+.seo-svc-links { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.seo-svc-links h2 { font-size: 17px; margin-bottom: 8px; }
+.seo-svc-links ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.seo-svc-links a { font-size: 15px; }
+.seo-svc-biz { display: flex; flex-direction: column; gap: 14px; background: var(--dir-ink); color: #fff; border-radius: var(--dir-radius); padding: 22px 18px; }
+.seo-svc-biz h2 { color: #fff; font-size: 20px; }
+.seo-svc-biz p { margin: 6px 0 0; color: rgba(255, 255, 255, .82); font-size: 15px; line-height: 1.55; }
+.seo-svc-biz .dir2-btn { align-self: flex-start; background: #fff; color: var(--dir-ink) !important; border-color: #fff; }
+.seo-idx-group { background: #fff; border: 1px solid var(--dir-line); border-radius: var(--dir-radius); padding: 18px; }
+.seo-idx-group h2 { display: flex; align-items: center; font-size: 19px; margin-bottom: 10px; }
+.seo-idx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.seo-idx-item { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--dir-line); }
+.seo-idx-item:first-child { border-top: 0; }
+.seo-idx-name { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; color: var(--dir-ink); }
+.seo-idx-name em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--dir-blue); background: var(--dir-blue-50); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.seo-idx-name em.is-open { color: #6b5b00; background: #fff6d6; }
+.seo-idx-towns { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.seo-idx-towns a { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: var(--dir-muted); }
+.seo-idx-towns a svg { width: 13px; height: 13px; color: var(--dir-blue); }
+.seo-idx-towns a:hover, .seo-idx-name:hover { color: var(--dir-blue); }
+@media (min-width: 760px) {
+  .seo-svc-grid { grid-template-columns: 1fr 1fr; }
+  .seo-svc-links { grid-template-columns: 1fr 1fr; }
+  .seo-svc-panel { padding: 24px; }
+  .seo-svc-biz { flex-direction: row; align-items: center; justify-content: space-between; padding: 26px 28px; }
+  .seo-svc-biz .dir2-btn { align-self: center; }
+  .seo-idx-item { flex-direction: row; align-items: center; justify-content: space-between; }
+  .seo-idx-name { justify-content: flex-start; }
+}
