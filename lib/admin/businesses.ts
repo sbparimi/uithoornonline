@@ -3,6 +3,7 @@ import { query, queryOne, transaction } from '../db';
 import type { SessionUser } from '../auth/session';
 import { addCredits, unlockLockedLeads } from '../data/credits';
 import { normalizePhone } from '../phone';
+import { isValidPublicEmail, normalizePublicEmail } from '../public-email';
 import { assertAdmin, audit, isId, like, needsSchema, optional, paged, paging } from './core';
 
 const MONTH_START = "(date_trunc('month', now() at time zone 'Europe/Amsterdam') at time zone 'Europe/Amsterdam')";
@@ -43,7 +44,7 @@ export async function listBusinesses(user: SessionUser, f: BusinessFilter, all =
 }
 
 export type BusinessDetail = BusinessRow & {
-  description: string; address: string | null; website: string | null; moderation_note: string | null; owner_id: string | null;
+  description: string; address: string | null; website: string | null; public_email: string | null; moderation_note: string | null; owner_id: string | null;
   owner_name: string | null; plan_note: string | null; current_period_end: string | null; updated_at: string;
 };
 
@@ -65,7 +66,7 @@ export async function getBusiness(user: SessionUser, id: string) {
 }
 
 export type BusinessInput = {
-  name: string; category: string; description: string; postcode: string | null; address: string | null; website: string | null; phone: string | null;
+  name: string; category: string; description: string; postcode: string | null; address: string | null; website: string | null; phone: string | null; public_email: string | null;
   moderation_status: 'pending' | 'approved' | 'rejected'; moderation_note: string | null; verified: boolean; featured: boolean; active: boolean; owner_email: string | null;
 };
 
@@ -77,12 +78,14 @@ export function cleanBusiness(body: Record<string, unknown>): { value: BusinessI
   const value: BusinessInput = {
     name: s('name', 120), category: s('category', 120), description: s('description', 3000), postcode: s('postcode', 10).toUpperCase() || null,
     address: s('address', 200) || null, website: website ? (/^https?:\/\//i.test(website) ? website : `https://${website}`) : null, phone: normalizePhone(s('phone', 40)).slice(0, 40) || null,
+    public_email: normalizePublicEmail(body.public_email).slice(0, 254) || null,
     moderation_status: (['pending', 'approved', 'rejected'].includes(status) ? status : 'approved') as BusinessInput['moderation_status'],
     moderation_note: s('moderation_note', 500) || null, verified: b('verified'), featured: b('featured'), active: b('active'), owner_email: s('owner_email', 254).toLowerCase() || null,
   };
   if (value.name.length < 2) return { value, error: 'invalid_name' };
   if (!value.category) return { value, error: 'invalid_category' };
   if (value.website && !/^https?:\/\/[^\s"'<>]+$/i.test(value.website)) return { value, error: 'invalid_website' };
+  if (value.public_email && !isValidPublicEmail(value.public_email)) return { value, error: 'invalid_public_email' };
   return { value, error: null };
 }
 
@@ -97,16 +100,16 @@ export async function createBusiness(user: SessionUser, v: BusinessInput) {
   const owner = await ownerIdFor(v.owner_email);
   if (!owner) return { error: 'owner_not_found' as const };
   const row = await queryOne<{ id: string }>(
-    `insert into businesses(owner_id, name, category, description, postcode, address, website, phone, moderation_status, moderation_note, verified, featured, active)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning id`,
-    [owner.id, v.name, v.category, v.description, v.postcode, v.address, v.website, v.phone, v.moderation_status, v.moderation_note, v.verified, v.featured, v.active]);
+    `insert into businesses(owner_id, name, category, description, postcode, address, website, phone, public_email, moderation_status, moderation_note, verified, featured, active)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id`,
+    [owner.id, v.name, v.category, v.description, v.postcode, v.address, v.website, v.phone, v.public_email, v.moderation_status, v.moderation_note, v.verified, v.featured, v.active]);
   if (owner.id) await query("update users set role = 'provider' where id = $1 and role = 'customer'", [owner.id]);
   await query(`insert into business_subscriptions(business_id, plan_key, status, payment_provider) values ($1, 'free', 'active', 'manual') on conflict do nothing`, [row!.id]);
   await audit(user, 'business_create', 'business', row!.id, null, v);
   return { id: row!.id };
 }
 
-const EDITABLE = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone', 'moderation_status', 'moderation_note', 'verified', 'featured', 'active'] as const;
+const EDITABLE = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone', 'public_email', 'moderation_status', 'moderation_note', 'verified', 'featured', 'active'] as const;
 
 export async function updateBusiness(user: SessionUser, id: string, v: BusinessInput) {
   assertAdmin(user);

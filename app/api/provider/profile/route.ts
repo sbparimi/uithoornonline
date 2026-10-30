@@ -31,10 +31,10 @@ export async function PATCH(request: Request) {
     const business = await updateOwnBusiness(user, value);
     if (!business) return errorJson('provider_required', 403);
     // Public contact details change without review, so the admin hears about every change to them.
-    const watched = ['name', 'phone', 'website', 'address'] as const;
+    const watched = ['name', 'phone', 'website', 'address', 'public_email'] as const;
     const changed = before ? watched.filter((k) => (before[k] ?? '') !== (business[k] ?? '')) : [];
     if (changed.length) after(() => notify('business_updated', business.name, Object.fromEntries(changed.map((k) => [k, `${before?.[k] ?? '—'} → ${business[k] ?? '—'}`]))));
-    const allowed = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone'];
+    const allowed = ['name', 'category', 'description', 'postcode', 'address', 'website', 'phone', 'public_email'];
     return json({ business, ignored: Object.keys(body).filter((k) => !allowed.includes(k)) });
   }, 'provider/profile/update');
 }

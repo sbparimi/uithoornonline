@@ -35,6 +35,9 @@ const nl = {
     choose: 'Kies een optie',
     postcodeError: 'Vul een geldige Nederlandse postcode in, bijvoorbeeld 1421 AB.',
     websiteError: 'Vul een volledig webadres in, beginnend met https://',
+    publicEmail: 'E-mailadres (zichtbaar op je profiel)',
+    publicEmailHint: 'Optioneel. Bijv. info@jouwbedrijf.nl. Klanten zien dit adres op je profiel.',
+    publicEmailError: 'Vul een geldig e-mailadres in, bijvoorbeeld info@jouwbedrijf.nl.',
     status: {
       open: 'Open', invited: 'Uitgenodigd', matched: 'Gekoppeld', in_progress: 'In behandeling', active: 'Actief', completed: 'Afgerond', closed: 'Gesloten', cancelled: 'Geannuleerd',
       new: 'Nieuw', viewed: 'Bekeken', accepted: 'Geaccepteerd', declined: 'Afgewezen', contacted: 'Contact opgenomen', converted: 'Gewonnen', pending: 'In afwachting',
@@ -587,6 +590,9 @@ const en: Dictionary = {
     choose: 'Choose an option',
     postcodeError: 'Enter a valid Dutch postcode, for example 1421 AB.',
     websiteError: 'Enter a full web address starting with https://',
+    publicEmail: 'Email address (shown on your profile)',
+    publicEmailHint: 'Optional. E.g. info@yourbusiness.nl. Customers see this address on your profile.',
+    publicEmailError: 'Enter a valid email address, for example info@yourbusiness.nl.',
     status: {
       open: 'Open', invited: 'Invited', matched: 'Matched', in_progress: 'In progress', active: 'Active', completed: 'Completed', closed: 'Closed', cancelled: 'Cancelled',
       new: 'New', viewed: 'Viewed', accepted: 'Accepted', declined: 'Declined', contacted: 'Contacted', converted: 'Won', pending: 'Pending',

@@ -1,6 +1,6 @@
 import type { Locale } from './i18n/config';
 
-export type PublicBusiness = { id: string; name: string; category: string; description: string; postcode: string | null; address?: string | null; website: string | null; phone: string | null; verified: boolean };
+export type PublicBusiness = { id: string; name: string; category: string; description: string; postcode: string | null; address?: string | null; website: string | null; public_email?: string | null; phone: string | null; verified: boolean };
 
 const SPICEINDIA_ID = '15953249-c000-4521-839d-41bf341b6aa8';
 export const spiceIndiaId = SPICEINDIA_ID;
